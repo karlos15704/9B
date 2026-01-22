@@ -25,7 +25,7 @@ export interface User {
   id: string;
   name: string;
   password: string;
-  role: 'admin' | 'staff' | 'kitchen' | 'display';
+  role: 'admin' | 'manager' | 'staff' | 'kitchen' | 'display'; // Adicionado 'manager'
 }
 
 export interface Transaction {

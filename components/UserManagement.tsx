@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { User } from '../types';
 import { generateId } from '../utils';
-import { Plus, Trash2, Edit2, Shield, User as UserIcon, Save, X, Key, Crown, ChefHat, Store, Lock, MonitorPlay } from 'lucide-react';
+import { Plus, Trash2, Edit2, Shield, User as UserIcon, Save, X, Key, Crown, ChefHat, Store, Lock, MonitorPlay, Briefcase } from 'lucide-react';
 
 interface UserManagementProps {
   users: User[];
@@ -15,21 +15,23 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
-  // Verifica se quem está logado é Admin (Gerente) ou Master (Professor)
-  const isAdminOrMaster = currentUser.role === 'admin' || currentUser.id === '0';
+  // Níveis de Permissão
+  const isAdmin = currentUser.role === 'admin';
+  const isManager = currentUser.role === 'manager';
+  const canManageUsers = isAdmin || isManager;
 
   // Filtra quais usuários serão exibidos
   const displayedUsers = useMemo(() => {
-    if (isAdminOrMaster) {
+    if (canManageUsers) {
       return users;
     }
     return users.filter(u => u.id === currentUser.id);
-  }, [users, currentUser, isAdminOrMaster]);
+  }, [users, currentUser, canManageUsers]);
 
   // Form State
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'staff' | 'kitchen' | 'display'>('staff');
+  const [role, setRole] = useState<'admin' | 'manager' | 'staff' | 'kitchen' | 'display'>('staff');
 
   const resetForm = () => {
     setName('');
@@ -40,6 +42,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
   };
 
   const openEdit = (user: User) => {
+    // Gerente não pode editar Admins ou outros Gerentes (exceto ele mesmo se a lógica permitisse, mas vamos restringir)
+    if (isManager && (user.role === 'admin' || (user.role === 'manager' && user.id !== currentUser.id))) {
+        alert("Gerentes não podem editar Professores ou outros Gerentes.");
+        return;
+    }
+
     setEditingUser(user);
     setName(user.name);
     setPassword(user.password);
@@ -70,12 +78,8 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
   };
 
   // Regras de Edição do Formulário (Modal)
-  // Agora qualquer Admin pode editar nomes
-  const canEditName = !editingUser || isAdminOrMaster;
-  
-  // Regra de Senha:
-  // Admin pode editar qualquer senha (exceto talvez de outros admins se quiséssemos restringir, mas o pedido pede liberdade)
-  const canEditPassword = isAdminOrMaster || !editingUser;
+  const canEditName = !editingUser || canManageUsers;
+  const canEditPassword = canManageUsers || !editingUser;
 
   return (
     <div className="p-6 h-full overflow-y-auto bg-orange-50/50">
@@ -83,16 +87,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
         <div>
           <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
             <Shield className="text-orange-600" />
-            {isAdminOrMaster ? 'Gerenciamento de Equipe' : 'Meu Perfil'}
+            {canManageUsers ? 'Gerenciamento de Equipe' : 'Meu Perfil'}
           </h2>
           <p className="text-gray-500 text-sm">
-            {isAdminOrMaster 
+            {canManageUsers 
               ? 'Adicione ou remova acesso ao sistema.' 
               : 'Gerencie sua senha de acesso.'}
           </p>
         </div>
         
-        {isAdminOrMaster && (
+        {canManageUsers && (
           <button 
             onClick={() => setIsModalOpen(true)}
             className="bg-gray-900 text-white px-4 py-2 rounded-xl font-bold hover:bg-orange-600 transition-colors flex items-center gap-2 shadow-lg"
@@ -105,17 +109,19 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {displayedUsers.map(user => {
-          const isProfessorId = user.id === '0'; // O ID 0 original
+          const isProfessorId = user.id === '0'; 
           const isAdminRole = user.role === 'admin';
+          const isManagerRole = user.role === 'manager';
           const isSelf = user.id === currentUser.id;
 
-          // LOGICA DE VISIBILIDADE DOS BOTÕES
-          // Visível se for Admin ou se for o próprio usuário
-          const showEditButton = isAdminOrMaster || isSelf;
+          // Permissões de Botão (Lista)
+          const isTargetSuperior = user.role === 'admin' || (user.role === 'manager' && isManager);
+          
+          // Editar: Admin edita todos. Gerente edita subordinados e a si mesmo.
+          const showEditButton = isAdmin || (isManager && (!isTargetSuperior || isSelf));
 
-          // Botão Excluir:
-          // Admin pode excluir qualquer um, exceto ele mesmo e o Professor Original (ID 0)
-          const showDeleteButton = isAdminOrMaster && !isSelf && !isProfessorId;
+          // Excluir: Admin exclui todos (exceto si/Master). Gerente exclui subordinados.
+          const showDeleteButton = !isSelf && !isProfessorId && (isAdmin || (isManager && !isTargetSuperior));
 
           let RoleIcon = UserIcon;
           let roleColorClass = 'bg-gray-100 text-gray-500';
@@ -125,6 +131,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
             RoleIcon = Crown;
             roleColorClass = 'bg-orange-600 text-white';
             roleLabel = 'Professor / Admin';
+          } else if (user.role === 'manager') {
+            RoleIcon = Briefcase;
+            roleColorClass = 'bg-indigo-100 text-indigo-600';
+            roleLabel = 'Gerente';
           } else if (user.role === 'kitchen') {
             RoleIcon = ChefHat;
             roleColorClass = 'bg-blue-100 text-blue-600';
@@ -140,7 +150,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
           }
 
           return (
-            <div key={user.id} className={`p-5 rounded-2xl shadow-sm border flex flex-col relative group hover:shadow-md transition-shadow ${isAdminRole ? 'bg-orange-50 border-orange-200' : 'bg-white border-orange-100'}`}>
+            <div key={user.id} className={`p-5 rounded-2xl shadow-sm border flex flex-col relative group hover:shadow-md transition-shadow ${isAdminRole ? 'bg-orange-50 border-orange-200' : isManagerRole ? 'bg-indigo-50 border-indigo-100' : 'bg-white border-orange-100'}`}>
               
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 rounded-full ${roleColorClass}`}>
@@ -179,6 +189,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
               </h3>
               <span className={`text-xs font-bold uppercase tracking-wider mb-4 
                 ${user.role === 'admin' ? 'text-orange-600' : 
+                  user.role === 'manager' ? 'text-indigo-600' :
                   user.role === 'kitchen' ? 'text-blue-500' : 
                   user.role === 'display' ? 'text-purple-600' :
                   'text-green-600'}`}>
@@ -221,7 +232,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                       ? 'border-gray-200 focus:border-orange-500 bg-white' 
                       : 'border-gray-100 bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
-                  placeholder="Ex: Professor João"
+                  placeholder="Ex: João Silva"
                   required
                 />
               </div>
@@ -241,13 +252,13 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                       ? 'border-gray-200 focus:border-orange-500 bg-white' 
                       : 'border-gray-100 bg-gray-100 text-gray-400 cursor-not-allowed'
                     }`}
-                  placeholder="Ex: 0"
+                  placeholder="Ex: 1234"
                   required
                 />
               </div>
 
-              {/* Se for Admin, mostra opções de cargo */}
-              {editingUser?.id !== '0' && isAdminOrMaster && (
+              {/* Seletor de Cargo */}
+              {editingUser?.id !== '0' && canManageUsers && (
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Função / Cargo</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -276,16 +287,27 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                       Telão
                     </button>
                     
-                    {/* Qualquer Admin agora pode criar outro Admin (Professor) */}
-                    {isAdminOrMaster && (
-                        <button
-                        type="button"
-                        onClick={() => setRole('admin')}
-                        className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'admin' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
-                        >
-                        <Shield size={20} />
-                        Professor / Admin
-                        </button>
+                    {/* Apenas Admin pode criar Admin ou Gerente */}
+                    {isAdmin && (
+                        <>
+                            <button
+                            type="button"
+                            onClick={() => setRole('manager')}
+                            className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'manager' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                            >
+                            <Briefcase size={20} />
+                            Gerente
+                            </button>
+
+                            <button
+                            type="button"
+                            onClick={() => setRole('admin')}
+                            className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'admin' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                            >
+                            <Shield size={20} />
+                            Professor
+                            </button>
+                        </>
                     )}
                   </div>
                 </div>

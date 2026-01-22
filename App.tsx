@@ -627,7 +627,7 @@ const App: React.FC = () => {
           <nav className="hidden md:flex w-20 bg-gray-900 flex-col items-center py-4 gap-6 z-30 shadow-xl border-r border-gray-800 pt-6">
             <div className="mb-2 p-2 bg-orange-900/30 rounded-full"><Flame className="text-orange-500 animate-pulse" size={24} /></div>
             
-            {(currentUser.role === 'admin' || currentUser.role === 'staff') && (
+            {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'staff') && (
               <button onClick={() => setCurrentView('pos')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'pos' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Caixa">
                 <LayoutGrid size={24} />
               </button>
@@ -652,10 +652,13 @@ const App: React.FC = () => {
                 <BarChart3 size={24} />
               </button>
             )}
-
-            <button onClick={() => setCurrentView('users')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'users' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Equipe">
-              <UsersIcon size={24} />
-            </button>
+            
+            {/* EQUIPE (Professor e Gerente) */}
+            {(currentUser.id === '0' || currentUser.role === 'admin' || currentUser.role === 'manager') && (
+                <button onClick={() => setCurrentView('users')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'users' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Equipe">
+                  <UsersIcon size={24} />
+                </button>
+            )}
 
             <div className="flex-1"></div>
             <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-4 select-none group ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
@@ -694,6 +697,7 @@ const App: React.FC = () => {
                 <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                   <CartSidebar 
                     cart={cart} 
+                    users={users} // Passando usuários para validação de senha
                     onRemoveItem={removeFromCart} 
                     onUpdateQuantity={updateCartQuantity} 
                     onUpdateNote={updateCartNote} 
@@ -720,7 +724,7 @@ const App: React.FC = () => {
             {/* --- MOBILE BOTTOM NAVIGATION (ATUALIZADO) --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-between items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb px-1">
               {/* 1. VENDAS (POS) */}
-              {(currentUser.role === 'admin' || currentUser.role === 'staff') && (
+              {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'staff') && (
                 <button onClick={() => setCurrentView('pos')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'pos' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                   <LayoutGrid size={20} className={currentView === 'pos' ? 'fill-current' : ''} />
                   <span className="text-[9px] font-bold uppercase leading-none">Vendas</span>
@@ -751,11 +755,14 @@ const App: React.FC = () => {
                   </button>
               )}
 
-              {/* 5. EQUIPE (Disponível para todos, ou pelo menos Admin/Staff) */}
-              <button onClick={() => setCurrentView('users')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'users' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
-                <UsersIcon size={20} />
-                <span className="text-[9px] font-bold uppercase leading-none">Equipe</span>
-              </button>
+              {/* 5. EQUIPE (Disponível para todos, ou pelo menos Admin/Manager/Staff dependendo da regra) */}
+              {/* Neste caso, o Gerente também vê a equipe */}
+              {(currentUser.id === '0' || currentUser.role === 'admin' || currentUser.role === 'manager') && (
+                <button onClick={() => setCurrentView('users')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'users' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <UsersIcon size={20} />
+                  <span className="text-[9px] font-bold uppercase leading-none">Equipe</span>
+                </button>
+              )}
             </div>
 
           </main>

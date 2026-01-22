@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { CartItem, PaymentMethod, Transaction } from '../types';
+import { CartItem, PaymentMethod, Transaction, User } from '../types';
 import { formatCurrency } from '../utils';
 import { MASCOT_URL } from '../constants';
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw } from 'lucide-react';
@@ -7,16 +7,17 @@ import { fetchPendingTransactions } from '../services/supabase';
 
 interface CartSidebarProps {
   cart: CartItem[];
+  users: User[]; // Novo: Lista de usuários para validar senha
   onRemoveItem: (productId: string) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onClearCart: () => void;
   onCheckout: (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string) => void;
   onClose?: () => void;
   onUpdateNote?: (productId: string, note: string) => void;
-  onLoadPendingOrder: (transaction: Transaction) => void; // Nova prop
+  onLoadPendingOrder: (transaction: Transaction) => void;
 }
 
-const CartSidebar: React.FC<CartSidebarProps> = ({ cart, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder }) => {
+const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder }) => {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -106,7 +107,13 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, onRemoveItem, onUpdateQ
   };
 
   const handleUnlockDiscount = () => {
-    if (passwordAttempt === '0') {
+    // Permite senha '0' (Master) ou senha de qualquer Admin/Manager
+    const authorizedUser = users.find(u => 
+        u.password === passwordAttempt && 
+        (u.role === 'admin' || u.role === 'manager')
+    );
+
+    if (passwordAttempt === '0' || authorizedUser) {
       setIsDiscountUnlocked(true);
       setShowPasswordInput(false);
       setPasswordAttempt('');

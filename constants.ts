@@ -6,8 +6,8 @@ import { Product, User } from './types';
 export const STAFF_USERS: User[] = [
   // SUPER ADMIN
   { id: '0', name: 'Professor',         password: '0', role: 'admin' },
-  // ADMIN
-  { id: '1', name: 'Gerente',           password: '0', role: 'admin' },
+  // GERENTE (Novo papel)
+  { id: '1', name: 'Gerente',           password: '0', role: 'manager' },
   // STAFF
   { id: '2', name: 'João (Caixa)',      password: '0', role: 'staff' },
   { id: '3', name: 'Maria (Caixa)',     password: '0', role: 'staff' },
