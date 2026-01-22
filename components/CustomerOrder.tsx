@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
 import { createTransaction } from '../services/supabase';
 
@@ -18,6 +18,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [lastOrderInfo, setLastOrderInfo] = useState<{number: string, name: string} | null>(null);
+  const [isSending, setIsSending] = useState(false);
 
   // Categorias
   const categories = useMemo(() => {
@@ -64,6 +65,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         return;
     }
 
+    setIsSending(true);
+
     const orderNumber = nextOrderNumber.toString();
     const newTransaction: Transaction = {
         id: generateId(),
@@ -79,11 +82,18 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         kitchenStatus: 'pending' // Só vai aparecer na cozinha qdo o caixa confirmar, mas já deixamos setado
     };
 
-    await createTransaction(newTransaction);
+    const success = await createTransaction(newTransaction);
     
-    setLastOrderInfo({ number: orderNumber, name: customerName });
-    setCart([]);
-    setView('success');
+    setIsSending(false);
+
+    if (success) {
+        setLastOrderInfo({ number: orderNumber, name: customerName });
+        setCart([]);
+        setView('success');
+    } else {
+        // Falha no envio (Provavelmente Banco de Dados desatualizado)
+        alert("❌ ERRO AO ENVIAR PEDIDO!\n\nO sistema não conseguiu salvar seu pedido no banco de dados.\n\nSOLUÇÃO:\nPeça para o administrador rodar o script de atualização do banco de dados (SQL) para habilitar o 'Nome do Cliente'.");
+    }
   };
 
   if (view === 'success') {
@@ -174,11 +184,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 </div>
                 <button 
                     onClick={handleFinishOrder}
-                    disabled={cart.length === 0 || !customerName.trim()}
+                    disabled={cart.length === 0 || !customerName.trim() || isSending}
                     className="w-full bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-200 flex items-center justify-center gap-2 active:scale-95 transition-all"
                 >
-                    <Send size={20} />
-                    ENVIAR PEDIDO
+                    {isSending ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                    ) : (
+                        <>
+                            <Send size={20} />
+                            ENVIAR PEDIDO
+                        </>
+                    )}
                 </button>
             </div>
         </div>

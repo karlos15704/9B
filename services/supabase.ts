@@ -3,16 +3,22 @@ import { Transaction, User } from '../types';
 
 /* 
   ==============================================================================
-  🛠️ CONFIGURAÇÃO DO BANCO DE DADOS (SQL)
+  🚨 ATENÇÃO: REINICIAR BANCO DE DADOS (SQL) 🚨
   ==============================================================================
   
-  Vá no "SQL Editor" do Supabase e rode este código completo para criar as tabelas
-  (Vendas e Usuários) e liberar as permissões:
+  O banco de dados precisa ser atualizado para aceitar o "Nome do Cliente".
+  Vá no "SQL Editor" do Supabase, APAGUE TUDO que estiver lá, 
+  COLE O CÓDIGO ABAIXO e clique em "RUN":
 
-  -- 1. Cria a tabela de Vendas
-  create table if not exists transactions (
+  -- 1. Remove tabelas antigas (Limpeza Completa)
+  DROP TABLE IF EXISTS transactions;
+  DROP TABLE IF EXISTS users;
+
+  -- 2. Cria a tabela de Vendas (Com a nova coluna customerName)
+  CREATE TABLE transactions (
     id text primary key,
     "orderNumber" text,
+    "customerName" text,  -- NOVA COLUNA OBRIGATÓRIA
     timestamp bigint,
     items jsonb,
     subtotal numeric,
@@ -26,20 +32,20 @@ import { Transaction, User } from '../types';
     "kitchenStatus" text
   );
 
-  -- 2. Cria a tabela de Usuários (NOVO!)
-  create table if not exists users (
+  -- 3. Cria a tabela de Usuários
+  CREATE TABLE users (
     id text primary key,
     name text,
     password text,
     role text
   );
 
-  -- 3. Libera permissões (Necessário para o App funcionar)
-  alter table transactions enable row level security;
-  alter table users enable row level security;
+  -- 4. Libera permissões de segurança (Obrigatório para funcionar)
+  ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
   
-  create policy "Acesso Total Vendas" on transactions for all using (true) with check (true);
-  create policy "Acesso Total Usuarios" on users for all using (true) with check (true);
+  CREATE POLICY "Acesso Total Vendas" ON transactions FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "Acesso Total Usuarios" ON users FOR ALL USING (true) WITH CHECK (true);
 
   ==============================================================================
 */
@@ -94,8 +100,15 @@ export const createTransaction = async (transaction: Transaction): Promise<boole
   if (!supabase) return false;
   try {
     const { error } = await supabase.from('transactions').insert([transaction]);
-    return !error;
-  } catch (err) { return false; }
+    if (error) {
+        console.error("Erro ao criar transação:", error.message);
+        return false;
+    }
+    return true;
+  } catch (err) { 
+    console.error("Erro inesperado:", err);
+    return false; 
+  }
 };
 
 // Atualiza uma transação existente (ex: Quando o caixa recebe o pagamento de um pedido online)
