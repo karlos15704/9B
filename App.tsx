@@ -170,7 +170,7 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (currentView === 'users' || currentView === 'products' || currentView === 'customer') return;
+    if (currentView === 'users' || currentView === 'products') return; // Removido 'customer' para garantir atualização
     const intervalId = setInterval(() => loadData(), 2000); 
     return () => clearInterval(intervalId);
   }, [currentView]);

@@ -96,6 +96,30 @@ export const fetchPendingTransactions = async (): Promise<Transaction[]> => {
   } catch (err) { return []; }
 };
 
+// NOVA FUNÇÃO: Calcula a próxima senha em tempo real
+export const fetchNextOrderNumber = async (): Promise<string | null> => {
+  if (!supabase) return null;
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Busca apenas os números dos pedidos de hoje
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('orderNumber')
+      .gte('timestamp', startOfDay.getTime());
+
+    if (error || !data) return null;
+
+    // Calcula o maior número
+    const maxOrder = data.length > 0 
+      ? Math.max(...data.map(t => parseInt(t.orderNumber) || 0)) 
+      : 0;
+    
+    return (maxOrder + 1).toString();
+  } catch (err) { return null; }
+};
+
 export const createTransaction = async (transaction: Transaction): Promise<boolean> => {
   if (!supabase) return false;
   try {

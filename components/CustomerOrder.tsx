@@ -3,7 +3,7 @@ import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
-import { createTransaction } from '../services/supabase';
+import { createTransaction, fetchNextOrderNumber } from '../services/supabase';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -67,7 +67,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
     setIsSending(true);
 
-    const orderNumber = nextOrderNumber.toString();
+    // 1. Tenta buscar o número mais atualizado do banco
+    let orderNumber = nextOrderNumber.toString();
+    const freshNumber = await fetchNextOrderNumber();
+    
+    if (freshNumber) {
+        orderNumber = freshNumber;
+    }
+
     const newTransaction: Transaction = {
         id: generateId(),
         orderNumber: orderNumber,
