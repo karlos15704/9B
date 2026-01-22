@@ -33,6 +33,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   // Referência para guardar o estado anterior e comparar mudanças
   const prevOrdersRef = useRef<Transaction[]>([]);
+  
+  // Referência para controlar o áudio (play/stop)
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Função para PARAR o som imediatamente
+  const stopNotificationSound = () => {
+    if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.currentTime = 0; // Volta para o início
+    }
+  };
 
   // --- NOTIFICAÇÕES (SAFE) ---
   const requestNotificationPermission = () => {
@@ -52,9 +63,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             try { navigator.vibrate([500, 200, 500]); } catch(e) {}
         }
 
-        // 2. Tocar Som - Safe Wrap
+        // 2. Tocar Som - Safe Wrap com Controle de Referência
         try {
+            // Se já estiver tocando algo, para antes de tocar o novo
+            stopNotificationSound();
+
             const audio = new Audio(soundUrl);
+            audioRef.current = audio; // Salva na referência para poder parar depois
+
             const playPromise = audio.play();
             if (playPromise !== undefined) {
                 playPromise.catch(e => console.log("Audio play blocked (user interaction needed)", e));
@@ -329,7 +345,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         </div>
                         <p className="text-gray-600 font-medium mb-6">Pode retirar no balcão agora.</p>
                         <button 
-                            onClick={() => setReadyOrderModal(null)}
+                            onClick={() => {
+                                stopNotificationSound(); // PARA O SOM IMEDIATAMENTE
+                                setReadyOrderModal(null);
+                            }}
                             className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
                         >
                             ENTENDI, TÔ INDO!
