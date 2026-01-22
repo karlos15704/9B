@@ -265,9 +265,42 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     }
   };
 
+  // --- RENDERIZADOR DO MODAL DE NOTIFICAÇÃO (GLOBAL) ---
+  const renderReadyModal = () => {
+    if (!readyOrderModal) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+            <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm text-center animate-in zoom-in-95 duration-300 relative">
+                <div className="mb-4 flex justify-center">
+                        <div className="bg-green-100 p-4 rounded-full animate-bounce">
+                        <CheckCircle2 size={48} className="text-green-600" />
+                        </div>
+                </div>
+                <h2 className="text-2xl font-black text-gray-800 uppercase mb-2">Seu Pedido está Pronto!</h2>
+                <div className="bg-orange-100 border-2 border-orange-200 border-dashed rounded-xl p-4 mb-4">
+                    <span className="text-xs font-bold text-orange-600 uppercase">Sua Senha</span>
+                    <p className="text-6xl font-black text-orange-600">#{readyOrderModal.orderNumber}</p>
+                </div>
+                <p className="text-gray-600 font-medium mb-6">Pode retirar no balcão agora.</p>
+                <button 
+                    onClick={() => {
+                        stopNotificationSound(); // PARA O SOM IMEDIATAMENTE
+                        setReadyOrderModal(null);
+                    }}
+                    className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
+                >
+                    ENTENDI, TÔ INDO!
+                </button>
+            </div>
+        </div>
+    );
+  };
+
   if (view === 'success') {
       return (
         <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            {renderReadyModal()}
             
             {/* Animação de Confete/Luzes */}
             <div className="absolute inset-0 pointer-events-none">
@@ -330,33 +363,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   if (view === 'orders') {
       return (
         <div className="min-h-screen bg-slate-50 flex flex-col relative">
-            {/* Modal de Pedido Pronto */}
-            {readyOrderModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
-                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm text-center animate-in zoom-in-95 duration-300 relative">
-                        <div className="mb-4 flex justify-center">
-                             <div className="bg-green-100 p-4 rounded-full animate-bounce">
-                                <CheckCircle2 size={48} className="text-green-600" />
-                             </div>
-                        </div>
-                        <h2 className="text-2xl font-black text-gray-800 uppercase mb-2">Seu Pedido está Pronto!</h2>
-                        <div className="bg-orange-100 border-2 border-orange-200 border-dashed rounded-xl p-4 mb-4">
-                            <span className="text-xs font-bold text-orange-600 uppercase">Sua Senha</span>
-                            <p className="text-6xl font-black text-orange-600">#{readyOrderModal.orderNumber}</p>
-                        </div>
-                        <p className="text-gray-600 font-medium mb-6">Pode retirar no balcão agora.</p>
-                        <button 
-                            onClick={() => {
-                                stopNotificationSound(); // PARA O SOM IMEDIATAMENTE
-                                setReadyOrderModal(null);
-                            }}
-                            className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
-                        >
-                            ENTENDI, TÔ INDO!
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Modal de Pedido Pronto (Global) */}
+            {renderReadyModal()}
 
             <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm">
                 <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
@@ -439,6 +447,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   if (view === 'cart') {
     return (
         <div className="min-h-screen bg-white flex flex-col animate-in slide-in-from-right duration-300">
+            {renderReadyModal()}
+
             <div className="p-4 border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10">
                 <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={24} className="text-gray-700" /></button>
                 <h2 className="text-xl font-bold text-gray-800">Seu Carrinho</h2>
@@ -511,6 +521,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col relative">
+      {renderReadyModal()}
+      
       {/* Header */}
       <div className="bg-white p-4 shadow-sm sticky top-0 z-20">
          <div className="flex justify-between items-center mb-4">
