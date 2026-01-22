@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TÔ FRITO! - Sistema de Vendas</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+      body {
+        font-family: 'Inter', sans-serif;
+        background-color: #fff7ed;
+      }
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1; 
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #fdba74;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #f97316;
+      }
+      
+      /* --- TEXT FIRE EFFECT (GLOWING EMBERS) --- */
+      @keyframes ember-text {
+        0%, 100% {
+          color: #d97706; /* Amber-600 */
+          text-shadow: 0 0 2px rgba(251, 191, 36, 0.5);
+        }
+        50% {
+          color: #b45309; /* Amber-700 */
+          text-shadow: 0 0 10px rgba(245, 158, 11, 0.8), 0 0 20px rgba(220, 38, 38, 0.4);
+        }
+      }
+
+      .text-fire {
+        background: none; 
+        -webkit-text-fill-color: initial;
+        animation: ember-text 2s infinite ease-in-out;
+        position: relative;
+      }
+      
+      /* --- REALISTIC FIRE ENGINE (CSS LIGHTING) --- */
+      @keyframes real-flicker {
+        0% { transform: rotate(-1deg) scaleY(1.0) skewX(0deg); opacity: 0.9; }
+        20% { transform: rotate(1deg) scaleY(1.1) skewX(2deg); opacity: 1; }
+        40% { transform: rotate(-1deg) scaleY(1.0) skewX(-1deg); opacity: 0.8; }
+        60% { transform: rotate(1deg) scaleY(1.05) skewX(1deg); opacity: 1; }
+        80% { transform: rotate(-2deg) scaleY(0.95) skewX(-2deg); opacity: 0.9; }
+        100% { transform: rotate(-1deg) scaleY(1.0) skewX(0deg); opacity: 0.9; }
+      }
+
+      @keyframes heat-pulse {
+        0%, 100% { transform: scale(1); opacity: 0.8; }
+        50% { transform: scale(0.9); opacity: 0.6; }
+      }
+
+      @keyframes ash-rise {
+        0% { transform: translateY(0) scale(1); opacity: 1; }
+        100% { transform: translateY(-40px) scale(0); opacity: 0; }
+      }
+
+      .fire-container {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        mix-blend-mode: screen; 
+        filter: blur(4px) contrast(1.5);
+      }
+
+      .flame-base {
+        position: absolute;
+        bottom: -5px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 140%;
+        height: 70%;
+        background: radial-gradient(ellipse at bottom, rgba(220, 38, 38, 0.8) 0%, transparent 70%);
+        border-radius: 50%;
+        animation: real-flicker 0.15s infinite alternate;
+      }
+
+      .flame-body {
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80%;
+        height: 90%;
+        background: radial-gradient(ellipse at bottom, rgba(251, 146, 60, 0.9) 0%, rgba(234, 88, 12, 0) 80%);
+        border-radius: 50% 50% 40% 40%;
+        animation: real-flicker 0.2s infinite ease-in-out;
+      }
+
+      .flame-core {
+        position: absolute;
+        bottom: 5px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 50%;
+        height: 50%;
+        background: radial-gradient(ellipse at bottom, #fefce8 40%, rgba(253, 224, 71, 0.8) 100%);
+        border-radius: 50%;
+        filter: blur(2px);
+        animation: heat-pulse 0.1s infinite alternate;
+      }
+
+      /* --- TRANSITION ANIMATIONS (FUNNY FIRE CURTAIN) --- */
+      
+      /* O container que cobre a tela */
+      .fire-curtain {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        pointer-events: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        overflow: hidden;
+      }
+
+      /* LOGOUT: Sobe do chão */
+      @keyframes curtain-rise {
+        0% { transform: translateY(100%); }
+        40% { transform: translateY(0%); } /* Sobe rápido */
+        100% { transform: translateY(0%); } /* Fica */
+      }
+      
+      /* LOGIN: Abre para os lados (Explosão) */
+      @keyframes curtain-split {
+        0% { transform: scale(1); opacity: 1; }
+        20% { transform: scale(1.1); opacity: 1; } /* Infla */
+        100% { transform: scale(2); opacity: 0; filter: blur(20px); } /* Explode e some */
+      }
+
+      /* Tremor da tela antes de queimar */
+      @keyframes shake-screen {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-1deg); }
+        20%, 40%, 60%, 80% { transform: translateX(5px) rotate(1deg); }
+      }
+
+      /* Texto engraçado girando */
+      @keyframes spin-in {
+        0% { transform: scale(0) rotate(-180deg); }
+        60% { transform: scale(1.2) rotate(10deg); }
+        80% { transform: scale(0.9) rotate(-5deg); }
+        100% { transform: scale(1) rotate(0deg); }
+      }
+
+      .animate-curtain-rise { animation: curtain-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+      .animate-curtain-split { animation: curtain-split 1.0s ease-in forwards; }
+      .animate-shake-screen { animation: shake-screen 0.5s ease-in-out; }
+      .animate-spin-in { animation: spin-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+      /* Helpers */
+      .animate-mascot-slow { animation: mascot-run 1s infinite ease-in-out; }
+      .animate-mascot-chill { animation: mascot-chill 4s ease-in-out infinite; }
+      .animate-cta-bounce { animation: cta-bounce 2s infinite ease-in-out; }
+      
+      @keyframes mascot-run {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        25% { transform: translateY(-5px) rotate(-5deg); }
+        50% { transform: translateY(0) rotate(0deg); }
+        75% { transform: translateY(-5px) rotate(5deg); }
+      }
+      @keyframes mascot-chill {
+        0%, 100% { transform: translateY(0) rotate(-2deg) scale(1); }
+        50% { transform: translateY(-8px) rotate(2deg) scale(1.02); }
+      }
+      @keyframes cta-bounce {
+        0%, 100% { transform: scale(1); box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+        50% { transform: scale(1.03); box-shadow: 0 15px 20px -5px rgba(249, 115, 22, 0.4); }
+      }
+
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.91.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+  </body>
+</html>
