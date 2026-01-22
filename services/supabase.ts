@@ -1,26 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
-import { Transaction, User } from '../types';
+import { Transaction, User, Product } from '../types';
 
 /* 
   ==============================================================================
-  🚨 ATENÇÃO: REINICIAR BANCO DE DADOS (SQL) 🚨
+  🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  O banco de dados precisa ser atualizado para aceitar o "Nome do Cliente".
-  Vá no "SQL Editor" do Supabase, APAGUE TUDO que estiver lá, 
-  COLE O CÓDIGO ABAIXO e clique em "RUN":
+  Copie o código abaixo, cole no "SQL Editor" do Supabase e clique em "RUN".
+  Isso vai criar/resetar as tabelas corretamente.
 
-  -- 1. Remove tabelas antigas (Limpeza Completa)
+  -- 1. Limpeza (Remove tabelas antigas para evitar conflitos)
   DROP TABLE IF EXISTS transactions;
   DROP TABLE IF EXISTS users;
+  DROP TABLE IF EXISTS products;
 
-  -- 2. Cria a tabela de Vendas (Com a nova coluna customerName)
+  -- 2. Tabela de Vendas (Pedidos)
   CREATE TABLE transactions (
     id text primary key,
     "orderNumber" text,
-    "customerName" text,  -- NOVA COLUNA OBRIGATÓRIA
+    "customerName" text,  -- Nome do cliente
     timestamp bigint,
-    items jsonb,
+    items jsonb,          -- Itens do carrinho (JSON)
     subtotal numeric,
     discount numeric,
     total numeric,
@@ -28,11 +28,11 @@ import { Transaction, User } from '../types';
     "amountPaid" numeric,
     change numeric,
     "sellerName" text,
-    status text,
-    "kitchenStatus" text
+    status text,          -- 'pending_payment', 'completed', 'cancelled'
+    "kitchenStatus" text  -- 'pending', 'done'
   );
 
-  -- 3. Cria a tabela de Usuários
+  -- 3. Tabela de Usuários (Staff)
   CREATE TABLE users (
     id text primary key,
     name text,
@@ -40,12 +40,30 @@ import { Transaction, User } from '../types';
     role text
   );
 
-  -- 4. Libera permissões de segurança (Obrigatório para funcionar)
+  -- 4. Tabela de Produtos (Cardápio)
+  CREATE TABLE products (
+    id text primary key,
+    name text,
+    price numeric,
+    category text,
+    "imageUrl" text,
+    description text,
+    "isAvailable" boolean
+  );
+
+  -- 5. Segurança (Permite leitura/escrita pública para o app funcionar sem login complexo)
   ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
   ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE products ENABLE ROW LEVEL SECURITY;
   
   CREATE POLICY "Acesso Total Vendas" ON transactions FOR ALL USING (true) WITH CHECK (true);
   CREATE POLICY "Acesso Total Usuarios" ON users FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "Acesso Total Produtos" ON products FOR ALL USING (true) WITH CHECK (true);
+  
+  -- 6. Habilita Realtime (Para atualizações instantâneas)
+  alter publication supabase_realtime add table transactions;
+  alter publication supabase_realtime add table users;
+  alter publication supabase_realtime add table products;
 
   ==============================================================================
 */
@@ -81,7 +99,6 @@ export const fetchTransactions = async (): Promise<Transaction[] | null> => {
   } catch (err) { return null; }
 };
 
-// Busca apenas pedidos pendentes de pagamento (Online/App)
 export const fetchPendingTransactions = async (): Promise<Transaction[]> => {
   if (!supabase) return [];
   try {
@@ -96,7 +113,6 @@ export const fetchPendingTransactions = async (): Promise<Transaction[]> => {
   } catch (err) { return []; }
 };
 
-// Busca transações específicas por ID (Para o cliente acompanhar seus pedidos)
 export const fetchTransactionsByIds = async (ids: string[]): Promise<Transaction[]> => {
   if (!supabase || ids.length === 0) return [];
   try {
@@ -104,21 +120,19 @@ export const fetchTransactionsByIds = async (ids: string[]): Promise<Transaction
       .from('transactions')
       .select('*')
       .in('id', ids)
-      .order('timestamp', { ascending: false }); // Mais recentes primeiro
+      .order('timestamp', { ascending: false }); 
 
     if (error) { console.warn('Supabase Error (Fetch By IDs):', error.message); return []; }
     return data as Transaction[];
   } catch (err) { return []; }
 };
 
-// NOVA FUNÇÃO: Calcula a próxima senha em tempo real
 export const fetchNextOrderNumber = async (): Promise<string | null> => {
   if (!supabase) return null;
   try {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     
-    // Busca apenas os números dos pedidos de hoje
     const { data, error } = await supabase
       .from('transactions')
       .select('orderNumber')
@@ -126,7 +140,6 @@ export const fetchNextOrderNumber = async (): Promise<string | null> => {
 
     if (error || !data) return null;
 
-    // Calcula o maior número
     const maxOrder = data.length > 0 
       ? Math.max(...data.map(t => parseInt(t.orderNumber) || 0)) 
       : 0;
@@ -150,7 +163,6 @@ export const createTransaction = async (transaction: Transaction): Promise<boole
   }
 };
 
-// Atualiza uma transação existente (ex: Quando o caixa recebe o pagamento de um pedido online)
 export const confirmTransactionPayment = async (updatedTransaction: Transaction): Promise<boolean> => {
     if (!supabase) return false;
     try {
@@ -162,10 +174,10 @@ export const confirmTransactionPayment = async (updatedTransaction: Transaction)
                 amountPaid: updatedTransaction.amountPaid,
                 change: updatedTransaction.change,
                 sellerName: updatedTransaction.sellerName,
-                total: updatedTransaction.total, // Caso tenha aplicado desconto
+                total: updatedTransaction.total, 
                 discount: updatedTransaction.discount,
-                items: updatedTransaction.items, // Caso tenha editado itens
-                kitchenStatus: 'pending' // Garante que vá para cozinha agora
+                items: updatedTransaction.items, 
+                kitchenStatus: 'pending' 
             })
             .eq('id', updatedTransaction.id);
         return !error;
@@ -182,7 +194,7 @@ export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' |
   try { await supabase.from('transactions').update({ kitchenStatus }).eq('id', id); } catch (err) {}
 };
 
-// --- FUNÇÕES DE USUÁRIOS (USERS) - NOVO! ---
+// --- FUNÇÕES DE USUÁRIOS (USERS) ---
 
 export const fetchUsers = async (): Promise<User[] | null> => {
   if (!supabase) return null;
@@ -204,7 +216,6 @@ export const createUser = async (user: User): Promise<boolean> => {
 export const updateUser = async (user: User): Promise<boolean> => {
   if (!supabase) return false;
   try {
-    // Atualiza baseado no ID
     const { error } = await supabase.from('users').update({ 
       name: user.name, 
       password: user.password, 
@@ -222,6 +233,41 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
   } catch (err) { return false; }
 };
 
+// --- FUNÇÕES DE PRODUTOS (PRODUCTS) - NOVO! ---
+
+export const fetchProducts = async (): Promise<Product[] | null> => {
+  if (!supabase) return null;
+  try {
+    const { data, error } = await supabase.from('products').select('*');
+    if (error) { console.warn('Supabase Error (Fetch Products):', error.message); return null; }
+    return data as Product[];
+  } catch (err) { return null; }
+};
+
+export const createProduct = async (product: Product): Promise<boolean> => {
+  if (!supabase) return false;
+  try {
+    const { error } = await supabase.from('products').insert([product]);
+    return !error;
+  } catch (err) { return false; }
+};
+
+export const updateProduct = async (product: Product): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('products').update(product).eq('id', product.id);
+        return !error;
+    } catch (err) { return false; }
+};
+
+export const deleteProduct = async (productId: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('products').delete().eq('id', productId);
+        return !error;
+    } catch (err) { return false; }
+};
+
 // --- SUBSCRIPTION (TEMPO REAL) ---
 
 export const subscribeToTransactions = (onUpdate: () => void) => {
@@ -229,7 +275,8 @@ export const subscribeToTransactions = (onUpdate: () => void) => {
   const channel = supabase
     .channel('db_changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate()) // Escuta usuários também
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate()) // Escuta produtos também
     .subscribe();
   return channel;
 };

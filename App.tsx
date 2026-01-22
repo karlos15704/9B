@@ -22,7 +22,11 @@ import {
   createUser, 
   updateUser, 
   deleteUser,
-  confirmTransactionPayment
+  confirmTransactionPayment,
+  fetchProducts,
+  createProduct,
+  updateProduct as updateProductSupabase,
+  deleteProduct as deleteProductSupabase
 } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch } from 'lucide-react';
 
@@ -48,7 +52,7 @@ const App: React.FC = () => {
   // PENDING ORDER STATE (For Cashier to edit/pay pending online orders)
   const [currentPendingOrderId, setCurrentPendingOrderId] = useState<string | null>(null);
   
-  // PRODUCTS STATE (Local Management)
+  // PRODUCTS STATE (Sync with Supabase)
   const [products, setProducts] = useState<Product[]>([]);
 
   const [isConnected, setIsConnected] = useState(true);
@@ -81,13 +85,39 @@ const App: React.FC = () => {
       }
     }
 
-    // --- CARREGAR PRODUTOS (Local Storage) ---
-    const savedProducts = localStorage.getItem('app_products');
-    if (savedProducts) {
-        setProducts(JSON.parse(savedProducts));
-    } else {
+    // --- CARREGAR PRODUTOS ---
+    try {
+        if (!supabase) {
+             const saved = localStorage.getItem('app_products');
+             if (saved) setProducts(JSON.parse(saved));
+             else setProducts(MOCK_PRODUCTS);
+        } else {
+            const dbProducts = await fetchProducts();
+            if (dbProducts !== null) {
+                // Se a tabela estiver vazia, podemos opcionalmente semear com dados mock (apenas uma vez)
+                // Para simplificar: se o banco retornar vazio, mas estivermos conectados, usamos vazio ou semeamos
+                if (dbProducts.length === 0 && !localStorage.getItem('db_seeded')) {
+                    // Semeia o banco com produtos padrão se estiver vazio na primeira vez
+                     MOCK_PRODUCTS.forEach(p => createProduct(p));
+                     localStorage.setItem('db_seeded', 'true');
+                     setProducts(MOCK_PRODUCTS);
+                } else {
+                    // Usa dados do banco
+                    setProducts(dbProducts);
+                    localStorage.setItem('app_products', JSON.stringify(dbProducts));
+                    if (dbProducts.length > 0) localStorage.setItem('db_seeded', 'true');
+                }
+            } else {
+                 // Erro no banco, fallback local
+                 const saved = localStorage.getItem('app_products');
+                 if (saved) setProducts(JSON.parse(saved));
+                 else setProducts(MOCK_PRODUCTS);
+            }
+        }
+    } catch(e) {
+        console.error("Erro carregando produtos", e);
+        // Fallback
         setProducts(MOCK_PRODUCTS);
-        localStorage.setItem('app_products', JSON.stringify(MOCK_PRODUCTS));
     }
 
     // --- CARREGAR USUÁRIOS ---
@@ -170,28 +200,31 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (currentView === 'users' || currentView === 'products') return; // Removido 'customer' para garantir atualização
+    if (currentView === 'users') return; // Removido 'products' da exceção para atualizar listagem se alguém editar
     const intervalId = setInterval(() => loadData(), 2000); 
     return () => clearInterval(intervalId);
   }, [currentView]);
 
   // --- PRODUCT MANAGEMENT ACTIONS ---
-  const handleAddProduct = (newProduct: Product) => {
+  const handleAddProduct = async (newProduct: Product) => {
     const updated = [...products, newProduct];
     setProducts(updated);
     localStorage.setItem('app_products', JSON.stringify(updated));
+    if (isConnected) await createProduct(newProduct);
   };
 
-  const handleUpdateProduct = (updatedProduct: Product) => {
+  const handleUpdateProduct = async (updatedProduct: Product) => {
     const updated = products.map(p => p.id === updatedProduct.id ? updatedProduct : p);
     setProducts(updated);
     localStorage.setItem('app_products', JSON.stringify(updated));
+    if (isConnected) await updateProductSupabase(updatedProduct);
   };
 
-  const handleDeleteProduct = (id: string) => {
+  const handleDeleteProduct = async (id: string) => {
     const updated = products.filter(p => p.id !== id);
     setProducts(updated);
     localStorage.setItem('app_products', JSON.stringify(updated));
+    if (isConnected) await deleteProductSupabase(id);
   };
 
   const handleBurn = () => {

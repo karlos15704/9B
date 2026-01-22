@@ -3,7 +3,7 @@ import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
-import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds } from '../services/supabase';
+import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -37,7 +37,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
 
   const loadMyOrders = async () => {
-    setIsLoadingOrders(true);
+    // Não ativa loading se já tiver dados (para não piscar na atualização em tempo real)
+    if (myOrders.length === 0) setIsLoadingOrders(true);
+    
     const ids = getStoredOrderIds();
     if (ids.length > 0) {
         const transactions = await fetchTransactionsByIds(ids);
@@ -46,10 +48,20 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     setIsLoadingOrders(false);
   };
 
-  // Carregar pedidos sempre que entrar na tela 'orders'
+  // ATUALIZAÇÃO EM TEMPO REAL
   useEffect(() => {
-    if (view === 'orders') {
-        loadMyOrders();
+    // Se estiver na tela de "Meus Pedidos" ou "Sucesso", ativa o listener
+    if (view === 'orders' || view === 'success') {
+        loadMyOrders(); // Carrega inicial
+        
+        // Se inscreve para atualizações do banco
+        const subscription = subscribeToTransactions(() => {
+            loadMyOrders(); // Recarrega quando algo mudar no banco
+        });
+
+        return () => {
+            if (subscription) subscription.unsubscribe();
+        };
     }
   }, [view]);
 
@@ -239,7 +251,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         const StatusIcon = statusConfig.icon;
 
                         return (
-                            <div key={order.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                            <div key={order.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                                 <div className="flex justify-between items-start mb-3">
                                     <div>
                                         <span className="text-xs font-bold text-gray-400 uppercase">Senha</span>
@@ -250,7 +262,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                     </span>
                                 </div>
 
-                                <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${statusConfig.color}`}>
+                                <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${statusConfig.color} transition-colors duration-500`}>
                                     <StatusIcon size={20} />
                                     <span className="font-bold text-sm uppercase">{statusConfig.text}</span>
                                 </div>
