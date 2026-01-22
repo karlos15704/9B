@@ -78,7 +78,12 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
   };
 
   // Regras de Edição do Formulário (Modal)
-  const canEditName = !editingUser || canManageUsers;
+  // REGRA 1: Nomes só podem ser editados pelo Admin. 
+  // Se for um NOVO usuário (!editingUser), o Gerente pode escrever o nome. 
+  // Se for EDIÇÃO, o Gerente só mexe na senha/role.
+  const canEditName = !editingUser || isAdmin;
+  
+  // REGRA 2: Senha pode ser editada por quem tem permissão de gerir
   const canEditPassword = canManageUsers || !editingUser;
 
   return (
