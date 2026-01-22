@@ -22,11 +22,12 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ transactions, onUpdateS
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  // Filter for active orders (PENDING in Kitchen)
+  // Filter for active orders (PENDING in Kitchen AND PAID)
   const pendingOrders = useMemo(() => {
     return transactions
       .filter(t => 
         t.kitchenStatus === 'pending' &&
+        t.status === 'completed' && // GARANTE QUE SÓ MOSTRE SE O PAGAMENTO FOI FEITO
         t.timestamp >= startOfDay.getTime()
       )
       .sort((a, b) => a.timestamp - b.timestamp); // FIFO
@@ -37,6 +38,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ transactions, onUpdateS
     return transactions
       .filter(t => 
         t.kitchenStatus === 'done' &&
+        t.status !== 'cancelled' &&
         t.timestamp >= startOfDay.getTime()
       )
       .sort((a, b) => b.timestamp - a.timestamp); // LIFO
@@ -112,7 +114,7 @@ const KitchenDisplay: React.FC<KitchenDisplayProps> = ({ transactions, onUpdateS
                 <>
                   <ChefHat size={80} strokeWidth={1} className="mb-4" />
                   <p className="text-2xl font-light">Tudo limpo!</p>
-                  <p className="text-sm">Sem pedidos pendentes no momento.</p>
+                  <p className="text-sm">Sem pedidos confirmados para preparo.</p>
                 </>
              ) : (
                 <>
