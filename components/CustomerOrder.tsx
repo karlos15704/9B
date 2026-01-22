@@ -27,41 +27,67 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // Estado para Meus Pedidos
   const [myOrders, setMyOrders] = useState<Transaction[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  
+  // Estado para Modal de Pedido Pronto (Substitui o alert que travava a tela)
+  const [readyOrderModal, setReadyOrderModal] = useState<Transaction | null>(null);
 
   // Referência para guardar o estado anterior e comparar mudanças
   const prevOrdersRef = useRef<Transaction[]>([]);
 
-  // --- NOTIFICAÇÕES ---
+  // --- NOTIFICAÇÕES (SAFE) ---
   const requestNotificationPermission = () => {
-    if ('Notification' in window && Notification.permission !== 'granted') {
-      Notification.requestPermission();
+    try {
+        if ('Notification' in window && Notification.permission !== 'granted') {
+            Notification.requestPermission().catch(err => console.log("Erro permissão notificação:", err));
+        }
+    } catch (e) {
+        console.log("Notificações não suportadas.");
     }
   };
 
   const sendSystemNotification = (title: string, body: string, soundUrl: string) => {
-    // 1. Vibrar (Android)
-    if (navigator.vibrate) {
-        navigator.vibrate([500, 200, 500]); // Vibração forte
-    }
+    try {
+        // 1. Vibrar (Android) - Safe Wrap
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            try { navigator.vibrate([500, 200, 500]); } catch(e) {}
+        }
 
-    // 2. Tocar Som
-    const audio = new Audio(soundUrl);
-    audio.play().catch(e => console.log("Audio play blocked", e));
+        // 2. Tocar Som - Safe Wrap
+        try {
+            const audio = new Audio(soundUrl);
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(e => console.log("Audio play blocked (user interaction needed)", e));
+            }
+        } catch(e) {
+            console.log("Erro ao inicializar áudio", e);
+        }
 
-    // 3. Notificação do Navegador (Banner)
-    if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title, {
-            body: body,
-            icon: MASCOT_URL,
-            tag: 'order-update' // Evita spam de notificações, substitui a anterior
-        });
+        // 3. Notificação do Navegador (Banner) - Safe Wrap
+        if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+                new Notification(title, {
+                    body: body,
+                    icon: MASCOT_URL,
+                    tag: 'order-update' // Evita spam
+                });
+            } catch(e) {
+                console.log("Erro ao criar notificação nativa", e);
+            }
+        }
+    } catch (err) {
+        console.error("Erro geral na notificação:", err);
     }
   };
 
   // Carregar IDs de pedidos do LocalStorage
   const getStoredOrderIds = (): string[] => {
-    const stored = localStorage.getItem('my_order_ids');
-    return stored ? JSON.parse(stored) : [];
+    try {
+        const stored = localStorage.getItem('my_order_ids');
+        return stored ? JSON.parse(stored) : [];
+    } catch(e) {
+        return [];
+    }
   };
 
   const saveOrderId = (id: string) => {
@@ -77,13 +103,16 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     const ids = getStoredOrderIds();
     if (ids.length > 0) {
         const transactions = await fetchTransactionsByIds(ids);
-        setMyOrders(transactions);
+        if (transactions) {
+            setMyOrders(transactions);
+        }
     }
     setIsLoadingOrders(false);
   };
 
   // MONITORAMENTO DE MUDANÇAS DE STATUS PARA NOTIFICAR
   useEffect(() => {
+    // Só compara se tivermos dados novos e dados antigos (para não notificar no load inicial)
     if (myOrders.length > 0 && prevOrdersRef.current.length > 0) {
         myOrders.forEach(newOrder => {
             const oldOrder = prevOrdersRef.current.find(o => o.id === newOrder.id);
@@ -105,7 +134,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         `Sua senha #${newOrder.orderNumber} está pronta! Retire no balcão.`,
                         SOUND_ORDER_READY
                     );
-                    alert(`🔔 SEU PEDIDO #${newOrder.orderNumber} ESTÁ PRONTO!\n\nRetire no balcão.`);
+                    // Abre o modal em vez de alert
+                    setReadyOrderModal(newOrder);
                 }
             }
         });
@@ -282,7 +312,32 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // TELA DE MEUS PEDIDOS
   if (view === 'orders') {
       return (
-        <div className="min-h-screen bg-slate-50 flex flex-col">
+        <div className="min-h-screen bg-slate-50 flex flex-col relative">
+            {/* Modal de Pedido Pronto */}
+            {readyOrderModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-white rounded-3xl shadow-2xl p-6 w-full max-w-sm text-center animate-in zoom-in-95 duration-300 relative">
+                        <div className="mb-4 flex justify-center">
+                             <div className="bg-green-100 p-4 rounded-full animate-bounce">
+                                <CheckCircle2 size={48} className="text-green-600" />
+                             </div>
+                        </div>
+                        <h2 className="text-2xl font-black text-gray-800 uppercase mb-2">Seu Pedido está Pronto!</h2>
+                        <div className="bg-orange-100 border-2 border-orange-200 border-dashed rounded-xl p-4 mb-4">
+                            <span className="text-xs font-bold text-orange-600 uppercase">Sua Senha</span>
+                            <p className="text-6xl font-black text-orange-600">#{readyOrderModal.orderNumber}</p>
+                        </div>
+                        <p className="text-gray-600 font-medium mb-6">Pode retirar no balcão agora.</p>
+                        <button 
+                            onClick={() => setReadyOrderModal(null)}
+                            className="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 transition-colors shadow-lg shadow-green-200"
+                        >
+                            ENTENDI, TÔ INDO!
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm">
                 <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
                     <ArrowLeft size={24} />
