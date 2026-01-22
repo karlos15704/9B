@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, X, Search, UtensilsCrossed } from 'lucide-react';
+import { Plus, X, Search, UtensilsCrossed, Ban } from 'lucide-react';
 
 interface ProductGridProps {
   products: Product[];
@@ -78,34 +78,48 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
               // Verifica se o item já está no carrinho
               const cartItem = cart.find(item => item.id === product.id);
               const quantity = cartItem ? cartItem.quantity : 0;
+              const isSoldOut = product.isAvailable === false;
 
               return (
                 <div 
                   key={product.id} 
                   className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col
-                    ${quantity > 0 ? 'border-orange-500 ring-2 ring-orange-100' : 'border-orange-100 hover:border-orange-300'}
-                    active:scale-95 md:hover:scale-105 md:hover:shadow-xl
+                    ${isSoldOut ? 'border-red-200 opacity-90' : quantity > 0 ? 'border-orange-500 ring-2 ring-orange-100' : 'border-orange-100 hover:border-orange-300'}
+                    ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
                   `}
-                  onClick={() => onAddToCart(product)}
+                  onClick={() => {
+                      if (!isSoldOut) onAddToCart(product);
+                  }}
                 >
                   {/* Imagem do Produto */}
                   <div className="relative h-32 md:h-40 w-full bg-white p-2">
                     <img 
                       src={product.imageUrl} 
                       alt={product.name} 
-                      className="w-full h-full object-contain transition-transform duration-500 group-hover:scale-110 drop-shadow-sm"
+                      className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale' : 'group-hover:scale-110'} drop-shadow-sm`}
                       loading="lazy"
                     />
                     
+                    {/* FAIXA DE ESGOTADO (POS) */}
+                    {isSoldOut && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] z-30">
+                            <div className="bg-red-600 text-white font-black uppercase text-sm px-6 py-1 transform -rotate-12 border-2 border-white shadow-xl">
+                                ESGOTADO
+                            </div>
+                        </div>
+                    )}
+
                     {/* Overlay Animation (Desktop Only - Apenas visual) */}
-                    <div className="hidden md:flex absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors items-center justify-center opacity-0 group-hover:opacity-100 duration-300">
-                      <div className="bg-orange-600 text-white rounded-full p-2 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
-                        <Plus size={24} />
-                      </div>
-                    </div>
+                    {!isSoldOut && (
+                        <div className="hidden md:flex absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors items-center justify-center opacity-0 group-hover:opacity-100 duration-300">
+                        <div className="bg-orange-600 text-white rounded-full p-2 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300">
+                            <Plus size={24} />
+                        </div>
+                        </div>
+                    )}
 
                     {/* Badges e Controles sobre a imagem */}
-                    {quantity > 0 && (
+                    {quantity > 0 && !isSoldOut && (
                       <>
                         {/* Badge de Quantidade (Canto Superior Direito) */}
                         <div className="absolute top-2 right-2 bg-orange-600 text-white font-black text-sm w-7 h-7 flex items-center justify-center rounded-full shadow-md animate-in zoom-in duration-200 border-2 border-white z-20">
@@ -135,12 +149,20 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                       {product.name}
                     </h3>
                     <div className="flex flex-col md:flex-row md:items-center justify-between mt-2 gap-1">
-                      <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
-                          {product.category}
-                      </span>
-                      <p className="font-black text-sm md:text-base text-orange-600">
-                          {formatCurrency(product.price)}
-                      </p>
+                      {isSoldOut ? (
+                          <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider bg-red-50 px-1.5 py-0.5 rounded border border-red-100 w-full text-center">
+                            INDISPONÍVEL
+                          </span>
+                      ) : (
+                        <>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
+                                {product.category}
+                            </span>
+                            <p className="font-black text-sm md:text-base text-orange-600">
+                                {formatCurrency(product.price)}
+                            </p>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

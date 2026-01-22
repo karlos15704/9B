@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
 
@@ -189,13 +189,15 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
-      const isAvailable = product.isAvailable !== false;
-      return matchesSearch && matchesCategory && isAvailable;
+      // Removido o filtro isAvailable aqui para mostrar o produto com a faixa de esgotado
+      return matchesSearch && matchesCategory;
     });
   }, [products, searchTerm, selectedCategory]);
 
   // Cart Helpers
   const addToCart = (product: Product) => {
+    if (product.isAvailable === false) return; // Segurança extra
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -582,10 +584,19 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             <div className="grid grid-cols-1 gap-4">
                 {filteredProducts.map(product => {
                     const inCart = cart.find(i => i.id === product.id);
+                    const isSoldOut = product.isAvailable === false;
+                    
                     return (
-                        <div key={product.id} className="bg-white p-3 rounded-2xl shadow-sm border border-gray-100 flex gap-4">
-                             <div className="w-24 h-24 bg-gray-50 rounded-xl flex-shrink-0">
-                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
+                        <div key={product.id} className={`bg-white p-3 rounded-2xl shadow-sm border flex gap-4 overflow-hidden relative ${isSoldOut ? 'border-red-200 opacity-90' : 'border-gray-100'}`}>
+                             <div className="w-24 h-24 bg-gray-50 rounded-xl flex-shrink-0 relative">
+                                <img src={product.imageUrl} alt={product.name} className={`w-full h-full object-contain ${isSoldOut ? 'grayscale' : ''}`} />
+                                {isSoldOut && (
+                                     <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-xl">
+                                        <div className="bg-red-600 text-white font-black uppercase text-[10px] px-2 py-1 transform -rotate-12 border border-white shadow-sm">
+                                            ESGOTADO
+                                        </div>
+                                    </div>
+                                )}
                              </div>
                              <div className="flex-1 flex flex-col justify-between py-1">
                                 <div>
@@ -594,7 +605,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                 </div>
                                 <div className="flex justify-between items-end">
                                     <span className="text-lg font-black text-orange-600">{formatCurrency(product.price)}</span>
-                                    {inCart ? (
+                                    {isSoldOut ? (
+                                        <button disabled className="bg-gray-100 text-gray-400 cursor-not-allowed p-2 rounded-lg font-bold flex items-center gap-1">
+                                            <Ban size={16} /> Indisponível
+                                        </button>
+                                    ) : inCart ? (
                                         <div className="flex items-center gap-3 bg-gray-900 text-white rounded-lg p-1.5 shadow-lg shadow-gray-200">
                                             <button onClick={() => updateQuantity(product.id, -1)}><Minus size={14}/></button>
                                             <span className="text-sm font-bold w-4 text-center">{inCart.quantity}</span>

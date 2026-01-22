@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2 } from 'lucide-react';
 
 interface ProductManagementProps {
   products: Product[];
@@ -21,6 +21,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const [category, setCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
+  const [isAvailable, setIsAvailable] = useState(true); // Novo estado
 
   const resetForm = () => {
     setName('');
@@ -28,6 +29,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setCategory('');
     setImageUrl('');
     setDescription('');
+    setIsAvailable(true);
     setEditingProduct(null);
     setIsModalOpen(false);
   };
@@ -39,6 +41,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setCategory(product.category);
     setImageUrl(product.imageUrl);
     setDescription(product.description || '');
+    setIsAvailable(product.isAvailable !== false); // Se undefined, assume true
     setIsModalOpen(true);
   };
 
@@ -52,7 +55,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
       category,
       imageUrl: imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem',
       description,
-      isAvailable: true
+      isAvailable: isAvailable // Salva o estado
     };
 
     if (editingProduct) {
@@ -103,49 +106,70 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
 
       {/* Products Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-20">
-        {filteredProducts.map(product => (
-          <div key={product.id} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-all group flex flex-col">
-            <div className="relative h-48 bg-gray-50 p-4">
-              <img 
-                src={product.imageUrl} 
-                alt={product.name} 
-                className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300"
-                onError={(e) => {
-                    (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Erro+Imagem';
-                }}
-              />
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => openEdit(product)}
-                  className="p-2 bg-white text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
-                >
-                  <Edit2 size={16} />
-                </button>
-                <button 
-                  onClick={() => {
-                    if(window.confirm(`Excluir ${product.name}?`)) onDeleteProduct(product.id);
-                  }}
-                  className="p-2 bg-white text-red-600 rounded-lg shadow-sm hover:bg-red-50 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
+        {filteredProducts.map(product => {
+            const isSoldOut = product.isAvailable === false;
+            return (
+              <div key={product.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden hover:shadow-md transition-all group flex flex-col ${isSoldOut ? 'border-red-200 opacity-80' : 'border-gray-100'}`}>
+                <div className="relative h-48 bg-gray-50 p-4">
+                  <img 
+                    src={product.imageUrl} 
+                    alt={product.name} 
+                    className={`w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 ${isSoldOut ? 'grayscale' : ''}`}
+                    onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Erro+Imagem';
+                    }}
+                  />
+                  
+                  {/* FAIXA DE ESGOTADO NA LISTAGEM */}
+                  {isSoldOut && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px]">
+                         <div className="bg-red-600 text-white font-black uppercase text-xl px-6 py-2 transform -rotate-12 border-4 border-white shadow-xl">
+                            ESGOTADO
+                         </div>
+                    </div>
+                  )}
+
+                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                    <button 
+                      onClick={() => openEdit(product)}
+                      className="p-2 bg-white text-blue-600 rounded-lg shadow-sm hover:bg-blue-50 transition-colors"
+                    >
+                      <Edit2 size={16} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if(window.confirm(`Excluir ${product.name}?`)) onDeleteProduct(product.id);
+                      }}
+                      className="p-2 bg-white text-red-600 rounded-lg shadow-sm hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                  <span className="absolute bottom-2 left-2 text-[10px] font-bold uppercase tracking-wider bg-black/50 text-white px-2 py-1 rounded backdrop-blur-sm z-10">
+                    {product.category}
+                  </span>
+                </div>
+                
+                <div className="p-4 flex flex-col flex-1">
+                  <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">{product.name}</h3>
+                  {product.description && <p className="text-gray-400 text-xs mb-3 line-clamp-2">{product.description}</p>}
+                  
+                  <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-50">
+                    <span className="text-2xl font-black text-orange-600">{formatCurrency(product.price)}</span>
+                    {isSoldOut ? (
+                        <span className="flex items-center gap-1 text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded">
+                            <Ban size={12} /> ESGOTADO
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded">
+                            <CheckCircle2 size={12} /> DISPONÍVEL
+                        </span>
+                    )}
+                  </div>
+                </div>
               </div>
-              <span className="absolute bottom-2 left-2 text-[10px] font-bold uppercase tracking-wider bg-black/50 text-white px-2 py-1 rounded backdrop-blur-sm">
-                {product.category}
-              </span>
-            </div>
-            
-            <div className="p-4 flex flex-col flex-1">
-              <h3 className="font-bold text-gray-800 text-lg leading-tight mb-1">{product.name}</h3>
-              {product.description && <p className="text-gray-400 text-xs mb-3 line-clamp-2">{product.description}</p>}
-              
-              <div className="mt-auto flex items-center justify-between pt-3 border-t border-gray-50">
-                <span className="text-2xl font-black text-orange-600">{formatCurrency(product.price)}</span>
-                <span className={`w-3 h-3 rounded-full ${product.isAvailable !== false ? 'bg-green-500' : 'bg-red-500'}`} title={product.isAvailable !== false ? 'Disponível' : 'Indisponível'}></span>
-              </div>
-            </div>
-          </div>
-        ))}
+            );
+        })}
 
         {filteredProducts.length === 0 && (
             <div className="col-span-full flex flex-col items-center justify-center py-20 text-gray-400 opacity-60">
@@ -168,6 +192,21 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
             </div>
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {/* STATUS DO PRODUTO (TOGGLE) */}
+              <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 flex items-center justify-between">
+                  <span className="text-sm font-bold text-gray-700 uppercase">Status do Produto</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsAvailable(!isAvailable)}
+                    className={`relative inline-flex h-8 w-36 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 ${isAvailable ? 'bg-green-500' : 'bg-red-500'}`}
+                  >
+                    <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${isAvailable ? 'translate-x-28' : 'translate-x-1'}`} />
+                    <span className={`absolute text-[10px] font-black uppercase text-white w-full text-center ${isAvailable ? 'pr-8' : 'pl-8'}`}>
+                        {isAvailable ? 'Disponível' : 'Esgotado'}
+                    </span>
+                  </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                  <div className="col-span-2">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome do Produto</label>
