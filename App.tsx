@@ -717,25 +717,47 @@ const App: React.FC = () => {
               </button>
             )}
 
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-around items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb">
+            {/* --- MOBILE BOTTOM NAVIGATION (ATUALIZADO) --- */}
+            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-between items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb px-1">
+              {/* 1. VENDAS (POS) */}
               {(currentUser.role === 'admin' || currentUser.role === 'staff') && (
-                <button onClick={() => setCurrentView('pos')} className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'pos' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}><LayoutGrid size={22} className={currentView === 'pos' ? 'fill-current' : ''} /><span className="text-[10px] font-bold uppercase">Vendas</span></button>
+                <button onClick={() => setCurrentView('pos')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'pos' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <LayoutGrid size={20} className={currentView === 'pos' ? 'fill-current' : ''} />
+                  <span className="text-[9px] font-bold uppercase leading-none">Vendas</span>
+                </button>
               )}
+
+              {/* 2. COZINHA */}
               {(currentUser.role === 'admin' || currentUser.role === 'kitchen') && (
-                <button onClick={() => setCurrentView('kitchen')} className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'kitchen' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}><ChefHat size={22} className={currentView === 'kitchen' ? 'fill-current' : ''} /><span className="text-[10px] font-bold uppercase">Cozinha</span></button>
+                <button onClick={() => setCurrentView('kitchen')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'kitchen' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                  <ChefHat size={20} className={currentView === 'kitchen' ? 'fill-current' : ''} />
+                  <span className="text-[9px] font-bold uppercase leading-none">Cozinha</span>
+                </button>
               )}
-              {currentUser.role === 'admin' && (
-                  <>
-                    {/* Botão Cardápio: Apenas Professor (ID 0) */}
-                    {currentUser.id === '0' && (
-                        <button onClick={() => setCurrentView('products')} className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'products' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}><PackageSearch size={22} /><span className="text-[10px] font-bold uppercase">Cardápio</span></button>
-                    )}
-                    {currentUser.id === '0' && (
-                        <button onClick={() => setCurrentView('reports')} className={`flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'reports' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}><BarChart3 size={22} /><span className="text-[10px] font-bold uppercase">Gestão</span></button>
-                    )}
-                  </>
+
+              {/* 3. CARDÁPIO (Apenas Professor ID 0) */}
+              {currentUser.id === '0' && (
+                  <button onClick={() => setCurrentView('products')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'products' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <PackageSearch size={20} />
+                    <span className="text-[9px] font-bold uppercase leading-none">Cardápio</span>
+                  </button>
               )}
+
+              {/* 4. GESTÃO (Apenas Professor ID 0) */}
+              {currentUser.id === '0' && (
+                  <button onClick={() => setCurrentView('reports')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'reports' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <BarChart3 size={20} />
+                    <span className="text-[9px] font-bold uppercase leading-none">Gestão</span>
+                  </button>
+              )}
+
+              {/* 5. EQUIPE (Disponível para todos, ou pelo menos Admin/Staff) */}
+              <button onClick={() => setCurrentView('users')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'users' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                <UsersIcon size={20} />
+                <span className="text-[9px] font-bold uppercase leading-none">Equipe</span>
+              </button>
             </div>
+
           </main>
         </>
       )}
