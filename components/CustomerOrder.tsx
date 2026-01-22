@@ -1,7 +1,7 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
 
@@ -10,6 +10,10 @@ interface CustomerOrderProps {
   onExit: () => void;
   nextOrderNumber: number;
 }
+
+// Sons para notificação
+const SOUND_PAYMENT_CONFIRMED = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
+const SOUND_ORDER_READY = "https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3";
 
 const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -23,6 +27,36 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // Estado para Meus Pedidos
   const [myOrders, setMyOrders] = useState<Transaction[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Referência para guardar o estado anterior e comparar mudanças
+  const prevOrdersRef = useRef<Transaction[]>([]);
+
+  // --- NOTIFICAÇÕES ---
+  const requestNotificationPermission = () => {
+    if ('Notification' in window && Notification.permission !== 'granted') {
+      Notification.requestPermission();
+    }
+  };
+
+  const sendSystemNotification = (title: string, body: string, soundUrl: string) => {
+    // 1. Vibrar (Android)
+    if (navigator.vibrate) {
+        navigator.vibrate([500, 200, 500]); // Vibração forte
+    }
+
+    // 2. Tocar Som
+    const audio = new Audio(soundUrl);
+    audio.play().catch(e => console.log("Audio play blocked", e));
+
+    // 3. Notificação do Navegador (Banner)
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+            body: body,
+            icon: MASCOT_URL,
+            tag: 'order-update' // Evita spam de notificações, substitui a anterior
+        });
+    }
+  };
 
   // Carregar IDs de pedidos do LocalStorage
   const getStoredOrderIds = (): string[] => {
@@ -48,10 +82,43 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     setIsLoadingOrders(false);
   };
 
+  // MONITORAMENTO DE MUDANÇAS DE STATUS PARA NOTIFICAR
+  useEffect(() => {
+    if (myOrders.length > 0 && prevOrdersRef.current.length > 0) {
+        myOrders.forEach(newOrder => {
+            const oldOrder = prevOrdersRef.current.find(o => o.id === newOrder.id);
+            
+            if (oldOrder) {
+                // Caso 1: Pagamento Confirmado (pending_payment -> completed)
+                if (oldOrder.status === 'pending_payment' && newOrder.status === 'completed') {
+                    sendSystemNotification(
+                        `Pagamento Confirmado!`,
+                        `Seu pedido #${newOrder.orderNumber} foi enviado para a cozinha.`,
+                        SOUND_PAYMENT_CONFIRMED
+                    );
+                }
+
+                // Caso 2: Pedido Pronto (kitchenStatus pending -> done)
+                if (oldOrder.kitchenStatus === 'pending' && newOrder.kitchenStatus === 'done') {
+                    sendSystemNotification(
+                        `PEDIDO PRONTO!`,
+                        `Sua senha #${newOrder.orderNumber} está pronta! Retire no balcão.`,
+                        SOUND_ORDER_READY
+                    );
+                    alert(`🔔 SEU PEDIDO #${newOrder.orderNumber} ESTÁ PRONTO!\n\nRetire no balcão.`);
+                }
+            }
+        });
+    }
+    // Atualiza a referência para a próxima comparação
+    prevOrdersRef.current = myOrders;
+  }, [myOrders]);
+
   // ATUALIZAÇÃO EM TEMPO REAL
   useEffect(() => {
     // Se estiver na tela de "Meus Pedidos" ou "Sucesso", ativa o listener
     if (view === 'orders' || view === 'success') {
+        requestNotificationPermission(); // Pede permissão ao entrar nessas telas
         loadMyOrders(); // Carrega inicial
         
         // Se inscreve para atualizações do banco
@@ -145,6 +212,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         setLastOrderInfo({ number: orderNumber, name: customerName });
         setCart([]);
         setView('success');
+        requestNotificationPermission(); // Garante pedido de permissão ao finalizar
     } else {
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
     }
@@ -223,6 +291,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 <button onClick={loadMyOrders} className={`p-2 text-blue-600 hover:bg-blue-50 rounded-full ${isLoadingOrders ? 'animate-spin' : ''}`}>
                     <RefreshCw size={24} />
                 </button>
+            </div>
+            
+            <div className="bg-blue-50 px-4 py-2 text-xs text-blue-700 flex items-center justify-center gap-2 border-b border-blue-100">
+                <BellRing size={14} className="animate-pulse" />
+                <span>Nós te avisaremos aqui quando estiver pronto!</span>
             </div>
 
             <div className="p-4 space-y-4 flex-1 overflow-y-auto">
