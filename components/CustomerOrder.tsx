@@ -85,7 +85,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 new Notification(title, {
                     body: body,
                     icon: MASCOT_URL,
-                    tag: 'order-update' // Evita spam
+                    tag: 'order-update', // Evita spam
+                    requireInteraction: true // Mantém a notificação na tela até o usuário interagir
                 });
             } catch(e) {
                 console.log("Erro ao criar notificação nativa", e);
@@ -160,23 +161,22 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     prevOrdersRef.current = myOrders;
   }, [myOrders]);
 
-  // ATUALIZAÇÃO EM TEMPO REAL
+  // ATUALIZAÇÃO EM TEMPO REAL GLOBAL
+  // Agora roda na montagem do componente, não apenas quando entra na view 'orders'
   useEffect(() => {
-    // Se estiver na tela de "Meus Pedidos" ou "Sucesso", ativa o listener
-    if (view === 'orders' || view === 'success') {
-        requestNotificationPermission(); // Pede permissão ao entrar nessas telas
-        loadMyOrders(); // Carrega inicial
-        
-        // Se inscreve para atualizações do banco
-        const subscription = subscribeToTransactions(() => {
-            loadMyOrders(); // Recarrega quando algo mudar no banco
-        });
+    requestNotificationPermission(); // Tenta pedir permissão logo no início
+    loadMyOrders(); // Carrega inicial
+    
+    // Se inscreve para atualizações do banco SEMPRE
+    // Isso garante que se o cliente estiver no menu ou com a aba em background, ele receba a notificação
+    const subscription = subscribeToTransactions(() => {
+        loadMyOrders(); // Recarrega quando algo mudar no banco
+    });
 
-        return () => {
-            if (subscription) subscription.unsubscribe();
-        };
-    }
-  }, [view]);
+    return () => {
+        if (subscription) subscription.unsubscribe();
+    };
+  }, []);
 
   // Categorias
   const categories = useMemo(() => {
@@ -259,6 +259,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         setCart([]);
         setView('success');
         requestNotificationPermission(); // Garante pedido de permissão ao finalizar
+        loadMyOrders(); // Força atualização imediata
     } else {
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
     }
