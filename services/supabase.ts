@@ -96,6 +96,21 @@ export const fetchPendingTransactions = async (): Promise<Transaction[]> => {
   } catch (err) { return []; }
 };
 
+// Busca transações específicas por ID (Para o cliente acompanhar seus pedidos)
+export const fetchTransactionsByIds = async (ids: string[]): Promise<Transaction[]> => {
+  if (!supabase || ids.length === 0) return [];
+  try {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .in('id', ids)
+      .order('timestamp', { ascending: false }); // Mais recentes primeiro
+
+    if (error) { console.warn('Supabase Error (Fetch By IDs):', error.message); return []; }
+    return data as Transaction[];
+  } catch (err) { return []; }
+};
+
 // NOVA FUNÇÃO: Calcula a próxima senha em tempo real
 export const fetchNextOrderNumber = async (): Promise<string | null> => {
   if (!supabase) return null;

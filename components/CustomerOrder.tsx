@@ -1,9 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product, CartItem, Transaction } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote } from 'lucide-react';
 import { MASCOT_URL, APP_NAME } from '../constants';
-import { createTransaction, fetchNextOrderNumber } from '../services/supabase';
+import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds } from '../services/supabase';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -14,11 +14,44 @@ interface CustomerOrderProps {
 const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
-  const [view, setView] = useState<'menu' | 'cart' | 'success'>('menu');
+  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders'>('menu');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [lastOrderInfo, setLastOrderInfo] = useState<{number: string, name: string} | null>(null);
   const [isSending, setIsSending] = useState(false);
+  
+  // Estado para Meus Pedidos
+  const [myOrders, setMyOrders] = useState<Transaction[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+
+  // Carregar IDs de pedidos do LocalStorage
+  const getStoredOrderIds = (): string[] => {
+    const stored = localStorage.getItem('my_order_ids');
+    return stored ? JSON.parse(stored) : [];
+  };
+
+  const saveOrderId = (id: string) => {
+    const current = getStoredOrderIds();
+    const updated = [id, ...current]; // Mais recente primeiro
+    localStorage.setItem('my_order_ids', JSON.stringify(updated));
+  };
+
+  const loadMyOrders = async () => {
+    setIsLoadingOrders(true);
+    const ids = getStoredOrderIds();
+    if (ids.length > 0) {
+        const transactions = await fetchTransactionsByIds(ids);
+        setMyOrders(transactions);
+    }
+    setIsLoadingOrders(false);
+  };
+
+  // Carregar pedidos sempre que entrar na tela 'orders'
+  useEffect(() => {
+    if (view === 'orders') {
+        loadMyOrders();
+    }
+  }, [view]);
 
   // Categorias
   const categories = useMemo(() => {
@@ -75,8 +108,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         orderNumber = freshNumber;
     }
 
+    const transactionId = generateId();
+
     const newTransaction: Transaction = {
-        id: generateId(),
+        id: transactionId,
         orderNumber: orderNumber,
         customerName: customerName,
         timestamp: Date.now(),
@@ -94,43 +129,149 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     setIsSending(false);
 
     if (success) {
+        saveOrderId(transactionId); // Salva no histórico local
         setLastOrderInfo({ number: orderNumber, name: customerName });
         setCart([]);
         setView('success');
     } else {
-        // Falha no envio (Provavelmente Banco de Dados desatualizado)
-        alert("❌ ERRO AO ENVIAR PEDIDO!\n\nO sistema não conseguiu salvar seu pedido no banco de dados.\n\nSOLUÇÃO:\nPeça para o administrador rodar o script de atualização do banco de dados (SQL) para habilitar o 'Nome do Cliente'.");
+        alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
     }
   };
 
   if (view === 'success') {
       return (
-        <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6 text-center animate-in fade-in zoom-in duration-300">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-green-100">
-                <CheckCircle2 size={48} className="text-green-600" />
+        <div className="min-h-screen bg-orange-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            
+            {/* Animação de Confete/Luzes */}
+            <div className="absolute inset-0 pointer-events-none">
+                <div className="absolute top-1/4 left-1/4 w-4 h-4 bg-red-400 rounded-full animate-bounce delay-100"></div>
+                <div className="absolute top-1/3 right-1/4 w-3 h-3 bg-yellow-400 rounded-full animate-ping delay-300"></div>
+                <div className="absolute bottom-1/3 left-1/2 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
             </div>
-            <h1 className="text-3xl font-black text-gray-800 mb-2">Pedido Enviado!</h1>
-            <p className="text-gray-500 mb-8">Dirija-se ao caixa para realizar o pagamento.</p>
 
-            <div className="bg-white p-8 rounded-3xl shadow-xl border border-orange-100 w-full max-w-sm mb-8 relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-orange-500"></div>
+            <div className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-200 animate-in zoom-in duration-500">
+                <CheckCircle2 size={64} className="text-green-600 animate-in spin-in-90 duration-700" />
+            </div>
+            
+            <h1 className="text-4xl font-black text-gray-800 mb-2 animate-in slide-in-from-bottom-4 duration-500">Pedido Recebido!</h1>
+            
+            {/* AVISO IMPORTANTE DE PAGAMENTO */}
+            <div className="my-6 bg-red-100 border-l-4 border-red-500 p-4 rounded-r-lg max-w-md w-full animate-pulse">
+                <div className="flex items-center gap-3 mb-1">
+                    <Banknote size={28} className="text-red-600" />
+                    <h3 className="font-black text-red-700 text-lg uppercase">Atenção, {lastOrderInfo?.name}!</h3>
+                </div>
+                <p className="text-red-800 font-bold leading-tight text-left">
+                    Dirija-se ao CAIXA agora para realizar o pagamento e liberar seu pedido para a cozinha.
+                </p>
+            </div>
+
+            <div className="bg-white p-8 rounded-3xl shadow-2xl border border-orange-100 w-full max-w-sm mb-8 relative overflow-hidden transform hover:scale-105 transition-transform duration-300">
+                <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-orange-400 to-orange-600"></div>
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Sua Senha</p>
-                <p className="text-6xl font-black text-orange-600 tracking-tighter mb-4">#{lastOrderInfo?.number}</p>
-                <div className="bg-orange-50 py-2 px-4 rounded-lg inline-block">
-                    <p className="font-bold text-orange-800">{lastOrderInfo?.name}</p>
+                <p className="text-7xl font-black text-orange-600 tracking-tighter mb-4 drop-shadow-sm">#{lastOrderInfo?.number}</p>
+                <div className="text-xs text-gray-400 flex items-center justify-center gap-1">
+                    <Clock size={12}/>
+                    Registrado às {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </div>
             </div>
 
-            <button 
-                onClick={() => {
-                    setView('menu');
-                    setCustomerName('');
-                    setLastOrderInfo(null);
-                }}
-                className="bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-orange-600 transition-colors"
-            >
-                FAZER NOVO PEDIDO
-            </button>
+            <div className="flex flex-col gap-3 w-full max-w-sm">
+                <button 
+                    onClick={() => setView('orders')}
+                    className="bg-white text-orange-600 border-2 border-orange-100 font-bold py-4 px-8 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"
+                >
+                    <Clock size={20} />
+                    ACOMPANHAR PEDIDO
+                </button>
+                <button 
+                    onClick={() => {
+                        setView('menu');
+                        setCustomerName('');
+                        setLastOrderInfo(null);
+                    }}
+                    className="bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-orange-600 transition-colors"
+                >
+                    FAZER NOVO PEDIDO
+                </button>
+            </div>
+        </div>
+      );
+  }
+
+  // TELA DE MEUS PEDIDOS
+  if (view === 'orders') {
+      return (
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+            <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm">
+                <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600">
+                    <ArrowLeft size={24} />
+                </button>
+                <h2 className="font-bold text-lg text-gray-800">Meus Pedidos</h2>
+                <button onClick={loadMyOrders} className={`p-2 text-blue-600 hover:bg-blue-50 rounded-full ${isLoadingOrders ? 'animate-spin' : ''}`}>
+                    <RefreshCw size={24} />
+                </button>
+            </div>
+
+            <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                {isLoadingOrders ? (
+                    <div className="text-center py-10 text-gray-400">Carregando seus pedidos...</div>
+                ) : myOrders.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+                        <Clock size={48} className="mb-4 opacity-50"/>
+                        <p>Você ainda não fez nenhum pedido neste dispositivo.</p>
+                    </div>
+                ) : (
+                    myOrders.map(order => {
+                        // Determinar Status
+                        let statusConfig = { color: 'bg-yellow-100 text-yellow-800', text: 'Aguardando Pagamento', icon: Banknote };
+                        
+                        if (order.status === 'completed') {
+                            if (order.kitchenStatus === 'done') {
+                                statusConfig = { color: 'bg-green-100 text-green-800', text: 'PRONTO! RETIRE NO BALCÃO', icon: CheckCircle2 };
+                            } else {
+                                statusConfig = { color: 'bg-blue-100 text-blue-800', text: 'Em Preparo', icon: ChefHat };
+                            }
+                        } else if (order.status === 'cancelled') {
+                             statusConfig = { color: 'bg-red-100 text-red-800', text: 'Cancelado', icon: X };
+                        }
+
+                        const StatusIcon = statusConfig.icon;
+
+                        return (
+                            <div key={order.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <span className="text-xs font-bold text-gray-400 uppercase">Senha</span>
+                                        <p className="text-3xl font-black text-gray-800 leading-none">#{order.orderNumber}</p>
+                                    </div>
+                                    <span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">
+                                        {new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                                    </span>
+                                </div>
+
+                                <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${statusConfig.color}`}>
+                                    <StatusIcon size={20} />
+                                    <span className="font-bold text-sm uppercase">{statusConfig.text}</span>
+                                </div>
+                                
+                                {order.status === 'pending_payment' && (
+                                    <p className="text-xs text-red-500 font-bold mb-3 animate-pulse">
+                                        * Vá ao caixa para pagar.
+                                    </p>
+                                )}
+
+                                <div className="border-t border-gray-100 pt-3">
+                                    <p className="text-sm text-gray-600 line-clamp-2">
+                                        {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                                    </p>
+                                    <p className="text-right font-black text-gray-900 mt-2">{formatCurrency(order.total)}</p>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
+            </div>
         </div>
       );
   }
@@ -217,7 +358,16 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                  <img src={MASCOT_URL} alt="Logo" className="w-8 h-8 object-contain" />
                  <h1 className="font-black text-gray-800 tracking-tight">{APP_NAME}</h1>
              </div>
-             <button onClick={onExit} className="text-xs text-gray-400 underline">Sair</button>
+             <div className="flex items-center gap-3">
+                 <button 
+                    onClick={() => setView('orders')}
+                    className="flex flex-col items-center justify-center text-gray-500 hover:text-orange-600 transition-colors"
+                 >
+                    <Clock size={20} />
+                    <span className="text-[10px] font-bold">Meus Pedidos</span>
+                 </button>
+                 <button onClick={onExit} className="text-xs text-gray-400 underline ml-2">Sair</button>
+             </div>
          </div>
          
          {/* Busca */}
