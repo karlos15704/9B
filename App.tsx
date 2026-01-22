@@ -639,15 +639,15 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* CARDÁPIO (Apenas Professor ID 0) */}
-            {currentUser.id === '0' && (
+            {/* CARDÁPIO (Professor / Admin) */}
+            {(currentUser.id === '0' || currentUser.role === 'admin') && (
               <button onClick={() => setCurrentView('products')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'products' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Cardápio">
                 <PackageSearch size={24} />
               </button>
             )}
 
-            {/* RELATÓRIOS (Apenas Professor ID 0) */}
-            {currentUser.id === '0' && (
+            {/* RELATÓRIOS (Professor / Admin) */}
+            {(currentUser.id === '0' || currentUser.role === 'admin') && (
               <button onClick={() => setCurrentView('reports')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'reports' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Relatórios">
                 <BarChart3 size={24} />
               </button>
@@ -735,16 +735,16 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              {/* 3. CARDÁPIO (Apenas Professor ID 0) */}
-              {currentUser.id === '0' && (
+              {/* 3. CARDÁPIO (Professor / Admin) */}
+              {(currentUser.id === '0' || currentUser.role === 'admin') && (
                   <button onClick={() => setCurrentView('products')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'products' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                     <PackageSearch size={20} />
                     <span className="text-[9px] font-bold uppercase leading-none">Cardápio</span>
                   </button>
               )}
 
-              {/* 4. GESTÃO (Apenas Professor ID 0) */}
-              {currentUser.id === '0' && (
+              {/* 4. GESTÃO (Professor / Admin) */}
+              {(currentUser.id === '0' || currentUser.role === 'admin') && (
                   <button onClick={() => setCurrentView('reports')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'reports' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                     <BarChart3 size={20} />
                     <span className="text-[9px] font-bold uppercase leading-none">Gestão</span>
