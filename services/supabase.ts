@@ -7,66 +7,67 @@ import { Transaction, User, Product } from '../types';
   ==============================================================================
   
   Copie o código abaixo, cole no "SQL Editor" do Supabase e clique em "RUN".
-  Isso vai criar/resetar as tabelas corretamente e adicionar índices para relatórios rápidos.
 
-  -- 1. Limpeza (Remove tabelas antigas para evitar conflitos)
+  -- 1. LIMPEZA (Remove tabelas antigas se existirem para evitar erros)
   DROP TABLE IF EXISTS transactions;
   DROP TABLE IF EXISTS users;
   DROP TABLE IF EXISTS products;
 
-  -- 2. Tabela de Vendas (Pedidos)
-  CREATE TABLE transactions (
-    id text primary key,
-    "orderNumber" text,
-    "customerName" text,  -- Nome do cliente
-    timestamp bigint,
-    items jsonb,          -- Itens do carrinho (JSON)
-    subtotal numeric,
-    discount numeric,
-    total numeric,
-    "paymentMethod" text,
-    "amountPaid" numeric,
-    change numeric,
-    "sellerName" text,
-    status text,          -- 'pending_payment', 'completed', 'cancelled'
-    "kitchenStatus" text  -- 'pending', 'done'
+  -- 2. CRIAR TABELA DE VENDAS (TRANSACTIONS)
+  CREATE TABLE public.transactions (
+      id text PRIMARY KEY,
+      "orderNumber" text,
+      "customerName" text,
+      timestamp bigint,
+      items jsonb,          -- Armazena os itens do pedido em formato JSON
+      subtotal numeric,
+      discount numeric,
+      total numeric,
+      "paymentMethod" text, -- 'Crédito', 'Débito', 'Dinheiro', 'Pix', 'Aguardando'
+      "amountPaid" numeric,
+      change numeric,
+      "sellerName" text,
+      status text,          -- 'pending_payment', 'completed', 'cancelled'
+      "kitchenStatus" text  -- 'pending', 'done'
   );
 
-  -- 2.1 Índice para relatórios de data (Melhora performance dos filtros de Dia/Mês/Ano)
-  CREATE INDEX idx_transactions_timestamp ON transactions(timestamp);
-
-  -- 3. Tabela de Usuários (Staff)
-  CREATE TABLE users (
-    id text primary key,
-    name text,
-    password text,
-    role text
+  -- 3. CRIAR TABELA DE USUÁRIOS (USERS)
+  CREATE TABLE public.users (
+      id text PRIMARY KEY,
+      name text,
+      password text,
+      role text             -- 'admin', 'manager', 'staff', 'kitchen', 'display'
   );
 
-  -- 4. Tabela de Produtos (Cardápio)
-  CREATE TABLE products (
-    id text primary key,
-    name text,
-    price numeric,
-    category text,
-    "imageUrl" text,
-    description text,
-    "isAvailable" boolean
+  -- 4. CRIAR TABELA DE PRODUTOS (PRODUCTS)
+  CREATE TABLE public.products (
+      id text PRIMARY KEY,
+      name text,
+      price numeric,
+      category text,
+      "imageUrl" text,
+      description text,     -- Nova coluna para detalhes do produto
+      "isAvailable" boolean DEFAULT true -- Nova coluna para controle de estoque
   );
 
-  -- 5. Segurança (Permite leitura/escrita pública para o app funcionar sem login complexo)
-  ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-  
-  CREATE POLICY "Acesso Total Vendas" ON transactions FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "Acesso Total Usuarios" ON users FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "Acesso Total Produtos" ON products FOR ALL USING (true) WITH CHECK (true);
-  
-  -- 6. Habilita Realtime (Para atualizações instantâneas)
-  alter publication supabase_realtime add table transactions;
-  alter publication supabase_realtime add table users;
-  alter publication supabase_realtime add table products;
+  -- 5. CRIAR ÍNDICES (Para o Relatório Diário/Mensal carregar rápido)
+  CREATE INDEX idx_transactions_timestamp ON public.transactions(timestamp);
+
+  -- 6. CONFIGURAR SEGURANÇA (RLS)
+  -- Libera leitura e escrita para o app funcionar sem autenticação complexa de email
+  ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+
+  CREATE POLICY "Acesso Total Transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "Acesso Total Users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "Acesso Total Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
+
+  -- 7. ATIVAR REALTIME
+  -- Isso faz a cozinha e o telão atualizarem sozinhos quando entra pedido
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
 
   ==============================================================================
 */
@@ -202,16 +203,8 @@ export const resetDatabase = async (): Promise<boolean> => {
     if (!supabase) return false;
     try {
         // Remove todas as transações (Cuidado: isso apaga o histórico completo)
-        const { error } = await supabase.from('transactions').delete().neq('id', 'placeholder'); // neq id placeholder é um hack para 'delete all' em algumas configs, mas delete() sem where costuma funcionar dependendo da policy
-        // Se o delete all direto for bloqueado por segurança, precisamos de uma condição verdadeira.
-        // A melhor forma de limpar via client é garantir que a Policy permita.
-        
-        // Tentativa direta:
-        // const { error } = await supabase.from('transactions').delete().gt('timestamp', 0);
-        
-        // Se falhar, use o TRUNCATE via SQL Editor no painel, mas via API client-side:
+        // Se a policy não permitir delete all sem where, usamos gte timestamp 0
         const { error: err } = await supabase.from('transactions').delete().gte('timestamp', 0);
-        
         return !err;
     } catch (err) {
         console.error("Erro ao resetar banco:", err);

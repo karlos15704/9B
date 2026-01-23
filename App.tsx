@@ -651,7 +651,8 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {(currentUser.role === 'admin' || currentUser.role === 'kitchen') && (
+            {/* ATUALIZADO: Gerente agora pode ver a Cozinha */}
+            {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'kitchen') && (
               <button onClick={() => setCurrentView('kitchen')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'kitchen' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Cozinha">
                 <ChefHat size={24} />
               </button>
@@ -749,8 +750,8 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              {/* 2. COZINHA */}
-              {(currentUser.role === 'admin' || currentUser.role === 'kitchen') && (
+              {/* 2. COZINHA (ATUALIZADO: Gerente incluído) */}
+              {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'kitchen') && (
                 <button onClick={() => setCurrentView('kitchen')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'kitchen' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                   <ChefHat size={20} className={currentView === 'kitchen' ? 'fill-current' : ''} />
                   <span className="text-[9px] font-bold uppercase leading-none">Cozinha</span>
