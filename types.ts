@@ -58,4 +58,7 @@ export interface AppSettings {
   mascotUrl: string;
   schoolLogoUrl: string;
   emptyCartImageUrl: string;
+  // Novos campos de estrutura visual
+  primaryColor: string; // Ex: '#ea580c' (Orange)
+  buttonSize: 'small' | 'medium' | 'large' | 'xl';
 }

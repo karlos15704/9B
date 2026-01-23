@@ -6,80 +6,22 @@ import { Transaction, User, Product, AppSettings } from '../types';
   🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  Copie o código abaixo, cole no "SQL Editor" do Supabase e clique em "RUN".
+  Certifique-se de que a tabela 'settings' existe e o Realtime está ativo.
 
-  -- 1. LIMPEZA (Remove tabelas antigas se existirem para evitar erros)
-  -- Cuidado: Só rode os DROPs se quiser resetar a estrutura.
-  -- DROP TABLE IF EXISTS settings;
-
-  -- 2. CRIAR TABELA DE VENDAS (TRANSACTIONS) - Se já existir, ignore
-  CREATE TABLE IF NOT EXISTS public.transactions (
-      id text PRIMARY KEY,
-      "orderNumber" text,
-      "customerName" text,
-      timestamp bigint,
-      items jsonb,
-      subtotal numeric,
-      discount numeric,
-      total numeric,
-      "paymentMethod" text,
-      "amountPaid" numeric,
-      change numeric,
-      "sellerName" text,
-      status text,
-      "kitchenStatus" text
-  );
-
-  -- 3. CRIAR TABELA DE USUÁRIOS (USERS) - Se já existir, ignore
-  CREATE TABLE IF NOT EXISTS public.users (
-      id text PRIMARY KEY,
-      name text,
-      password text,
-      role text
-  );
-
-  -- 4. CRIAR TABELA DE PRODUTOS (PRODUCTS) - Se já existir, ignore
-  CREATE TABLE IF NOT EXISTS public.products (
-      id text PRIMARY KEY,
-      name text,
-      price numeric,
-      category text,
-      "imageUrl" text,
-      description text,
-      "isAvailable" boolean DEFAULT true
-  );
-
-  -- 5. NOVA TABELA DE CONFIGURAÇÕES (SETTINGS)
   CREATE TABLE IF NOT EXISTS public.settings (
-      id text PRIMARY KEY, -- Usaremos id='global'
+      id text PRIMARY KEY,
       "appName" text,
       "schoolClass" text,
       "mascotUrl" text,
       "schoolLogoUrl" text,
-      "emptyCartImageUrl" text
+      "emptyCartImageUrl" text,
+      "primaryColor" text DEFAULT '#ea580c',
+      "buttonSize" text DEFAULT 'medium'
   );
 
-  -- 6. CRIAR ÍNDICES
-  CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON public.transactions(timestamp);
-
-  -- 7. CONFIGURAR SEGURANÇA (RLS)
-  ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-  ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-
-  CREATE POLICY "Acesso Total Transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "Acesso Total Users" ON public.users FOR ALL USING (true) WITH CHECK (true);
-  CREATE POLICY "Acesso Total Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
   CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
-
-  -- 8. ATIVAR REALTIME
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
-
-  ==============================================================================
 */
 
 // ==============================================================================
@@ -329,7 +271,11 @@ export const subscribeToTransactions = (onUpdate: () => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => onUpdate()) // Escuta mudanças nas configurações
+    // Ouve especificamente a tabela settings para atualizações globais
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
+        console.log("Settings changed remotely!");
+        onUpdate();
+    }) 
     .subscribe();
   return channel;
 };
