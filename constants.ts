@@ -72,4 +72,4 @@ export const MOCK_PRODUCTS: Product[] = [
 export const APP_NAME = "TÔ FRITO!";
 
 // Mascote (Logo) Atualizado
-export const MASCOT_URL = "https://i.ibb.co/W7csYss/mascote.png";
+export const MASCOT_URL = "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png";
