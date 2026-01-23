@@ -26,7 +26,8 @@ import {
   fetchProducts,
   createProduct,
   updateProduct as updateProductSupabase,
-  deleteProduct as deleteProductSupabase
+  deleteProduct as deleteProductSupabase,
+  resetDatabase
 } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch } from 'lucide-react';
 
@@ -418,10 +419,27 @@ const App: React.FC = () => {
   };
 
   const handleResetSystem = async () => {
-    setTransactions([]);
-    setNextOrderNumber(1);
-    localStorage.removeItem('pos_transactions');
-    alert("Para limpar o banco de dados online, utilize o painel do Supabase.");
+    // Segurança extra: Só professor pode resetar
+    if (currentUser?.id !== '0') {
+        alert("Ação não autorizada.");
+        return;
+    }
+
+    if (isConnected) {
+        const success = await resetDatabase();
+        if (success) {
+            alert("Banco de dados reiniciado com sucesso.");
+            window.location.reload(); // Recarrega para limpar estado local
+        } else {
+            alert("Erro ao limpar banco de dados.");
+        }
+    } else {
+        // Fallback local
+        localStorage.removeItem('pos_transactions');
+        setTransactions([]);
+        setNextOrderNumber(1);
+        alert("Dados locais limpos.");
+    }
   };
 
   // --- PRINT RECEIPT FUNCTION ---
@@ -710,7 +728,7 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem}/>}
+            {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
             {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
             {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}

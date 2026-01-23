@@ -7,7 +7,7 @@ import { Transaction, User, Product } from '../types';
   ==============================================================================
   
   Copie o código abaixo, cole no "SQL Editor" do Supabase e clique em "RUN".
-  Isso vai criar/resetar as tabelas corretamente.
+  Isso vai criar/resetar as tabelas corretamente e adicionar índices para relatórios rápidos.
 
   -- 1. Limpeza (Remove tabelas antigas para evitar conflitos)
   DROP TABLE IF EXISTS transactions;
@@ -31,6 +31,9 @@ import { Transaction, User, Product } from '../types';
     status text,          -- 'pending_payment', 'completed', 'cancelled'
     "kitchenStatus" text  -- 'pending', 'done'
   );
+
+  -- 2.1 Índice para relatórios de data (Melhora performance dos filtros de Dia/Mês/Ano)
+  CREATE INDEX idx_transactions_timestamp ON transactions(timestamp);
 
   -- 3. Tabela de Usuários (Staff)
   CREATE TABLE users (
@@ -192,6 +195,28 @@ export const updateTransactionStatus = async (id: string, status: 'completed' | 
 export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' | 'done') => {
   if (!supabase) return;
   try { await supabase.from('transactions').update({ kitchenStatus }).eq('id', id); } catch (err) {}
+};
+
+// --- FUNÇÃO DE RESETAR BANCO (APENAS PROFESSOR) ---
+export const resetDatabase = async (): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        // Remove todas as transações (Cuidado: isso apaga o histórico completo)
+        const { error } = await supabase.from('transactions').delete().neq('id', 'placeholder'); // neq id placeholder é um hack para 'delete all' em algumas configs, mas delete() sem where costuma funcionar dependendo da policy
+        // Se o delete all direto for bloqueado por segurança, precisamos de uma condição verdadeira.
+        // A melhor forma de limpar via client é garantir que a Policy permita.
+        
+        // Tentativa direta:
+        // const { error } = await supabase.from('transactions').delete().gt('timestamp', 0);
+        
+        // Se falhar, use o TRUNCATE via SQL Editor no painel, mas via API client-side:
+        const { error: err } = await supabase.from('transactions').delete().gte('timestamp', 0);
+        
+        return !err;
+    } catch (err) {
+        console.error("Erro ao resetar banco:", err);
+        return false;
+    }
 };
 
 // --- FUNÇÕES DE USUÁRIOS (USERS) ---

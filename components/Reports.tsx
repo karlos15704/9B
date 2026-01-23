@@ -1,19 +1,25 @@
 import React, { useMemo, useState } from 'react';
-import { Transaction, PaymentMethod } from '../types';
+import { Transaction, PaymentMethod, User } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Lock } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface ReportsProps {
   transactions: Transaction[];
   onCancelTransaction: (transactionId: string) => void;
   onResetSystem: () => void;
+  currentUser: User | null; // Adicionado para verificação de permissão
 }
 
 const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74']; // Orange scale
 
-const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem }) => {
+type DateRange = 'day' | 'week' | 'month' | 'year';
+
+const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem, currentUser }) => {
+  // Filtro de Data
+  const [dateRange, setDateRange] = useState<DateRange>('day');
+
   // Reset System State
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetPassword, setResetPassword] = useState('');
@@ -23,21 +29,43 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const [transactionToCancel, setTransactionToCancel] = useState<{id: string, number: string} | null>(null);
   const [cancelPassword, setCancelPassword] = useState('');
 
-  // Filter for today's transactions
-  const todayTransactions = useMemo(() => {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    return transactions.filter(t => t.timestamp >= startOfDay.getTime());
-  }, [transactions]);
+  // Verificação de Permissão do Professor (ID '0')
+  const isProfessor = currentUser?.id === '0';
+
+  // --- FILTRAGEM POR DATA ---
+  const filteredTransactions = useMemo(() => {
+    const now = new Date();
+    const startOfPeriod = new Date();
+
+    // Zera horas para comparação justa
+    startOfPeriod.setHours(0, 0, 0, 0);
+
+    if (dateRange === 'day') {
+      // Já está configurado para hoje 00:00
+    } else if (dateRange === 'week') {
+      // Domingo desta semana
+      const day = startOfPeriod.getDay(); // 0 (Dom) a 6 (Sab)
+      const diff = startOfPeriod.getDate() - day;
+      startOfPeriod.setDate(diff);
+    } else if (dateRange === 'month') {
+      // Dia 1 do mês atual
+      startOfPeriod.setDate(1);
+    } else if (dateRange === 'year') {
+      // Dia 1 de Janeiro do ano atual
+      startOfPeriod.setMonth(0, 1);
+    }
+
+    return transactions.filter(t => t.timestamp >= startOfPeriod.getTime());
+  }, [transactions, dateRange]);
 
   // Separate Active (Completed) vs Cancelled for calculations
   const activeTransactions = useMemo(() => 
-    todayTransactions.filter(t => t.status !== 'cancelled'), 
-  [todayTransactions]);
+    filteredTransactions.filter(t => t.status !== 'cancelled'), 
+  [filteredTransactions]);
 
   const cancelledTransactions = useMemo(() => 
-    todayTransactions.filter(t => t.status === 'cancelled'), 
-  [todayTransactions]);
+    filteredTransactions.filter(t => t.status === 'cancelled'), 
+  [filteredTransactions]);
 
   const stats = useMemo(() => {
     // Only calculate stats based on Active transactions to ensure correct revenue
@@ -81,17 +109,21 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   }, [activeTransactions]);
 
   const handleSystemReset = () => {
+    // Dupla verificação de segurança (Senha '0' do Professor)
     if (resetPassword === '0') {
       onResetSystem();
       setShowResetModal(false);
       setResetPassword('');
-      alert('Sistema zerado com sucesso.');
     } else {
       alert('Senha incorreta.');
     }
   };
 
   const handleConfirmCancel = () => {
+    // Qualquer Admin/Gerente pode cancelar venda (dependendo da regra, aqui deixei '0' ou senha de admin geral se houver)
+    // Se quisermos restringir cancelamento apenas ao professor, mudamos aqui.
+    // O App.tsx já valida permissões gerais, mas aqui é uma senha extra de confirmação.
+    // Vamos assumir que qualquer senha de admin válida serve, ou hardcoded '0' para simplificar a demo.
     if (cancelPassword === '0') {
       if (transactionToCancel) {
         onCancelTransaction(transactionToCancel.id);
@@ -109,8 +141,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     if (!printWindow) return;
 
     const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    
+    let periodoTexto = "DIÁRIO (HOJE)";
+    if(dateRange === 'week') periodoTexto = "SEMANAL";
+    if(dateRange === 'month') periodoTexto = "MENSAL";
+    if(dateRange === 'year') periodoTexto = "ANUAL";
 
-    // Added explicit type casting for Object.entries to fix 'unknown' type errors
     const productRows = (Object.entries(stats.productSales) as [string, { quantity: number; total: number }][])
       .sort(([, a], [, b]) => b.quantity - a.quantity)
       .map(([name, data]) => `
@@ -121,7 +157,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         </tr>
       `).join('');
 
-    // Added explicit type casting for Object.entries to fix 'unknown' type errors
     const sellerRows = (Object.entries(stats.bySeller) as [string, { count: number; total: number }][])
       .sort(([, a], [, b]) => b.total - a.total)
       .map(([name, data]) => `
@@ -132,7 +167,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         </tr>
       `).join('');
 
-    // Added explicit type casting for Object.entries to fix 'unknown' type errors
     const paymentRows = (Object.entries(stats.byMethod) as [string, number][])
       .map(([method, value]) => `
         <tr>
@@ -158,7 +192,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     const htmlContent = `
       <html>
         <head>
-          <title>Relatório de Fechamento - ${APP_NAME}</title>
+          <title>Relatório ${periodoTexto} - ${APP_NAME}</title>
           <style>
             body { font-family: 'Courier New', monospace; padding: 20px; max-width: 80mm; margin: 0 auto; }
             h1 { text-align: center; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
@@ -168,11 +202,13 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             .total { font-size: 16px; font-weight: bold; text-align: right; margin-top: 10px; border-top: 2px dashed #000; padding-top: 10px; }
             .center { text-align: center; }
             .footer { margin-top: 30px; text-align: center; font-size: 10px; border-top: 1px solid #ccc; padding-top: 10px; }
+            .badge { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
           </style>
         </head>
         <body>
           <h1>${APP_NAME}</h1>
-          <p class="center">RELATÓRIO DE FECHAMENTO</p>
+          <p class="center">RELATÓRIO FINANCEIRO</p>
+          <p class="center"><span class="badge">${periodoTexto}</span></p>
           <p class="center">${dateStr}</p>
           <br/>
           
@@ -232,6 +268,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
           <div class="footer">
             <p>Impresso em ${new Date().toLocaleTimeString()}</p>
+            <p>Sistema: ${APP_NAME}</p>
           </div>
           <script>
             window.onload = function() { window.print(); }
@@ -254,17 +291,17 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in fade-in zoom-in duration-200">
             <h3 className="text-lg font-bold text-red-600 mb-2 flex items-center gap-2">
               <AlertTriangle className="text-red-600" size={24} />
-              ZERAR TUDO?
+              ZERAR BANCO DE DADOS?
             </h3>
-            <p className="text-sm text-gray-500 mb-4 leading-relaxed">
-              Isso apagará <strong>TODAS</strong> as vendas e reiniciará a contagem de senhas para o número 1. Esta ação é irreversível.
+            <p className="text-sm text-gray-500 mb-4 leading-relaxed bg-red-50 p-3 rounded-lg border border-red-100">
+              Isso apagará <strong>TODAS AS VENDAS</strong> (inclusive histórico) do banco de dados online. Esta ação é irreversível e só deve ser feita pelo Professor.
             </p>
             <div className="mb-4">
-               <label className="text-xs font-bold text-gray-500 uppercase">Senha Administrativa</label>
+               <label className="text-xs font-bold text-gray-500 uppercase">Senha do Professor</label>
                <input 
                 type="password" 
                 className="w-full border-2 border-red-100 bg-red-50 p-2 rounded-lg mt-1 focus:outline-none focus:border-red-500" 
-                placeholder="Digite a senha..."
+                placeholder="Senha Master"
                 value={resetPassword}
                 onChange={e => setResetPassword(e.target.value)}
               />
@@ -280,7 +317,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                 onClick={handleSystemReset} 
                 className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
               >
-                CONFIRMAR
+                APAGAR TUDO
               </button>
             </div>
           </div>
@@ -331,31 +368,71 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
-        <div className="flex items-center gap-3">
+      {/* Header e Filtros */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
             <h2 className="text-2xl font-bold text-gray-800">Fechamento de Caixa</h2>
+            <p className="text-sm text-gray-500">Acompanhamento financeiro e operacional.</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={generatePrintWindow}
-            className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 shadow-sm flex items-center gap-2"
-          >
-            <FileText size={14} />
-            RELATÓRIO
-          </button>
-          
-          <button 
-            onClick={() => setShowResetModal(true)}
-            className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center gap-2"
-          >
-            <Trash2 size={14} />
-            ZERAR VENDAS
-          </button>
-          <span className="text-sm text-gray-500 bg-white px-3 py-1 rounded-full border border-gray-200 shadow-sm">
-            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </span>
+        <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+            <button 
+                onClick={() => setDateRange('day')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'day' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <CalendarDays size={14} />
+                Hoje
+            </button>
+            <button 
+                onClick={() => setDateRange('week')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'week' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <CalendarRange size={14} />
+                Semana
+            </button>
+            <button 
+                onClick={() => setDateRange('month')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'month' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <Calendar size={14} />
+                Mês
+            </button>
+            <button 
+                onClick={() => setDateRange('year')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'year' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+                <Calendar size={14} />
+                Ano
+            </button>
         </div>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 mb-2">
+         {/* Label do Período */}
+         <div className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg border border-orange-100">
+            Período: {dateRange === 'day' ? 'Diário' : dateRange === 'week' ? 'Semanal' : dateRange === 'month' ? 'Mensal' : 'Anual'}
+         </div>
+
+         <div className="flex gap-3">
+            <button 
+                onClick={generatePrintWindow}
+                className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 shadow-sm flex items-center gap-2"
+            >
+                <FileText size={14} />
+                IMPRIMIR
+            </button>
+            
+            {/* BOTÃO DE RESET - VISÍVEL APENAS PARA O PROFESSOR */}
+            {isProfessor && (
+                <button 
+                    onClick={() => setShowResetModal(true)}
+                    className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center gap-2"
+                >
+                    <Trash2 size={14} />
+                    ZERAR TUDO
+                </button>
+            )}
+         </div>
       </div>
 
       {/* KPI Cards */}
@@ -365,7 +442,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             <DollarSign size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Faturamento Hoje</p>
+            <p className="text-sm text-gray-500">Faturamento ({dateRange === 'day' ? 'Hoje' : 'Período'})</p>
             <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalSales)}</h3>
           </div>
         </div>
@@ -375,7 +452,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             <ShoppingBag size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Pedidos Ativos</p>
+            <p className="text-sm text-gray-500">Vendas Realizadas</p>
             <h3 className="text-2xl font-bold text-gray-900">{activeTransactions.length}</h3>
           </div>
         </div>
@@ -422,7 +499,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                </ResponsiveContainer>
              ) : (
                 <div className="h-full flex items-center justify-center text-gray-400">
-                  Sem vendas hoje
+                  Sem vendas no período
                 </div>
              )}
           </div>
@@ -436,7 +513,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           </h3>
           <div className="overflow-y-auto max-h-64 space-y-3">
              {Object.entries(stats.bySeller).length > 0 ? (
-                // Added explicit type casting for Object.entries to fix 'unknown' type errors
                 (Object.entries(stats.bySeller) as [string, { count: number; total: number }][])
                   .sort(([, a], [, b]) => b.total - a.total)
                   .map(([name, data], idx) => (
@@ -463,7 +539,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       {/* Recent Transactions Table */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 overflow-hidden">
         <div className="p-4 border-b border-orange-100">
-          <h3 className="font-semibold text-gray-800">Todos os Pedidos (Inclui Cancelados)</h3>
+          <h3 className="font-semibold text-gray-800">Extrato de Pedidos ({filteredTransactions.length})</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -479,14 +555,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {todayTransactions.length === 0 ? (
+              {filteredTransactions.length === 0 ? (
                  <tr>
                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                     Nenhum pedido registrado hoje.
+                     Nenhum pedido neste período.
                    </td>
                  </tr>
               ) : (
-                [...todayTransactions].reverse().map((t) => {
+                [...filteredTransactions].reverse().map((t) => {
                   const isCancelled = t.status === 'cancelled';
                   return (
                     <tr key={t.id} className={`${isCancelled ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-orange-50/50'} transition-colors`}>
@@ -497,7 +573,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                         {t.sellerName || '-'}
                       </td>
                       <td className={`px-6 py-4 ${isCancelled ? 'text-red-400' : 'text-gray-600'}`}>
-                        {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(t.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} <span className="text-[10px] text-gray-400 block">{new Date(t.timestamp).toLocaleDateString()}</span>
                       </td>
                       <td className={`px-6 py-4 font-medium ${isCancelled ? 'text-red-400 line-through' : 'text-gray-900'}`}>
                         {t.items.length} itens <span className={`text-xs ${isCancelled ? 'text-red-300' : 'text-gray-400'}`}>({t.items.map(i => i.name).slice(0, 1).join(', ')}{t.items.length > 1 ? '...' : ''})</span>
