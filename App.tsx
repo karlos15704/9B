@@ -115,10 +115,13 @@ const App: React.FC = () => {
 
   // --- CARREGAMENTO DE DADOS BLINDADO ---
   const loadData = async () => {
+    console.log("Loading Data..."); // Debug para verificar se está sendo chamado
+
     // --- CARREGAR CONFIGURAÇÕES GERAIS PRIMEIRO ---
     try {
         const remoteSettings = await fetchSettings();
         if (remoteSettings) {
+            console.log("Settings Fetched:", remoteSettings);
             // Merge cuidadoso para garantir que 'modules' exista
             setAppSettings(prev => ({ 
                 ...prev, 
@@ -251,13 +254,16 @@ const App: React.FC = () => {
   useEffect(() => {
     loadData();
     // Importante: subscribeToTransactions agora vai chamar loadData quando a tabela settings mudar
-    const subscription = subscribeToTransactions(() => loadData());
+    const subscription = subscribeToTransactions(() => {
+        console.log("Realtime Update Received!"); 
+        loadData();
+    });
     return () => { if (subscription) subscription.unsubscribe(); };
   }, []);
 
   useEffect(() => {
     if (currentView === 'users' || currentView === 'settings') return; 
-    const intervalId = setInterval(() => loadData(), 2000); 
+    const intervalId = setInterval(() => loadData(), 5000); // Sincronia de segurança a cada 5s
     return () => clearInterval(intervalId);
   }, [currentView]);
 
@@ -267,9 +273,14 @@ const App: React.FC = () => {
     setAppSettings(newSettings);
     localStorage.setItem('app_settings', JSON.stringify(newSettings));
     // Salva no Supabase para sincronizar com todos
-    if (isConnected) await saveSettings(newSettings);
+    if (isConnected) {
+        await saveSettings(newSettings);
+        // Force reload imediato após salvar para garantir
+        setTimeout(() => loadData(), 500); 
+    }
   };
 
+  // ... (Rest of actions: handleAddProduct, handleUpdateProduct, etc. remain the same)
   const handleAddProduct = async (newProduct: Product) => {
     const updated = [...products, newProduct];
     setProducts(updated);
