@@ -1,24 +1,32 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Transaction, PaymentMethod, User } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Lock } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface ReportsProps {
   transactions: Transaction[];
   onCancelTransaction: (transactionId: string) => void;
   onResetSystem: () => void;
-  currentUser: User | null; // Adicionado para verificação de permissão
+  currentUser: User | null;
 }
 
 const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74']; // Orange scale
+const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-type DateRange = 'day' | 'week' | 'month' | 'year';
+type DateRangeType = 'day' | 'week' | 'month' | 'year';
 
 const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem, currentUser }) => {
-  // Filtro de Data
-  const [dateRange, setDateRange] = useState<DateRange>('day');
+  // --- ESTADOS DE FILTRO ---
+  const [dateRangeType, setDateRangeType] = useState<DateRangeType>('day');
+  
+  // Datas atuais para inicialização
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth()); // 0-11
+  const [selectedDay, setSelectedDay] = useState(now.toISOString().split('T')[0]); // YYYY-MM-DD
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0); // Índice da semana no array de semanas
 
   // Reset System State
   const [showResetModal, setShowResetModal] = useState(false);
@@ -29,36 +37,97 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const [transactionToCancel, setTransactionToCancel] = useState<{id: string, number: string} | null>(null);
   const [cancelPassword, setCancelPassword] = useState('');
 
-  // Verificação de Permissão do Professor (ID '0')
   const isProfessor = currentUser?.id === '0';
 
-  // --- FILTRAGEM POR DATA ---
-  const filteredTransactions = useMemo(() => {
-    const now = new Date();
-    const startOfPeriod = new Date();
+  // --- HELPER: CALCULAR SEMANAS DO MÊS ---
+  // Retorna array de { label, start, end }
+  const weeksInMonth = useMemo(() => {
+    const weeks = [];
+    const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
+    const lastDayOfMonth = new Date(selectedYear, selectedMonth + 1, 0);
+    
+    let currentStart = new Date(firstDayOfMonth);
+    let weekCount = 1;
 
-    // Zera horas para comparação justa
-    startOfPeriod.setHours(0, 0, 0, 0);
+    while (currentStart <= lastDayOfMonth) {
+      // Fim da semana é o próximo Sábado ou o último dia do mês
+      const dayOfWeek = currentStart.getDay(); // 0 (Dom) - 6 (Sab)
+      const daysToSaturday = 6 - dayOfWeek;
+      
+      let currentEnd = new Date(currentStart);
+      currentEnd.setDate(currentStart.getDate() + daysToSaturday);
+      
+      // Se passar do fim do mês, corta no último dia
+      if (currentEnd > lastDayOfMonth) {
+        currentEnd = new Date(lastDayOfMonth);
+      }
+      
+      // Ajuste para fim do dia
+      const start = new Date(currentStart);
+      start.setHours(0,0,0,0);
+      
+      const end = new Date(currentEnd);
+      end.setHours(23,59,59,999);
 
-    if (dateRange === 'day') {
-      // Já está configurado para hoje 00:00
-    } else if (dateRange === 'week') {
-      // Domingo desta semana
-      const day = startOfPeriod.getDay(); // 0 (Dom) a 6 (Sab)
-      const diff = startOfPeriod.getDate() - day;
-      startOfPeriod.setDate(diff);
-    } else if (dateRange === 'month') {
-      // Dia 1 do mês atual
-      startOfPeriod.setDate(1);
-    } else if (dateRange === 'year') {
-      // Dia 1 de Janeiro do ano atual
-      startOfPeriod.setMonth(0, 1);
+      weeks.push({
+        label: `${weekCount}ª Semana (${start.getDate()}/${selectedMonth + 1} - ${end.getDate()}/${selectedMonth + 1})`,
+        start,
+        end
+      });
+
+      // Avança para o próximo Domingo (dia seguinte ao currentEnd)
+      currentStart = new Date(currentEnd);
+      currentStart.setDate(currentStart.getDate() + 1);
+      weekCount++;
+    }
+    return weeks;
+  }, [selectedYear, selectedMonth]);
+
+  // Resetar índice da semana se mudar mês/ano
+  useEffect(() => {
+    setSelectedWeekIndex(0);
+  }, [selectedYear, selectedMonth]);
+
+
+  // --- LÓGICA DE FILTRAGEM ---
+  const { filteredTransactions, periodLabel } = useMemo(() => {
+    let start: Date, end: Date;
+    let label = "";
+
+    if (dateRangeType === 'day') {
+      const dateParts = selectedDay.split('-'); // YYYY-MM-DD
+      start = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 0, 0, 0, 0);
+      end = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 23, 59, 59, 999);
+      label = `DIA ${start.toLocaleDateString('pt-BR')}`;
+    } 
+    else if (dateRangeType === 'week') {
+      const weekData = weeksInMonth[selectedWeekIndex];
+      if (weekData) {
+        start = weekData.start;
+        end = weekData.end;
+        label = `${weekData.label.toUpperCase()} DE ${MONTHS[selectedMonth].toUpperCase()}/${selectedYear}`;
+      } else {
+        // Fallback
+        start = new Date(); end = new Date();
+      }
+    } 
+    else if (dateRangeType === 'month') {
+      start = new Date(selectedYear, selectedMonth, 1, 0, 0, 0, 0);
+      end = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
+      label = `MÊS DE ${MONTHS[selectedMonth].toUpperCase()}/${selectedYear}`;
+    } 
+    else { // year
+      start = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
+      end = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
+      label = `ANO DE ${selectedYear}`;
     }
 
-    return transactions.filter(t => t.timestamp >= startOfPeriod.getTime());
-  }, [transactions, dateRange]);
+    const filtered = transactions.filter(t => t.timestamp >= start.getTime() && t.timestamp <= end.getTime());
+    return { filteredTransactions: filtered, periodLabel: label };
+  }, [transactions, dateRangeType, selectedDay, selectedYear, selectedMonth, selectedWeekIndex, weeksInMonth]);
 
-  // Separate Active (Completed) vs Cancelled for calculations
+
+  // --- ESTATÍSTICAS ---
   const activeTransactions = useMemo(() => 
     filteredTransactions.filter(t => t.status !== 'cancelled'), 
   [filteredTransactions]);
@@ -68,9 +137,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   [filteredTransactions]);
 
   const stats = useMemo(() => {
-    // Only calculate stats based on Active transactions to ensure correct revenue
     const totalSales = activeTransactions.reduce((acc, t) => acc + t.total, 0);
-    const totalDiscount = activeTransactions.reduce((acc, t) => acc + (t.discount || 0), 0);
     const averageTicket = activeTransactions.length > 0 ? totalSales / activeTransactions.length : 0;
     
     // By Payment Method
@@ -79,7 +146,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       return acc;
     }, {} as Record<string, number>);
 
-    // By Seller (Vendedor)
+    // By Seller
     const bySeller = activeTransactions.reduce((acc, t) => {
       const seller = t.sellerName || 'N/A';
       if (!acc[seller]) acc[seller] = { count: 0, total: 0 };
@@ -105,11 +172,11 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       value: byMethod[method]
     }));
 
-    return { totalSales, totalDiscount, averageTicket, chartData, byMethod, bySeller, productSales };
+    return { totalSales, averageTicket, chartData, byMethod, bySeller, productSales };
   }, [activeTransactions]);
 
+  // --- ACTIONS ---
   const handleSystemReset = () => {
-    // Dupla verificação de segurança (Senha '0' do Professor)
     if (resetPassword === '0') {
       onResetSystem();
       setShowResetModal(false);
@@ -120,10 +187,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   };
 
   const handleConfirmCancel = () => {
-    // Qualquer Admin/Gerente pode cancelar venda (dependendo da regra, aqui deixei '0' ou senha de admin geral se houver)
-    // Se quisermos restringir cancelamento apenas ao professor, mudamos aqui.
-    // O App.tsx já valida permissões gerais, mas aqui é uma senha extra de confirmação.
-    // Vamos assumir que qualquer senha de admin válida serve, ou hardcoded '0' para simplificar a demo.
     if (cancelPassword === '0') {
       if (transactionToCancel) {
         onCancelTransaction(transactionToCancel.id);
@@ -142,11 +205,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
     const dateStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
     
-    let periodoTexto = "DIÁRIO (HOJE)";
-    if(dateRange === 'week') periodoTexto = "SEMANAL";
-    if(dateRange === 'month') periodoTexto = "MENSAL";
-    if(dateRange === 'year') periodoTexto = "ANUAL";
-
     const productRows = (Object.entries(stats.productSales) as [string, { quantity: number; total: number }][])
       .sort(([, a], [, b]) => b.quantity - a.quantity)
       .map(([name, data]) => `
@@ -192,7 +250,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     const htmlContent = `
       <html>
         <head>
-          <title>Relatório ${periodoTexto} - ${APP_NAME}</title>
+          <title>Relatório - ${APP_NAME}</title>
           <style>
             body { font-family: 'Courier New', monospace; padding: 20px; max-width: 80mm; margin: 0 auto; }
             h1 { text-align: center; font-size: 18px; margin-bottom: 5px; text-transform: uppercase; }
@@ -202,23 +260,27 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             .total { font-size: 16px; font-weight: bold; text-align: right; margin-top: 10px; border-top: 2px dashed #000; padding-top: 10px; }
             .center { text-align: center; }
             .footer { margin-top: 30px; text-align: center; font-size: 10px; border-top: 1px solid #ccc; padding-top: 10px; }
-            .badge { background: #eee; padding: 2px 6px; border-radius: 4px; font-size: 10px; }
+            .period-box { background: #eee; padding: 5px; border: 1px solid #000; text-align: center; margin: 10px 0; font-weight: bold; font-size: 14px; }
           </style>
         </head>
         <body>
           <h1>${APP_NAME}</h1>
           <p class="center">RELATÓRIO FINANCEIRO</p>
-          <p class="center"><span class="badge">${periodoTexto}</span></p>
-          <p class="center">${dateStr}</p>
+          
+          <div class="period-box">
+             ${periodLabel}
+          </div>
+          
+          <p class="center" style="font-size: 10px;">Gerado em: ${dateStr}</p>
           <br/>
           
-          <h2>Resumo Financeiro</h2>
+          <h2>Resumo Geral</h2>
           <p>Vendas Ativas: <strong>${activeTransactions.length}</strong></p>
           <p>Cancelamentos: <strong>${cancelledTransactions.length}</strong></p>
           <p>Ticket Médio: <strong>${formatCurrency(stats.averageTicket)}</strong></p>
           <div class="total">FATURAMENTO LIQ: ${formatCurrency(stats.totalSales)}</div>
 
-          <h2>Vendas por Vendedor</h2>
+          <h2>Ranking Vendedores</h2>
           <table>
             <thead>
               <tr style="border-bottom: 1px solid #000;">
@@ -232,27 +294,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             </tbody>
           </table>
 
-          <h2>Pagamentos</h2>
+          <h2>Formas de Pagamento</h2>
           <table>
             ${paymentRows}
           </table>
 
-          <h2>Vendas Canceladas</h2>
-          <table>
-            <thead>
-               <tr>
-                 <th align="left" width="15%">Ficha</th>
-                 <th align="left" width="15%">Hora</th>
-                 <th align="left" width="50%">Itens</th>
-                 <th align="right" width="20%">Valor</th>
-               </tr>
-            </thead>
-            <tbody>
-              ${cancelledRows}
-            </tbody>
-          </table>
-
-          <h2>Resumo de Produtos</h2>
+          <h2>Produtos Vendidos</h2>
           <table>
             <thead>
               <tr style="border-bottom: 1px solid #000;">
@@ -265,10 +312,26 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               ${productRows}
             </tbody>
           </table>
+          
+          ${cancelledTransactions.length > 0 ? `
+              <h2>Cancelamentos</h2>
+              <table>
+                <thead>
+                   <tr>
+                     <th align="left">#</th>
+                     <th align="left">Hora</th>
+                     <th align="left">Itens</th>
+                     <th align="right">R$</th>
+                   </tr>
+                </thead>
+                <tbody>
+                  ${cancelledRows}
+                </tbody>
+              </table>
+          ` : ''}
 
           <div class="footer">
-            <p>Impresso em ${new Date().toLocaleTimeString()}</p>
-            <p>Sistema: ${APP_NAME}</p>
+            <p>Sistema Escolar: ${APP_NAME}</p>
           </div>
           <script>
             window.onload = function() { window.print(); }
@@ -281,11 +344,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     printWindow.document.close();
   };
 
-  // Dashboard Render
   return (
     <div className="p-6 overflow-y-auto h-full space-y-6 relative">
       
-      {/* Reset Modal */}
+      {/* MODAL RESET (PROFESSOR) */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -294,7 +356,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               ZERAR BANCO DE DADOS?
             </h3>
             <p className="text-sm text-gray-500 mb-4 leading-relaxed bg-red-50 p-3 rounded-lg border border-red-100">
-              Isso apagará <strong>TODAS AS VENDAS</strong> (inclusive histórico) do banco de dados online. Esta ação é irreversível e só deve ser feita pelo Professor.
+              Isso apagará <strong>TODAS AS VENDAS</strong> do banco de dados online. Esta ação é irreversível.
             </p>
             <div className="mb-4">
                <label className="text-xs font-bold text-gray-500 uppercase">Senha do Professor</label>
@@ -307,24 +369,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               />
             </div>
             <div className="flex gap-3 justify-end">
-              <button 
-                onClick={() => setShowResetModal(false)} 
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleSystemReset} 
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
-              >
-                APAGAR TUDO
-              </button>
+              <button onClick={() => setShowResetModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
+              <button onClick={handleSystemReset} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200">APAGAR TUDO</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Cancel Transaction Modal */}
+      {/* MODAL CANCELAMENTO */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -332,9 +384,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               <XCircle className="text-red-600" size={24} />
               Estornar Venda #{transactionToCancel?.number}
             </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Esta ação removerá o pedido dos registros financeiros. É necessária autorização.
-            </p>
             <div className="mb-4">
                <label className="text-xs font-bold text-gray-500 uppercase">Senha Administrativa</label>
                <input 
@@ -347,92 +396,104 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               />
             </div>
             <div className="flex gap-3 justify-end">
-              <button 
-                onClick={() => {
-                  setShowCancelModal(false);
-                  setTransactionToCancel(null);
-                  setCancelPassword('');
-                }} 
-                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleConfirmCancel} 
-                className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200"
-              >
-                ESTORNAR
-              </button>
+              <button onClick={() => { setShowCancelModal(false); setTransactionToCancel(null); setCancelPassword(''); }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
+              <button onClick={handleConfirmCancel} className="px-4 py-2 bg-red-600 text-white rounded-lg font-bold hover:bg-red-700 transition-colors shadow-lg shadow-red-200">ESTORNAR</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Header e Filtros */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+      {/* --- CABEÇALHO E FILTROS --- */}
+      <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-2">
         <div>
             <h2 className="text-2xl font-bold text-gray-800">Fechamento de Caixa</h2>
-            <p className="text-sm text-gray-500">Acompanhamento financeiro e operacional.</p>
+            <p className="text-sm text-gray-500">Relatórios Financeiros</p>
         </div>
         
-        <div className="flex items-center gap-2 bg-white p-1 rounded-xl shadow-sm border border-gray-200">
-            <button 
-                onClick={() => setDateRange('day')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'day' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-                <CalendarDays size={14} />
-                Hoje
+        {/* TIPO DE FILTRO */}
+        <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+            <button onClick={() => setDateRangeType('day')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'day' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <CalendarDays size={14} /> Dia
             </button>
-            <button 
-                onClick={() => setDateRange('week')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'week' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-                <CalendarRange size={14} />
-                Semana
+            <button onClick={() => setDateRangeType('week')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'week' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <CalendarRange size={14} /> Semana
             </button>
-            <button 
-                onClick={() => setDateRange('month')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'month' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-                <Calendar size={14} />
-                Mês
+            <button onClick={() => setDateRangeType('month')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'month' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <Calendar size={14} /> Mês
             </button>
-            <button 
-                onClick={() => setDateRange('year')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRange === 'year' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}
-            >
-                <Calendar size={14} />
-                Ano
+            <button onClick={() => setDateRangeType('year')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'year' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <Calendar size={14} /> Ano
             </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 mb-2">
-         {/* Label do Período */}
-         <div className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-lg border border-orange-100">
-            Período: {dateRange === 'day' ? 'Diário' : dateRange === 'week' ? 'Semanal' : dateRange === 'month' ? 'Mensal' : 'Anual'}
-         </div>
+      {/* --- BARRA DE SELEÇÃO ESPECÍFICA (A MÁGICA ACONTECE AQUI) --- */}
+      <div className="bg-orange-50 p-3 rounded-xl border border-orange-100 flex flex-wrap items-center gap-3 animate-in slide-in-from-top-2">
+          <Filter size={18} className="text-orange-500" />
+          <span className="text-xs font-bold text-orange-700 uppercase mr-2">Filtrar Por:</span>
 
-         <div className="flex gap-3">
-            <button 
-                onClick={generatePrintWindow}
-                className="px-3 py-1.5 bg-white text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 transition-colors border border-gray-200 shadow-sm flex items-center gap-2"
-            >
-                <FileText size={14} />
-                IMPRIMIR
+          {/* SELEÇÃO DE ANO (Sempre visível exceto 'day') */}
+          {dateRangeType !== 'day' && (
+             <select 
+               value={selectedYear} 
+               onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+               className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
+             >
+                {[now.getFullYear()-1, now.getFullYear(), now.getFullYear()+1].map(y => (
+                    <option key={y} value={y}>{y}</option>
+                ))}
+             </select>
+          )}
+
+          {/* SELEÇÃO DE MÊS (Visível para 'week' e 'month') */}
+          {(dateRangeType === 'month' || dateRangeType === 'week') && (
+             <select 
+               value={selectedMonth} 
+               onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+               className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
+             >
+                {MONTHS.map((m, idx) => (
+                    <option key={idx} value={idx}>{m}</option>
+                ))}
+             </select>
+          )}
+
+          {/* SELEÇÃO DE SEMANA (Apenas para 'week') */}
+          {dateRangeType === 'week' && (
+             <select 
+               value={selectedWeekIndex} 
+               onChange={(e) => setSelectedWeekIndex(parseInt(e.target.value))}
+               className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none min-w-[200px]"
+             >
+                {weeksInMonth.map((w, idx) => (
+                    <option key={idx} value={idx}>{w.label}</option>
+                ))}
+             </select>
+          )}
+
+          {/* SELEÇÃO DE DIA (Apenas para 'day') */}
+          {dateRangeType === 'day' && (
+             <input 
+               type="date"
+               value={selectedDay}
+               onChange={(e) => setSelectedDay(e.target.value)}
+               className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
+             />
+          )}
+
+          <div className="flex-1"></div>
+
+          {/* AÇÕES */}
+          <div className="flex gap-2">
+            <button onClick={generatePrintWindow} className="px-4 py-2 bg-white text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-50 border border-gray-200 shadow-sm flex items-center gap-2">
+                <FileText size={16} /> IMPRIMIR
             </button>
-            
-            {/* BOTÃO DE RESET - VISÍVEL APENAS PARA O PROFESSOR */}
             {isProfessor && (
-                <button 
-                    onClick={() => setShowResetModal(true)}
-                    className="px-3 py-1.5 bg-red-50 text-red-600 text-xs font-bold rounded-lg hover:bg-red-100 transition-colors border border-red-100 flex items-center gap-2"
-                >
-                    <Trash2 size={14} />
-                    ZERAR TUDO
+                <button onClick={() => setShowResetModal(true)} className="px-4 py-2 bg-red-100 text-red-600 text-xs font-bold rounded-lg hover:bg-red-200 border border-red-200 flex items-center gap-2">
+                    <Trash2 size={16} /> ZERAR TUDO
                 </button>
             )}
-         </div>
+          </div>
       </div>
 
       {/* KPI Cards */}
@@ -442,7 +503,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             <DollarSign size={24} />
           </div>
           <div>
-            <p className="text-sm text-gray-500">Faturamento ({dateRange === 'day' ? 'Hoje' : 'Período'})</p>
+            <p className="text-sm text-gray-500">Faturamento Total</p>
             <h3 className="text-2xl font-bold text-gray-900">{formatCurrency(stats.totalSales)}</h3>
           </div>
         </div>
@@ -470,7 +531,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
       {/* Charts Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Payment Methods Chart */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-orange-100">
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <CreditCard size={18} className="text-orange-500" />
@@ -505,7 +565,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           </div>
         </div>
 
-        {/* Sellers Chart/List */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-orange-100 overflow-hidden">
           <h3 className="font-semibold text-gray-800 mb-4 flex items-center gap-2">
             <Users size={18} className="text-orange-500" />
@@ -538,8 +597,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
       {/* Recent Transactions Table */}
       <div className="bg-white rounded-xl shadow-sm border border-orange-100 overflow-hidden">
-        <div className="p-4 border-b border-orange-100">
+        <div className="p-4 border-b border-orange-100 flex justify-between items-center">
           <h3 className="font-semibold text-gray-800">Extrato de Pedidos ({filteredTransactions.length})</h3>
+          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-md font-bold">{periodLabel}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
@@ -558,7 +618,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               {filteredTransactions.length === 0 ? (
                  <tr>
                    <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                     Nenhum pedido neste período.
+                     Nenhum pedido encontrado neste período.
                    </td>
                  </tr>
               ) : (
