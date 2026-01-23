@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_PRODUCTS, APP_NAME, MASCOT_URL, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL, SCHOOL_CLASS } from './constants';
-import { Product, CartItem, Transaction, PaymentMethod, User } from './types';
+import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS } from './constants';
+import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings } from './types';
 import { generateId, formatCurrency } from './utils';
 import ProductGrid from './components/ProductGrid';
 import CartSidebar from './components/CartSidebar';
@@ -8,7 +8,8 @@ import Reports from './components/Reports';
 import KitchenDisplay from './components/KitchenDisplay';
 import LoginScreen from './components/LoginScreen';
 import UserManagement from './components/UserManagement';
-import ProductManagement from './components/ProductManagement'; 
+import ProductManagement from './components/ProductManagement';
+import SettingsManagement from './components/SettingsManagement'; // NOVO
 import PublicDisplay from './components/PublicDisplay'; 
 import CustomerOrder from './components/CustomerOrder';
 import { 
@@ -27,20 +28,31 @@ import {
   createProduct,
   updateProduct as updateProductSupabase,
   deleteProduct as deleteProductSupabase,
-  resetDatabase
+  resetDatabase,
+  fetchSettings, // NOVO
+  saveSettings // NOVO
 } from './services/supabase';
-import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch } from 'lucide-react';
+import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings } from 'lucide-react';
 
 const App: React.FC = () => {
   // Login & Users State
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
 
+  // Settings State (Global App Config)
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    appName: DEFAULT_APP_NAME,
+    schoolClass: DEFAULT_CLASS,
+    mascotUrl: DEFAULT_MASCOT,
+    schoolLogoUrl: DEFAULT_LOGO,
+    emptyCartImageUrl: "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png" // Default do carrinho vazio
+  });
+
   // Transition State
   const [transitionState, setTransitionState] = useState<'idle' | 'logging-in' | 'logging-out'>('idle');
 
   // View State
-  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'customer'>('pos');
+  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'settings' | 'customer'>('pos');
   
   // Mobile UI States
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -86,6 +98,19 @@ const App: React.FC = () => {
       }
     }
 
+    // --- CARREGAR CONFIGURAÇÕES GERAIS ---
+    try {
+        const remoteSettings = await fetchSettings();
+        if (remoteSettings) {
+            setAppSettings(remoteSettings);
+            localStorage.setItem('app_settings', JSON.stringify(remoteSettings));
+        } else {
+            // Fallback para local storage se offline
+            const localSettings = localStorage.getItem('app_settings');
+            if (localSettings) setAppSettings(JSON.parse(localSettings));
+        }
+    } catch (e) { console.error("Erro loading settings", e); }
+
     // --- CARREGAR PRODUTOS ---
     try {
         if (!supabase) {
@@ -95,29 +120,22 @@ const App: React.FC = () => {
         } else {
             const dbProducts = await fetchProducts();
             if (dbProducts !== null) {
-                // Se a tabela estiver vazia, podemos opcionalmente semear com dados mock (apenas uma vez)
-                // Para simplificar: se o banco retornar vazio, mas estivermos conectados, usamos vazio ou semeamos
                 if (dbProducts.length === 0 && !localStorage.getItem('db_seeded')) {
-                    // Semeia o banco com produtos padrão se estiver vazio na primeira vez
                      MOCK_PRODUCTS.forEach(p => createProduct(p));
                      localStorage.setItem('db_seeded', 'true');
                      setProducts(MOCK_PRODUCTS);
                 } else {
-                    // Usa dados do banco
                     setProducts(dbProducts);
                     localStorage.setItem('app_products', JSON.stringify(dbProducts));
                     if (dbProducts.length > 0) localStorage.setItem('db_seeded', 'true');
                 }
             } else {
-                 // Erro no banco, fallback local
                  const saved = localStorage.getItem('app_products');
                  if (saved) setProducts(JSON.parse(saved));
                  else setProducts(MOCK_PRODUCTS);
             }
         }
     } catch(e) {
-        console.error("Erro carregando produtos", e);
-        // Fallback
         setProducts(MOCK_PRODUCTS);
     }
 
@@ -180,7 +198,6 @@ const App: React.FC = () => {
         const currentData = data.length > 0 ? data : localData;
         const startOfDay = new Date();
         startOfDay.setHours(0, 0, 0, 0);
-        // Filtrar apenas pedidos completados ou pendentes (para nao gerar numero repetido)
         const todaysOrders = currentData.filter(t => t.timestamp >= startOfDay.getTime());
         const maxOrder = todaysOrders.length > 0 
           ? Math.max(...todaysOrders.map(t => parseInt(t.orderNumber) || 0))
@@ -201,12 +218,19 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (currentView === 'users') return; // Removido 'products' da exceção para atualizar listagem se alguém editar
+    if (currentView === 'users' || currentView === 'settings') return; 
     const intervalId = setInterval(() => loadData(), 2000); 
     return () => clearInterval(intervalId);
   }, [currentView]);
 
-  // --- PRODUCT MANAGEMENT ACTIONS ---
+  // --- ACTIONS ---
+
+  const handleUpdateSettings = async (newSettings: AppSettings) => {
+    setAppSettings(newSettings);
+    localStorage.setItem('app_settings', JSON.stringify(newSettings));
+    if (isConnected) await saveSettings(newSettings);
+  };
+
   const handleAddProduct = async (newProduct: Product) => {
     const updated = [...products, newProduct];
     setProducts(updated);
@@ -318,14 +342,13 @@ const App: React.FC = () => {
 
   const clearCart = () => {
     setCart([]);
-    setCurrentPendingOrderId(null); // Limpa o ID pendente ao limpar o carrinho
+    setCurrentPendingOrderId(null);
   };
 
-  // Carregar um pedido pendente no caixa
   const handleLoadPendingOrder = (transaction: Transaction) => {
     setCart(transaction.items);
     setCurrentPendingOrderId(transaction.id);
-    setIsMobileCartOpen(true); // Abre o carrinho mobile se estiver lá
+    setIsMobileCartOpen(true);
   };
 
   const handleCheckout = async (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string) => {
@@ -335,16 +358,14 @@ const App: React.FC = () => {
       
       let transactionToSave: Transaction;
 
-      // Se estamos finalizando um pedido pendente (App/Online)
       if (currentPendingOrderId) {
-         // Encontrar o pedido original para manter o número e ID
          const original = transactions.find(t => t.id === currentPendingOrderId) || { orderNumber: (nextOrderNumber || 1).toString(), timestamp: Date.now() };
 
          transactionToSave = {
             id: currentPendingOrderId,
             orderNumber: original.orderNumber || (nextOrderNumber || 1).toString(),
             customerName: customerName || '',
-            timestamp: original.timestamp, // Mantém a hora original do pedido ou atualiza? Geralmente mantém.
+            timestamp: original.timestamp,
             items: [...cart],
             subtotal,
             discount,
@@ -357,15 +378,10 @@ const App: React.FC = () => {
             kitchenStatus: 'pending'
          };
 
-         if (isConnected) {
-            await confirmTransactionPayment(transactionToSave);
-         }
-         
-         // Atualiza o estado local removendo o pendente antigo e adicionando o completado
+         if (isConnected) await confirmTransactionPayment(transactionToSave);
          setTransactions(prev => [...prev.filter(t => t.id !== currentPendingOrderId), transactionToSave]);
 
       } else {
-         // Nova venda balcão
          const safeOrderNumber = (nextOrderNumber || 1).toString();
          const id = generateId();
    
@@ -399,7 +415,7 @@ const App: React.FC = () => {
       }
 
       setLastCompletedOrder({ transaction: transactionToSave });
-      clearCart(); // Reseta carrinho e ID pendente
+      clearCart();
       setIsMobileCartOpen(false);
 
     } catch (error) {
@@ -419,7 +435,6 @@ const App: React.FC = () => {
   };
 
   const handleResetSystem = async () => {
-    // Segurança extra: Só professor pode resetar
     if (currentUser?.id !== '0') {
         alert("Ação não autorizada.");
         return;
@@ -429,12 +444,11 @@ const App: React.FC = () => {
         const success = await resetDatabase();
         if (success) {
             alert("Banco de dados reiniciado com sucesso.");
-            window.location.reload(); // Recarrega para limpar estado local
+            window.location.reload(); 
         } else {
             alert("Erro ao limpar banco de dados.");
         }
     } else {
-        // Fallback local
         localStorage.removeItem('pos_transactions');
         setTransactions([]);
         setNextOrderNumber(1);
@@ -442,7 +456,6 @@ const App: React.FC = () => {
     }
   };
 
-  // --- PRINT RECEIPT FUNCTION ---
   const printReceipt = (t: Transaction) => {
       const printWindow = window.open('', '', 'width=300,height=600');
       if (!printWindow) return;
@@ -471,8 +484,8 @@ const App: React.FC = () => {
             </style>
         </head>
         <body>
-            <div class="center bold large">${APP_NAME}</div>
-            <div class="center">Feira Cultural - ${SCHOOL_CLASS}</div>
+            <div class="center bold large">${appSettings.appName}</div>
+            <div class="center">Feira Cultural - ${appSettings.schoolClass}</div>
             <div class="center">${dateStr} - ${timeStr}</div>
             <div class="divider"></div>
             
@@ -524,7 +537,7 @@ const App: React.FC = () => {
       return (
           <CustomerOrder 
             products={products} 
-            onExit={() => setCurrentView('pos')} // Volta pra tela de login tecnicamente (porem login reseta o state)
+            onExit={() => setCurrentView('pos')} 
             nextOrderNumber={nextOrderNumber}
           />
       );
@@ -534,7 +547,7 @@ const App: React.FC = () => {
     return (
       <div className="relative">
          <button onClick={() => setShowLogoutModal(true)} className="fixed bottom-4 right-4 z-50 p-2 text-white/10 hover:text-white/50 transition-colors"><LogOut size={24} /></button>
-         <PublicDisplay transactions={transactions} />
+         <PublicDisplay transactions={transactions} settings={appSettings} />
          {showLogoutModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
               <div className="bg-gray-900 border border-white/10 rounded-xl shadow-2xl p-6 max-w-sm w-full">
@@ -559,7 +572,7 @@ const App: React.FC = () => {
            <div className="absolute inset-0 flex items-center justify-center z-50">
                 <div className="text-center animate-spin-in">
                   <Flame size={80} className="text-yellow-100 mx-auto drop-shadow-lg mb-2" />
-                  <h1 className="text-6xl font-black text-white tracking-tighter drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]">TÔ FRITO!</h1>
+                  <h1 className="text-6xl font-black text-white tracking-tighter drop-shadow-[0_5px_5px_rgba(0,0,0,0.5)]">{appSettings.appName}</h1>
                 </div>
            </div>
         </div>
@@ -575,7 +588,8 @@ const App: React.FC = () => {
                     setCurrentView('customer');
                     setTransitionState('idle');
                 }, 800);
-            }} 
+            }}
+            settings={appSettings} 
         />
       ) : (
         <>
@@ -651,41 +665,44 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* ATUALIZADO: Gerente agora pode ver a Cozinha */}
             {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'kitchen') && (
               <button onClick={() => setCurrentView('kitchen')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'kitchen' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Cozinha">
                 <ChefHat size={24} />
               </button>
             )}
 
-            {/* CARDÁPIO (Professor / Admin) */}
             {(currentUser.id === '0' || currentUser.role === 'admin') && (
               <button onClick={() => setCurrentView('products')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'products' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Cardápio">
                 <PackageSearch size={24} />
               </button>
             )}
 
-            {/* RELATÓRIOS (Professor / Admin) */}
             {(currentUser.id === '0' || currentUser.role === 'admin') && (
               <button onClick={() => setCurrentView('reports')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'reports' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Relatórios">
                 <BarChart3 size={24} />
               </button>
             )}
             
-            {/* EQUIPE (Professor e Gerente) */}
             {(currentUser.id === '0' || currentUser.role === 'admin' || currentUser.role === 'manager') && (
                 <button onClick={() => setCurrentView('users')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'users' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Equipe">
                   <UsersIcon size={24} />
                 </button>
             )}
 
+             {/* SETTINGS BUTTON (PROFESSOR ONLY) */}
+             {(currentUser.id === '0' || currentUser.role === 'admin') && (
+                <button onClick={() => setCurrentView('settings')} className={`p-3 rounded-2xl transition-all duration-300 group relative ${currentView === 'settings' ? 'bg-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} title="Configurações">
+                  <Settings size={24} />
+                </button>
+            )}
+
             <div className="flex-1"></div>
             <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-4 select-none group ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
               <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center p-2 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
-                <img src={SCHOOL_LOGO_URL} alt="Escola" className="w-full h-full object-contain relative z-20" />
+                <img src={appSettings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" />
                 {isBurning && <div className="fire-container"><div className="flame-base"></div><div className="flame-body"></div><div className="flame-core"></div></div>}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest transition-colors z-10 relative ${isBurning ? 'text-fire scale-110' : 'text-gray-500'}`}>{SCHOOL_CLASS}</span>
+              <span className={`text-[9px] font-black uppercase tracking-widest transition-colors z-10 relative ${isBurning ? 'text-fire scale-110' : 'text-gray-500'}`}>{appSettings.schoolClass}</span>
             </button>
             <button onClick={() => setShowLogoutModal(true)} className="p-3 rounded-2xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-4 hover:scale-110 active:scale-95"><LogOut size={24} /></button>
           </nav>
@@ -705,8 +722,8 @@ const App: React.FC = () => {
                 <div className="flex-1 flex flex-col min-w-0">
                   <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px]">
                     <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
-                      <img src={MASCOT_URL} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
-                      <h1 className="text-3xl md:text-5xl font-black text-fire uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{APP_NAME}</h1>
+                      <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
+                      <h1 className="text-3xl md:text-5xl font-black text-fire uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
                     </div>
                   </header>
                   <div className="flex-1 overflow-hidden relative">
@@ -716,7 +733,7 @@ const App: React.FC = () => {
                 <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                   <CartSidebar 
                     cart={cart} 
-                    users={users} // Passando usuários para validação de senha
+                    users={users} 
                     onRemoveItem={removeFromCart} 
                     onUpdateQuantity={updateCartQuantity} 
                     onUpdateNote={updateCartNote} 
@@ -724,6 +741,7 @@ const App: React.FC = () => {
                     onCheckout={handleCheckout} 
                     onClose={() => setIsMobileCartOpen(false)}
                     onLoadPendingOrder={handleLoadPendingOrder}
+                    emptyCartImageUrl={appSettings.emptyCartImageUrl} // Passa a imagem customizável
                   />
                 </div>
               </div>
@@ -733,6 +751,7 @@ const App: React.FC = () => {
             {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
             {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
+            {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>} {/* NOVO VIEW */}
 
             {currentView === 'pos' && !isMobileCartOpen && (
               <button onClick={() => setIsMobileCartOpen(true)} className="md:hidden fixed bottom-20 right-6 bg-orange-600 text-white p-4 rounded-full shadow-lg shadow-orange-600/40 z-50 animate-bounce">
@@ -740,7 +759,7 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* --- MOBILE BOTTOM NAVIGATION (ATUALIZADO) --- */}
+            {/* --- MOBILE BOTTOM NAVIGATION --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-between items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb px-1">
               {/* 1. VENDAS (POS) */}
               {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'staff') && (
@@ -750,7 +769,7 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              {/* 2. COZINHA (ATUALIZADO: Gerente incluído) */}
+              {/* 2. COZINHA */}
               {(currentUser.role === 'admin' || currentUser.role === 'manager' || currentUser.role === 'kitchen') && (
                 <button onClick={() => setCurrentView('kitchen')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'kitchen' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                   <ChefHat size={20} className={currentView === 'kitchen' ? 'fill-current' : ''} />
@@ -758,7 +777,7 @@ const App: React.FC = () => {
                 </button>
               )}
 
-              {/* 3. CARDÁPIO (Professor / Admin) */}
+              {/* 3. CARDÁPIO */}
               {(currentUser.id === '0' || currentUser.role === 'admin') && (
                   <button onClick={() => setCurrentView('products')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'products' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                     <PackageSearch size={20} />
@@ -766,21 +785,20 @@ const App: React.FC = () => {
                   </button>
               )}
 
-              {/* 4. GESTÃO (Professor / Admin) */}
+              {/* 4. GESTÃO */}
               {(currentUser.id === '0' || currentUser.role === 'admin') && (
                   <button onClick={() => setCurrentView('reports')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'reports' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
                     <BarChart3 size={20} />
                     <span className="text-[9px] font-bold uppercase leading-none">Gestão</span>
                   </button>
               )}
-
-              {/* 5. EQUIPE (Disponível para todos, ou pelo menos Admin/Manager/Staff dependendo da regra) */}
-              {/* Neste caso, o Gerente também vê a equipe */}
-              {(currentUser.id === '0' || currentUser.role === 'admin' || currentUser.role === 'manager') && (
-                <button onClick={() => setCurrentView('users')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'users' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
-                  <UsersIcon size={20} />
-                  <span className="text-[9px] font-bold uppercase leading-none">Equipe</span>
-                </button>
+              
+               {/* 5. SETTINGS (MOBILE - PROF ONLY) */}
+               {(currentUser.id === '0' || currentUser.role === 'admin') && (
+                  <button onClick={() => setCurrentView('settings')} className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${currentView === 'settings' ? 'text-orange-600 bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}>
+                    <Settings size={20} />
+                    <span className="text-[9px] font-bold uppercase leading-none">Config</span>
+                  </button>
               )}
             </div>
 

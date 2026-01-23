@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { MASCOT_URL, APP_NAME, SCHOOL_LOGO_URL, SCHOOL_CLASS } from '../constants';
-import { User } from '../types';
-import { UserCircle2, Lock, ArrowRight, Utensils, Smartphone } from 'lucide-react';
+import { User, AppSettings } from '../types';
+import { UserCircle2, Lock, ArrowRight, Smartphone } from 'lucide-react';
 
 interface LoginScreenProps {
-  availableUsers: User[]; // Recebe usuários dinâmicos
+  availableUsers: User[];
   onLogin: (user: User) => void;
-  onCustomerStart: () => void; // Nova prop para iniciar modo cliente
+  onCustomerStart: () => void;
+  settings: AppSettings; // Recebe configurações dinâmicas
 }
 
-const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCustomerStart }) => {
+const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCustomerStart, settings }) => {
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -43,7 +43,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
         <div className="relative w-20 h-20 md:w-24 md:h-24 mb-1 flex-shrink-0">
           <div className="absolute inset-0 bg-orange-200 rounded-full blur-2xl opacity-40 scale-125 animate-pulse"></div>
           <img 
-            src={MASCOT_URL} 
+            src={settings.mascotUrl} // Dinâmico
             alt="Mascote" 
             className="w-full h-full object-contain relative z-10 mix-blend-multiply drop-shadow-[0_5px_5px_rgba(0,0,0,0.2)] animate-mascot-slow"
           />
@@ -51,7 +51,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
 
         {/* Burning Title */}
         <h2 className="text-3xl md:text-4xl font-black mb-0.5 tracking-tighter text-fire text-center flex-shrink-0">
-          {APP_NAME}
+          {settings.appName} {/* Dinâmico */}
         </h2>
         
         {/* --- BOTÃO DE AUTOATENDIMENTO (CLIENTE) --- */}
@@ -140,12 +140,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
            <div className="relative group cursor-help select-none mt-1"> 
              <div className="flex items-center gap-2 bg-gray-900 py-1.5 px-3 rounded-full shadow-md transform group-hover:scale-105 transition-all border border-gray-800 relative z-10 group-hover:border-orange-500/50">
                 <div className="relative h-6 w-6 flex items-center justify-center origin-bottom">
-                   <img src={SCHOOL_LOGO_URL} alt="Escola" className="w-full h-full object-contain relative z-20" />
+                   <img src={settings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" /> {/* Dinâmico */}
                    <div className="absolute inset-0 bg-yellow-400 blur-md opacity-0 group-hover:opacity-40 z-10 rounded-full"></div>
                 </div>
                 <div className="h-3 w-px bg-gray-700 group-hover:bg-red-500 transition-colors"></div>
                 <span className="text-yellow-400 font-black text-xs tracking-tighter group-hover:text-fire transition-all">
-                  {SCHOOL_CLASS}
+                  {settings.schoolClass} {/* Dinâmico */}
                 </span>
              </div>
            </div>

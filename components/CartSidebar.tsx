@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, PaymentMethod, Transaction, User } from '../types';
 import { formatCurrency } from '../utils';
-import { MASCOT_URL } from '../constants';
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw } from 'lucide-react';
 import { fetchPendingTransactions } from '../services/supabase';
 
@@ -15,9 +14,10 @@ interface CartSidebarProps {
   onClose?: () => void;
   onUpdateNote?: (productId: string, note: string) => void;
   onLoadPendingOrder: (transaction: Transaction) => void;
+  emptyCartImageUrl?: string; // NOVO: Imagem customizável
 }
 
-const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder }) => {
+const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder, emptyCartImageUrl }) => {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -52,6 +52,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   const missingCash = Math.max(0, total - cashReceived);
 
   const PIX_QR_IMAGE = "https://i.ibb.co/8LFWSQfx/Captura-de-tela-2026-01-20-181523.png";
+  // Usa o valor passado via prop ou um default, caso a prop não exista (retrocompatibilidade)
+  const EMPTY_CART_MASCOT = emptyCartImageUrl || "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png";
 
   useEffect(() => {
     if (showCashModal && cashInputRef.current) {
@@ -217,7 +219,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
         <div className="mb-6 relative w-48 h-48">
           <div className="absolute inset-0 bg-orange-100 rounded-full blur-2xl opacity-50 transform scale-110"></div>
-          <img src={MASCOT_URL} alt="Mascote Tô Frito" className="w-full h-full object-contain relative z-10 animate-mascot-chill mix-blend-multiply" />
+          {/* AQUI ESTÁ A IMAGEM ESPECÍFICA SOLICITADA */}
+          <img src={EMPTY_CART_MASCOT} alt="Mascote Tô Frito" className="w-full h-full object-contain relative z-10 animate-mascot-chill mix-blend-multiply" />
         </div>
         <p className="text-xl font-bold text-gray-600 mb-2 font-display">TÔ DE BOA...</p>
         <p className="text-sm text-gray-400 text-center max-w-[200px] mb-6">

@@ -1,16 +1,16 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Transaction } from '../types';
-import { ChefHat, CheckCircle2, Flame, Sparkles, Clock, AlertTriangle } from 'lucide-react';
-import { MASCOT_URL, APP_NAME, SCHOOL_CLASS } from '../constants';
+import { Transaction, AppSettings } from '../types';
+import { ChefHat, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 interface PublicDisplayProps {
   transactions: Transaction[];
+  settings: AppSettings; // Recebe configurações dinâmicas
 }
 
 // Som de Campainha de Atendimento (Fonte estável: Google Demo Assets - Glass Ting)
 const BELL_SOUND_URL = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
 
-const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions }) => {
+const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Estado para controlar a animação de celebração (Pedido Atualmente na Tela)
@@ -191,7 +191,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions }) => {
                 </div>
 
                 <div className="mt-12 flex items-center gap-4 animate-in slide-in-from-bottom-20 duration-1000">
-                    <img src={MASCOT_URL} className="h-32 w-32 object-contain animate-bounce" alt="Mascote" />
+                    <img src={settings.mascotUrl} className="h-32 w-32 object-contain animate-bounce" alt="Mascote" />
                     <p className="text-4xl text-white font-bold bg-white/10 px-6 py-3 rounded-full border border-white/20">
                         Retire no balcão agora!
                     </p>
@@ -207,15 +207,15 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions }) => {
             <div className="flex items-center gap-6">
                 <div className="relative">
                     <div className="absolute inset-0 bg-orange-500 blur-xl opacity-20 animate-pulse"></div>
-                    <img src={MASCOT_URL} alt="Logo" className="h-20 w-20 object-contain relative z-10" />
+                    <img src={settings.mascotUrl} alt="Logo" className="h-20 w-20 object-contain relative z-10" />
                 </div>
                 <div className="flex flex-col justify-center">
                     <h1 className="text-5xl font-black tracking-tighter text-white uppercase drop-shadow-md leading-none" style={{ textShadow: '2px 2px 0 #ea580c' }}>
-                        {APP_NAME}
+                        {settings.appName}
                     </h1>
                     <p className="text-gray-400 text-base font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-2 mt-1">
                         <ChefHat size={16} className="text-orange-500" />
-                        Feira Cultural • {SCHOOL_CLASS}
+                        Feira Cultural • {settings.schoolClass}
                     </p>
                 </div>
             </div>
@@ -314,7 +314,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions }) => {
                <span>•</span>
                <span>BOM APETITE!</span>
                <span>•</span>
-               <span>{APP_NAME}</span>
+               <span>{settings.appName}</span>
                <span>•</span>
                <span>EVITE FILAS, PEÇA COM ANTECEDÊNCIA</span>
                <span>•</span>

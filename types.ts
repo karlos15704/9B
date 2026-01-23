@@ -51,3 +51,11 @@ export interface DailySummary {
   averageTicket: number;
   methodBreakdown: Record<string, number>;
 }
+
+export interface AppSettings {
+  appName: string;
+  schoolClass: string;
+  mascotUrl: string;
+  schoolLogoUrl: string;
+  emptyCartImageUrl: string;
+}

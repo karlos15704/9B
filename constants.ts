@@ -71,5 +71,6 @@ export const MOCK_PRODUCTS: Product[] = [
 
 export const APP_NAME = "TÔ FRITO!";
 
-// Mascote (Logo) Atualizado
-export const MASCOT_URL = "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png";
+// Mascote (Logo) Padrão do Sistema (Balde de Frango Genérico)
+// A imagem específica solicitada foi movida exclusivamente para o CartSidebar quando vazio.
+export const MASCOT_URL = "https://cdn-icons-png.flaticon.com/512/3075/3075977.png";

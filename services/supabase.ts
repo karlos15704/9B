@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Transaction, User, Product } from '../types';
+import { Transaction, User, Product, AppSettings } from '../types';
 
 /* 
   ==============================================================================
@@ -9,65 +9,75 @@ import { Transaction, User, Product } from '../types';
   Copie o código abaixo, cole no "SQL Editor" do Supabase e clique em "RUN".
 
   -- 1. LIMPEZA (Remove tabelas antigas se existirem para evitar erros)
-  DROP TABLE IF EXISTS transactions;
-  DROP TABLE IF EXISTS users;
-  DROP TABLE IF EXISTS products;
+  -- Cuidado: Só rode os DROPs se quiser resetar a estrutura.
+  -- DROP TABLE IF EXISTS settings;
 
-  -- 2. CRIAR TABELA DE VENDAS (TRANSACTIONS)
-  CREATE TABLE public.transactions (
+  -- 2. CRIAR TABELA DE VENDAS (TRANSACTIONS) - Se já existir, ignore
+  CREATE TABLE IF NOT EXISTS public.transactions (
       id text PRIMARY KEY,
       "orderNumber" text,
       "customerName" text,
       timestamp bigint,
-      items jsonb,          -- Armazena os itens do pedido em formato JSON
+      items jsonb,
       subtotal numeric,
       discount numeric,
       total numeric,
-      "paymentMethod" text, -- 'Crédito', 'Débito', 'Dinheiro', 'Pix', 'Aguardando'
+      "paymentMethod" text,
       "amountPaid" numeric,
       change numeric,
       "sellerName" text,
-      status text,          -- 'pending_payment', 'completed', 'cancelled'
-      "kitchenStatus" text  -- 'pending', 'done'
+      status text,
+      "kitchenStatus" text
   );
 
-  -- 3. CRIAR TABELA DE USUÁRIOS (USERS)
-  CREATE TABLE public.users (
+  -- 3. CRIAR TABELA DE USUÁRIOS (USERS) - Se já existir, ignore
+  CREATE TABLE IF NOT EXISTS public.users (
       id text PRIMARY KEY,
       name text,
       password text,
-      role text             -- 'admin', 'manager', 'staff', 'kitchen', 'display'
+      role text
   );
 
-  -- 4. CRIAR TABELA DE PRODUTOS (PRODUCTS)
-  CREATE TABLE public.products (
+  -- 4. CRIAR TABELA DE PRODUTOS (PRODUCTS) - Se já existir, ignore
+  CREATE TABLE IF NOT EXISTS public.products (
       id text PRIMARY KEY,
       name text,
       price numeric,
       category text,
       "imageUrl" text,
-      description text,     -- Nova coluna para detalhes do produto
-      "isAvailable" boolean DEFAULT true -- Nova coluna para controle de estoque
+      description text,
+      "isAvailable" boolean DEFAULT true
   );
 
-  -- 5. CRIAR ÍNDICES (Para o Relatório Diário/Mensal carregar rápido)
-  CREATE INDEX idx_transactions_timestamp ON public.transactions(timestamp);
+  -- 5. NOVA TABELA DE CONFIGURAÇÕES (SETTINGS)
+  CREATE TABLE IF NOT EXISTS public.settings (
+      id text PRIMARY KEY, -- Usaremos id='global'
+      "appName" text,
+      "schoolClass" text,
+      "mascotUrl" text,
+      "schoolLogoUrl" text,
+      "emptyCartImageUrl" text
+  );
 
-  -- 6. CONFIGURAR SEGURANÇA (RLS)
-  -- Libera leitura e escrita para o app funcionar sem autenticação complexa de email
+  -- 6. CRIAR ÍNDICES
+  CREATE INDEX IF NOT EXISTS idx_transactions_timestamp ON public.transactions(timestamp);
+
+  -- 7. CONFIGURAR SEGURANÇA (RLS)
   ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
   ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
 
   CREATE POLICY "Acesso Total Transactions" ON public.transactions FOR ALL USING (true) WITH CHECK (true);
   CREATE POLICY "Acesso Total Users" ON public.users FOR ALL USING (true) WITH CHECK (true);
   CREATE POLICY "Acesso Total Products" ON public.products FOR ALL USING (true) WITH CHECK (true);
+  CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
 
-  -- 7. ATIVAR REALTIME
-  -- Isso faz a cozinha e o telão atualizarem sozinhos quando entra pedido
+  -- 8. ATIVAR REALTIME
   ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.users;
   ALTER PUBLICATION supabase_realtime ADD TABLE public.products;
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
 
   ==============================================================================
 */
@@ -198,16 +208,12 @@ export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' |
   try { await supabase.from('transactions').update({ kitchenStatus }).eq('id', id); } catch (err) {}
 };
 
-// --- FUNÇÃO DE RESETAR BANCO (APENAS PROFESSOR) ---
 export const resetDatabase = async (): Promise<boolean> => {
     if (!supabase) return false;
     try {
-        // Remove todas as transações (Cuidado: isso apaga o histórico completo)
-        // Se a policy não permitir delete all sem where, usamos gte timestamp 0
         const { error: err } = await supabase.from('transactions').delete().gte('timestamp', 0);
         return !err;
     } catch (err) {
-        console.error("Erro ao resetar banco:", err);
         return false;
     }
 };
@@ -251,7 +257,7 @@ export const deleteUser = async (userId: string): Promise<boolean> => {
   } catch (err) { return false; }
 };
 
-// --- FUNÇÕES DE PRODUTOS (PRODUCTS) - NOVO! ---
+// --- FUNÇÕES DE PRODUTOS (PRODUCTS) ---
 
 export const fetchProducts = async (): Promise<Product[] | null> => {
   if (!supabase) return null;
@@ -286,6 +292,34 @@ export const deleteProduct = async (productId: string): Promise<boolean> => {
     } catch (err) { return false; }
 };
 
+// --- FUNÇÕES DE SETTINGS (NOVO) ---
+
+export const fetchSettings = async (): Promise<AppSettings | null> => {
+    if (!supabase) return null;
+    try {
+        // Assume que existe apenas uma linha com id='global'
+        const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
+        if (error) { 
+            // Se não encontrar, tenta criar o padrão
+            if (error.code === 'PGRST116') {
+                return null; // Retorna null para o app usar os defaults
+            }
+            console.warn('Supabase Error (Fetch Settings):', error.message);
+            return null; 
+        }
+        return data as AppSettings;
+    } catch (err) { return null; }
+};
+
+export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        // Upsert com id fixo 'global'
+        const { error } = await supabase.from('settings').upsert({ id: 'global', ...settings });
+        return !error;
+    } catch (err) { return false; }
+};
+
 // --- SUBSCRIPTION (TEMPO REAL) ---
 
 export const subscribeToTransactions = (onUpdate: () => void) => {
@@ -294,7 +328,8 @@ export const subscribeToTransactions = (onUpdate: () => void) => {
     .channel('db_changes')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate()) // Escuta produtos também
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => onUpdate()) // Escuta mudanças nas configurações
     .subscribe();
   return channel;
 };
