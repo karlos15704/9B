@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Transaction, PaymentMethod, User } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight } from 'lucide-react';
 import { APP_NAME } from '../constants';
 
 interface ReportsProps {
@@ -15,7 +15,7 @@ interface ReportsProps {
 const COLORS = ['#ea580c', '#f97316', '#fb923c', '#fdba74']; // Orange scale
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-type DateRangeType = 'day' | 'week' | 'month' | 'year';
+type DateRangeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 
 const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem, currentUser }) => {
   // --- ESTADOS DE FILTRO ---
@@ -27,6 +27,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth()); // 0-11
   const [selectedDay, setSelectedDay] = useState(now.toISOString().split('T')[0]); // YYYY-MM-DD
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(0); // Índice da semana no array de semanas
+
+  // Estados para Período Personalizado
+  const [customStartDate, setCustomStartDate] = useState(now.toISOString().split('T')[0]);
+  const [customEndDate, setCustomEndDate] = useState(now.toISOString().split('T')[0]);
 
   // Reset System State
   const [showResetModal, setShowResetModal] = useState(false);
@@ -116,15 +120,24 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       end = new Date(selectedYear, selectedMonth + 1, 0, 23, 59, 59, 999);
       label = `MÊS DE ${MONTHS[selectedMonth].toUpperCase()}/${selectedYear}`;
     } 
-    else { // year
+    else if (dateRangeType === 'year') { 
       start = new Date(selectedYear, 0, 1, 0, 0, 0, 0);
       end = new Date(selectedYear, 11, 31, 23, 59, 59, 999);
       label = `ANO DE ${selectedYear}`;
     }
+    else { // custom
+      const startParts = customStartDate.split('-');
+      const endParts = customEndDate.split('-');
+      
+      start = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]), 0, 0, 0, 0);
+      end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]), 23, 59, 59, 999);
+      
+      label = `PERÍODO: ${start.toLocaleDateString('pt-BR')} ATÉ ${end.toLocaleDateString('pt-BR')}`;
+    }
 
     const filtered = transactions.filter(t => t.timestamp >= start.getTime() && t.timestamp <= end.getTime());
     return { filteredTransactions: filtered, periodLabel: label };
-  }, [transactions, dateRangeType, selectedDay, selectedYear, selectedMonth, selectedWeekIndex, weeksInMonth]);
+  }, [transactions, dateRangeType, selectedDay, selectedYear, selectedMonth, selectedWeekIndex, weeksInMonth, customStartDate, customEndDate]);
 
 
   // --- ESTATÍSTICAS ---
@@ -411,7 +424,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         </div>
         
         {/* TIPO DE FILTRO */}
-        <div className="flex items-center bg-white p-1 rounded-xl shadow-sm border border-gray-200">
+        <div className="flex flex-wrap items-center bg-white p-1 rounded-xl shadow-sm border border-gray-200">
             <button onClick={() => setDateRangeType('day')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'day' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <CalendarDays size={14} /> Dia
             </button>
@@ -424,6 +437,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             <button onClick={() => setDateRangeType('year')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'year' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
                 <Calendar size={14} /> Ano
             </button>
+            <button onClick={() => setDateRangeType('custom')} className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${dateRangeType === 'custom' ? 'bg-orange-600 text-white shadow-md' : 'text-gray-500 hover:bg-gray-50'}`}>
+                <CalendarRange size={14} /> Período
+            </button>
         </div>
       </div>
 
@@ -432,8 +448,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           <Filter size={18} className="text-orange-500" />
           <span className="text-xs font-bold text-orange-700 uppercase mr-2">Filtrar Por:</span>
 
-          {/* SELEÇÃO DE ANO (Sempre visível exceto 'day') */}
-          {dateRangeType !== 'day' && (
+          {/* SELEÇÃO DE ANO (Sempre visível exceto 'day' e 'custom') */}
+          {dateRangeType !== 'day' && dateRangeType !== 'custom' && (
              <select 
                value={selectedYear} 
                onChange={(e) => setSelectedYear(parseInt(e.target.value))}
@@ -479,6 +495,27 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                onChange={(e) => setSelectedDay(e.target.value)}
                className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
              />
+          )}
+
+          {/* SELEÇÃO DE PERÍODO PERSONALIZADO (CUSTOM) */}
+          {dateRangeType === 'custom' && (
+             <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-gray-500 uppercase">De:</span>
+                <input 
+                  type="date"
+                  value={customStartDate}
+                  onChange={(e) => setCustomStartDate(e.target.value)}
+                  className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
+                />
+                <ArrowRight size={16} className="text-gray-400" />
+                <span className="text-xs font-bold text-gray-500 uppercase">Até:</span>
+                <input 
+                  type="date"
+                  value={customEndDate}
+                  onChange={(e) => setCustomEndDate(e.target.value)}
+                  className="bg-white border border-orange-200 text-gray-700 text-sm rounded-lg p-2 font-bold focus:ring-orange-500 focus:border-orange-500 outline-none"
+                />
+             </div>
           )}
 
           <div className="flex-1"></div>
