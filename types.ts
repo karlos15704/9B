@@ -52,7 +52,6 @@ export interface DailySummary {
   methodBreakdown: Record<string, number>;
 }
 
-// Controle de quais abas/funcionalidades estão ativas no site
 export interface AppModules {
   pos: boolean;      // Vendas / Caixa
   kitchen: boolean;  // Cozinha
@@ -70,5 +69,9 @@ export interface AppSettings {
   emptyCartImageUrl: string;
   primaryColor: string;
   buttonSize: 'small' | 'medium' | 'large' | 'xl';
-  modules: AppModules; // NOVO: Controle estrutural do site
+  modules: AppModules;
+  // Novos campos de personalização avançada
+  customerHeroUrl?: string; // Imagem grande do autoatendimento
+  customerWelcomeTitle?: string; // Título "O que você quer comer?"
+  marqueeText?: string; // Texto rodapé do telão
 }

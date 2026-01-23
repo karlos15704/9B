@@ -6,31 +6,32 @@ import { Transaction, User, Product, AppSettings } from '../types';
   🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  -- IMPORTANTE: Execute isso para atualizar a tabela de configurações
-  -- Adiciona suporte para controle de módulos (abas ativas)
-
-  -- 1. LIMPAR TABELA DE CONFIGURAÇÕES ANTIGA (Opcional, mas recomendado para evitar conflito de tipos)
-  -- DROP TABLE IF EXISTS public.settings;
-
-  -- 2. CRIAR TABELA ATUALIZADA
-  CREATE TABLE IF NOT EXISTS public.settings (
-      id text PRIMARY KEY,
-      "appName" text,
-      "schoolClass" text,
-      "mascotUrl" text,
-      "schoolLogoUrl" text,
-      "emptyCartImageUrl" text,
-      "primaryColor" text DEFAULT '#ea580c',
-      "buttonSize" text DEFAULT 'medium',
-      "modules" jsonb DEFAULT '{"pos": true, "kitchen": true, "products": true, "reports": true, "users": true, "customer": true}'
-  );
-
-  -- 3. POLÍTICAS DE SEGURANÇA
-  ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-  CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+  -- IMPORTANTE: Execute isso para atualizar a tabela de configurações com as novas colunas
   
-  -- 4. ATIVAR REALTIME
-  ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
+  -- 1. ADICIONAR NOVAS COLUNAS SE A TABELA JÁ EXISTIR
+  ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerHeroUrl" text;
+  ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerWelcomeTitle" text;
+  ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "marqueeText" text;
+
+  -- OU, SE PREFERIR REINICIAR (CUIDADO, APAGA DADOS DA CONFIG):
+  -- DROP TABLE IF EXISTS public.settings;
+  -- CREATE TABLE public.settings (
+  --    id text PRIMARY KEY,
+  --    "appName" text,
+  --    "schoolClass" text,
+  --    "mascotUrl" text,
+  --    "schoolLogoUrl" text,
+  --    "emptyCartImageUrl" text,
+  --    "primaryColor" text DEFAULT '#ea580c',
+  --    "buttonSize" text DEFAULT 'medium',
+  --    "modules" jsonb DEFAULT '{"pos": true, "kitchen": true, "products": true, "reports": true, "users": true, "customer": true}',
+  --    "customerHeroUrl" text,
+  --    "customerWelcomeTitle" text,
+  --    "marqueeText" text
+  -- );
+  -- ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+  -- CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+  -- ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
 */
 
 // ==============================================================================

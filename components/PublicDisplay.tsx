@@ -144,6 +144,15 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     }
   }, [celebratingOrder]);
 
+  // --- TEXTO DO RODAPÉ (PERSONALIZADO) ---
+  const marqueeContent = useMemo(() => {
+      if (settings.marqueeText) {
+          // Repete o texto algumas vezes para garantir o loop visual
+          return `${settings.marqueeText} • ${settings.marqueeText} • ${settings.marqueeText}`; 
+      }
+      return `RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE! • ${settings.appName} • EVITE FILAS • RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE!`;
+  }, [settings.marqueeText, settings.appName]);
+
   return (
     <div className="h-screen w-screen bg-[#0a0500] flex items-center justify-center overflow-hidden relative font-sans text-white p-6 md:p-8 lg:p-12">
       
@@ -307,20 +316,10 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
 
         </div>
         
-        {/* MARQUEE FOOTER */}
+        {/* MARQUEE FOOTER (Dinâmico) */}
         <div className="bg-orange-600 h-12 flex items-center overflow-hidden relative border-t-4 border-orange-400 z-20 flex-shrink-0">
             <div className="whitespace-nowrap animate-[marquee_30s_linear_infinite] text-white font-black text-lg uppercase tracking-widest drop-shadow-md flex items-center gap-8">
-               <span className="flex items-center gap-2"><AlertTriangle size={20}/> RETIRE SEU PEDIDO IMEDIATAMENTE</span>
-               <span>•</span>
-               <span>BOM APETITE!</span>
-               <span>•</span>
-               <span>{settings.appName}</span>
-               <span>•</span>
-               <span>EVITE FILAS, PEÇA COM ANTECEDÊNCIA</span>
-               <span>•</span>
-               <span className="flex items-center gap-2"><AlertTriangle size={20}/> RETIRE SEU PEDIDO IMEDIATAMENTE</span>
-               <span>•</span>
-               <span>BOM APETITE!</span>
+               <span className="flex items-center gap-2"><AlertTriangle size={20}/> {marqueeContent}</span>
             </div>
         </div>
 

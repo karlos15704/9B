@@ -1,21 +1,21 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Product, CartItem, Transaction } from '../types';
+import { Product, CartItem, Transaction, AppSettings } from '../types';
 import { formatCurrency, generateId } from '../utils';
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban } from 'lucide-react';
-import { MASCOT_URL, APP_NAME } from '../constants';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
 
 interface CustomerOrderProps {
   products: Product[];
   onExit: () => void;
   nextOrderNumber: number;
+  settings: AppSettings;
 }
 
 // Sons para notificação
 const SOUND_PAYMENT_CONFIRMED = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
 const SOUND_ORDER_READY = "https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3";
 
-const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber }) => {
+const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber, settings }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
   const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders'>('menu');
@@ -84,7 +84,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             try {
                 new Notification(title, {
                     body: body,
-                    icon: MASCOT_URL,
+                    icon: settings.mascotUrl,
                     tag: 'order-update', // Evita spam
                     requireInteraction: true // Mantém a notificação na tela até o usuário interagir
                 });
@@ -529,8 +529,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       <div className="bg-white p-4 shadow-sm sticky top-0 z-20">
          <div className="flex justify-between items-center mb-4">
              <div className="flex items-center gap-2">
-                 <img src={MASCOT_URL} alt="Logo" className="w-8 h-8 object-contain" />
-                 <h1 className="font-black text-gray-800 tracking-tight">{APP_NAME}</h1>
+                 <img src={settings.mascotUrl} alt="Logo" className="w-8 h-8 object-contain" />
+                 <h1 className="font-black text-gray-800 tracking-tight">{settings.appName}</h1>
              </div>
              <div className="flex items-center gap-3">
                  <button 
@@ -570,6 +570,21 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     {cat}
                 </button>
             ))}
+         </div>
+      </div>
+
+      {/* Hero Banner (NOVO) */}
+      <div className="relative w-full h-40 bg-gray-200 overflow-hidden mb-2">
+         {/* Imagem do Banner ou Padrão */}
+         <img 
+            src={settings.customerHeroUrl || "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60"} 
+            alt="Destaque" 
+            className="w-full h-full object-cover"
+         />
+         <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+             <h2 className="text-white font-black text-2xl text-center px-4 leading-tight drop-shadow-md">
+                 {settings.customerWelcomeTitle || "O que você quer comer hoje?"}
+             </h2>
          </div>
       </div>
 
