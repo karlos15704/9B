@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS } from './constants';
-import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings } from './types';
+import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules } from './types';
 import { generateId, formatCurrency } from './utils';
 import ProductGrid from './components/ProductGrid';
 import CartSidebar from './components/CartSidebar';
@@ -39,6 +39,16 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [users, setUsers] = useState<User[]>([]);
 
+  // Default Modules Configuration
+  const defaultModules: AppModules = {
+    pos: true,
+    kitchen: true,
+    products: true,
+    reports: true,
+    users: true,
+    customer: true
+  };
+
   // Settings State (Global App Config)
   const [appSettings, setAppSettings] = useState<AppSettings>({
     appName: DEFAULT_APP_NAME,
@@ -47,7 +57,8 @@ const App: React.FC = () => {
     schoolLogoUrl: DEFAULT_LOGO,
     emptyCartImageUrl: "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png",
     primaryColor: '#ea580c', // Default Orange
-    buttonSize: 'medium'
+    buttonSize: 'medium',
+    modules: defaultModules
   });
 
   // Transition State
@@ -104,34 +115,38 @@ const App: React.FC = () => {
 
   // --- CARREGAMENTO DE DADOS BLINDADO ---
   const loadData = async () => {
-    // 0. Check for Active Session
-    const savedSession = localStorage.getItem('active_user');
-    if (savedSession && !currentUser) {
-      const user = JSON.parse(savedSession);
-      setCurrentUser(user);
-      
-      if (user.role === 'kitchen') {
-        setCurrentView('kitchen');
-      } else if (user.role === 'display') {
-        setCurrentView('display');
-      } else if (user.role === 'staff') {
-        setCurrentView('pos');
-      }
-    }
-
-    // --- CARREGAR CONFIGURAÇÕES GERAIS ---
+    // --- CARREGAR CONFIGURAÇÕES GERAIS PRIMEIRO ---
     try {
         const remoteSettings = await fetchSettings();
         if (remoteSettings) {
-            // Merge para garantir que novos campos existam
-            setAppSettings(prev => ({ ...prev, ...remoteSettings }));
+            // Merge cuidadoso para garantir que 'modules' exista
+            setAppSettings(prev => ({ 
+                ...prev, 
+                ...remoteSettings,
+                modules: remoteSettings.modules || defaultModules // Fallback se modules for null no banco antigo
+            }));
             localStorage.setItem('app_settings', JSON.stringify(remoteSettings));
         } else {
-            // Fallback para local storage se offline
             const localSettings = localStorage.getItem('app_settings');
-            if (localSettings) setAppSettings(prev => ({ ...prev, ...JSON.parse(localSettings) }));
+            if (localSettings) {
+                const parsed = JSON.parse(localSettings);
+                setAppSettings(prev => ({ ...prev, ...parsed, modules: parsed.modules || defaultModules }));
+            }
         }
     } catch (e) { console.error("Erro loading settings", e); }
+
+    // Check for Active Session only once on load
+    if (!currentUser) {
+        const savedSession = localStorage.getItem('active_user');
+        if (savedSession) {
+            const user = JSON.parse(savedSession);
+            setCurrentUser(user);
+            // Redirecionamento inicial baseado em Role, mas respeitando views
+            if (user.role === 'kitchen') setCurrentView('kitchen');
+            else if (user.role === 'display') setCurrentView('display');
+            else setCurrentView('pos');
+        }
+    }
 
     // --- CARREGAR PRODUTOS ---
     try {
@@ -506,7 +521,7 @@ const App: React.FC = () => {
             products={products} 
             onExit={() => setCurrentView('pos')} 
             nextOrderNumber={nextOrderNumber}
-            settings={appSettings} // Passa settings para usar cores globais
+            settings={appSettings} 
           />
       );
   }
@@ -531,7 +546,15 @@ const App: React.FC = () => {
     );
   }
 
-  // Use style={{ background: appSettings.primaryColor }} for dynamic elements where tailwind doesn't work easily
+  // DEFINIÇÃO DA BARRA DE NAVEGAÇÃO DINÂMICA
+  const navItems = [
+    { view: 'pos', icon: LayoutGrid, roles: ['admin', 'manager', 'staff'], title: 'Caixa', enabled: appSettings.modules?.pos ?? true },
+    { view: 'kitchen', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'], title: 'Cozinha', enabled: appSettings.modules?.kitchen ?? true },
+    { view: 'products', icon: PackageSearch, roles: ['0', 'admin'], title: 'Cardápio', enabled: appSettings.modules?.products ?? true },
+    { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
+    { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe', enabled: appSettings.modules?.users ?? true },
+    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações', enabled: true }, // Config sempre ativa para Admin
+  ];
 
   return (
     <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
@@ -583,7 +606,6 @@ const App: React.FC = () => {
           {lastCompletedOrder && currentUser.role !== 'kitchen' && (
             <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-200 relative">
-                 {/* MODAL SUCCESS (Conteúdo igual, omitido para brevidade) */}
                  <div className="bg-orange-100 border-2 border-dashed rounded-xl p-6 mb-8" style={{ borderColor: appSettings.primaryColor }}>
                   <span className="text-sm font-bold uppercase tracking-wider block mb-1" style={{ color: appSettings.primaryColor }}>SENHA</span>
                   <span className="text-6xl font-black tracking-tighter" style={{ color: appSettings.primaryColor }}>{lastCompletedOrder.transaction.orderNumber}</span>
@@ -597,20 +619,15 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* MAIN NAV */}
+          {/* MAIN NAV (DESKTOP) */}
           <nav className="hidden md:flex w-20 bg-gray-900 flex-col items-center py-4 gap-6 z-30 shadow-xl border-r border-gray-800 pt-6">
             <div className="mb-2 p-2 rounded-full" style={{ backgroundColor: `${appSettings.primaryColor}30` }}><Flame style={{ color: appSettings.primaryColor }} className="animate-pulse" size={24} /></div>
             
-            {/* Botões de Navegação com Cor Dinâmica no Hover/Active */}
-            {[
-                { view: 'pos', icon: LayoutGrid, roles: ['admin', 'manager', 'staff'], title: 'Caixa' },
-                { view: 'kitchen', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'], title: 'Cozinha' },
-                { view: 'products', icon: PackageSearch, roles: ['0', 'admin'], title: 'Cardápio' },
-                { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios' },
-                { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe' },
-                { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações' },
-            ].map(item => {
+            {navItems.map(item => {
+                // Check Role Visibility AND Module Status
+                if (!item.enabled) return null;
                 if (!item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
+                
                 const isActive = currentView === item.view;
                 return (
                     <button 
@@ -626,7 +643,6 @@ const App: React.FC = () => {
             })}
 
             <div className="flex-1"></div>
-            {/* School Logo Bottom */}
             <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-4 select-none group ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
               <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center p-2 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
                 <img src={appSettings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" />
@@ -653,12 +669,10 @@ const App: React.FC = () => {
                   <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px]">
                     <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
                       <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
-                      {/* Título com cor dinâmica */}
                       <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
                     </div>
                   </header>
                   <div className="flex-1 overflow-hidden relative">
-                    {/* Passa as configurações de estrutura para a grade */}
                     <ProductGrid 
                         products={products} 
                         cart={cart} 
@@ -680,7 +694,7 @@ const App: React.FC = () => {
                     onClose={() => setIsMobileCartOpen(false)}
                     onLoadPendingOrder={handleLoadPendingOrder}
                     emptyCartImageUrl={appSettings.emptyCartImageUrl}
-                    settings={appSettings} // Passa configurações visuais
+                    settings={appSettings}
                   />
                 </div>
               </div>
@@ -702,18 +716,14 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* --- MOBILE BOTTOM NAVIGATION (Cor Dinâmica) --- */}
+            {/* --- MOBILE BOTTOM NAVIGATION (DINÂMICA) --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-between items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb px-1">
-              {[
-                  { view: 'pos', icon: LayoutGrid, label: 'Vendas' },
-                  { view: 'kitchen', icon: ChefHat, label: 'Cozinha' },
-                  { view: 'products', icon: PackageSearch, label: 'Cardápio' },
-                  { view: 'reports', icon: BarChart3, label: 'Gestão' },
-                  { view: 'settings', icon: Settings, label: 'Config' }
-              ].map(item => {
-                 // Check Role visibility simplified for mobile
+              {navItems.map(item => {
+                 if (!item.enabled) return null;
                  if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
-                 
+                 // Outras regras de role para mobile
+                 if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
+
                  const isActive = currentView === item.view;
                  return (
                     <button 
@@ -723,7 +733,7 @@ const App: React.FC = () => {
                         style={isActive ? { color: appSettings.primaryColor } : {}}
                     >
                         <item.icon size={20} className={isActive ? 'fill-current' : ''} />
-                        <span className="text-[9px] font-bold uppercase leading-none">{item.label}</span>
+                        <span className="text-[9px] font-bold uppercase leading-none">{item.title}</span>
                     </button>
                  )
               })}

@@ -12,8 +12,8 @@ export interface Product {
   price: number;
   category: string;
   imageUrl: string;
-  description?: string; // Novo: Descrição opcional
-  isAvailable?: boolean; // Novo: Controle de disponibilidade
+  description?: string;
+  isAvailable?: boolean;
 }
 
 export interface CartItem extends Product {
@@ -25,23 +25,23 @@ export interface User {
   id: string;
   name: string;
   password: string;
-  role: 'admin' | 'manager' | 'staff' | 'kitchen' | 'display'; // Adicionado 'manager'
+  role: 'admin' | 'manager' | 'staff' | 'kitchen' | 'display';
 }
 
 export interface Transaction {
   id: string;
   orderNumber: string;
-  customerName?: string; // Novo: Nome do cliente para chamar
+  customerName?: string;
   timestamp: number;
   items: CartItem[];
   subtotal: number;
   discount: number;
   total: number;
-  paymentMethod: PaymentMethod | 'Aguardando'; // 'Aguardando' para pedidos online
+  paymentMethod: PaymentMethod | 'Aguardando';
   amountPaid?: number;
   change?: number;
   sellerName?: string;
-  status: 'completed' | 'cancelled' | 'pending_payment'; // Novo status
+  status: 'completed' | 'cancelled' | 'pending_payment';
   kitchenStatus: 'pending' | 'done';
 }
 
@@ -52,13 +52,23 @@ export interface DailySummary {
   methodBreakdown: Record<string, number>;
 }
 
+// Controle de quais abas/funcionalidades estão ativas no site
+export interface AppModules {
+  pos: boolean;      // Vendas / Caixa
+  kitchen: boolean;  // Cozinha
+  products: boolean; // Cardápio
+  reports: boolean;  // Relatórios
+  users: boolean;    // Equipe
+  customer: boolean; // Autoatendimento (Cliente)
+}
+
 export interface AppSettings {
   appName: string;
   schoolClass: string;
   mascotUrl: string;
   schoolLogoUrl: string;
   emptyCartImageUrl: string;
-  // Novos campos de estrutura visual
-  primaryColor: string; // Ex: '#ea580c' (Orange)
+  primaryColor: string;
   buttonSize: 'small' | 'medium' | 'large' | 'xl';
+  modules: AppModules; // NOVO: Controle estrutural do site
 }

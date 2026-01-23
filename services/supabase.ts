@@ -6,8 +6,13 @@ import { Transaction, User, Product, AppSettings } from '../types';
   🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  Certifique-se de que a tabela 'settings' existe e o Realtime está ativo.
+  -- IMPORTANTE: Execute isso para atualizar a tabela de configurações
+  -- Adiciona suporte para controle de módulos (abas ativas)
 
+  -- 1. LIMPAR TABELA DE CONFIGURAÇÕES ANTIGA (Opcional, mas recomendado para evitar conflito de tipos)
+  -- DROP TABLE IF EXISTS public.settings;
+
+  -- 2. CRIAR TABELA ATUALIZADA
   CREATE TABLE IF NOT EXISTS public.settings (
       id text PRIMARY KEY,
       "appName" text,
@@ -16,11 +21,15 @@ import { Transaction, User, Product, AppSettings } from '../types';
       "schoolLogoUrl" text,
       "emptyCartImageUrl" text,
       "primaryColor" text DEFAULT '#ea580c',
-      "buttonSize" text DEFAULT 'medium'
+      "buttonSize" text DEFAULT 'medium',
+      "modules" jsonb DEFAULT '{"pos": true, "kitchen": true, "products": true, "reports": true, "users": true, "customer": true}'
   );
 
+  -- 3. POLÍTICAS DE SEGURANÇA
   ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
   CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+  
+  -- 4. ATIVAR REALTIME
   ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
 */
 
