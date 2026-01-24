@@ -6,32 +6,18 @@ import { Transaction, User, Product, AppSettings } from '../types';
   🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  -- IMPORTANTE: Execute isso para atualizar a tabela de configurações com as novas colunas
+  -- Execute isso para habilitar o novo CMS Visual e Correções:
   
-  -- 1. ADICIONAR NOVAS COLUNAS SE A TABELA JÁ EXISTIR
+  ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerLayout" jsonb;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerHeroUrl" text;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerWelcomeTitle" text;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "marqueeText" text;
 
-  -- OU, SE PREFERIR REINICIAR (CUIDADO, APAGA DADOS DA CONFIG):
-  -- DROP TABLE IF EXISTS public.settings;
-  -- CREATE TABLE public.settings (
-  --    id text PRIMARY KEY,
-  --    "appName" text,
-  --    "schoolClass" text,
-  --    "mascotUrl" text,
-  --    "schoolLogoUrl" text,
-  --    "emptyCartImageUrl" text,
-  --    "primaryColor" text DEFAULT '#ea580c',
-  --    "buttonSize" text DEFAULT 'medium',
-  --    "modules" jsonb DEFAULT '{"pos": true, "kitchen": true, "products": true, "reports": true, "users": true, "customer": true}',
-  --    "customerHeroUrl" text,
-  --    "customerWelcomeTitle" text,
-  --    "marqueeText" text
-  -- );
-  -- ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
-  -- CREATE POLICY "Acesso Total Settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
-  -- ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
+  -- Garante permissões de escrita
+  GRANT ALL ON public.settings TO anon;
+  GRANT ALL ON public.settings TO authenticated;
+  GRANT ALL ON public.settings TO service_role;
+
 */
 
 // ==============================================================================
@@ -252,6 +238,11 @@ export const fetchSettings = async (): Promise<AppSettings | null> => {
         // Assume que existe apenas uma linha com id='global'
         const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
         if (error) { 
+            // Se o erro for de coluna faltando, avisa no console
+            if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+                console.error("🚨 ERRO CRÍTICO: FALTAM COLUNAS NO SUPABASE 🚨");
+                console.log("Copie e rode este SQL no Supabase:\n\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerLayout\" jsonb;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerHeroUrl\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerWelcomeTitle\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"marqueeText\" text;");
+            }
             // Se não encontrar, tenta criar o padrão
             if (error.code === 'PGRST116') {
                 return null; // Retorna null para o app usar os defaults
@@ -268,7 +259,16 @@ export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
     try {
         // Upsert com id fixo 'global'
         const { error } = await supabase.from('settings').upsert({ id: 'global', ...settings });
-        return !error;
+        
+        if (error) {
+            console.error("Erro ao salvar settings:", error.message);
+             if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
+                 alert("ERRO SQL: Faltam colunas na tabela 'settings'. Veja o console (F12) para o código SQL.");
+                 console.log("🚨 RODE ISSO NO SQL EDITOR:\n\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerLayout\" jsonb;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerHeroUrl\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerWelcomeTitle\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"marqueeText\" text;");
+             }
+            return false;
+        }
+        return true;
     } catch (err) { return false; }
 };
 

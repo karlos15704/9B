@@ -61,6 +61,25 @@ export interface AppModules {
   customer: boolean; // Autoatendimento (Cliente)
 }
 
+// --- NOVO SISTEMA DE CMS (BLOCO) ---
+export type BlockType = 'hero' | 'text' | 'products' | 'marquee' | 'image' | 'spacer';
+
+export interface LayoutBlock {
+  id: string;
+  type: BlockType;
+  title?: string; // Usado para Hero e Text
+  content?: string; // Usado para Text e Marquee
+  imageUrl?: string; // Usado para Hero e Image
+  style?: {
+    backgroundColor?: string;
+    textColor?: string;
+    height?: string; // 'small', 'medium', 'large'
+    fontSize?: string;
+    alignment?: 'left' | 'center' | 'right';
+    padding?: string;
+  };
+}
+
 export interface AppSettings {
   appName: string;
   schoolClass: string;
@@ -70,8 +89,11 @@ export interface AppSettings {
   primaryColor: string;
   buttonSize: 'small' | 'medium' | 'large' | 'xl';
   modules: AppModules;
-  // Novos campos de personalização avançada
-  customerHeroUrl?: string; // Imagem grande do autoatendimento
-  customerWelcomeTitle?: string; // Título "O que você quer comer?"
-  marqueeText?: string; // Texto rodapé do telão
+  // Layout Builder (Novo)
+  customerLayout?: LayoutBlock[]; // Array de blocos que define a home do cliente
+  
+  // Mantemos compatibilidade com campos antigos, mas o customerLayout terá prioridade
+  customerHeroUrl?: string; 
+  customerWelcomeTitle?: string; 
+  marqueeText?: string; 
 }
