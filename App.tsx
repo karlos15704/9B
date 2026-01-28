@@ -716,6 +716,25 @@ const App: React.FC = () => {
             })}
 
             <div className="flex-1"></div>
+
+            {/* USER INFO DESKTOP - MOVIDO PARA CÁ PARA NÃO ATRAPALHAR O HEADER */}
+            <div className="flex flex-col items-center gap-1 mb-2 group relative cursor-help">
+                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 border border-gray-700 shadow-inner">
+                    <UserCircle2 size={24} />
+                </div>
+                <span className="text-[9px] font-bold text-gray-500 uppercase text-center max-w-[4.5rem] leading-tight line-clamp-2">
+                    {currentUser.name.split(' ')[0]} 
+                </span>
+                
+                {/* Tooltip for full name/role */}
+                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-gray-700">
+                    <p>{currentUser.name}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">{currentUser.role === 'admin' ? 'Professor' : currentUser.role}</p>
+                    {/* Tiny arrow */}
+                    <div className="absolute top-1/2 right-full -translate-y-1/2 -mr-1 w-2 h-2 bg-gray-900 transform rotate-45 border-l border-b border-gray-700"></div>
+                </div>
+            </div>
+
             <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-4 select-none group ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
               <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center p-2 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
                 <img src={appSettings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" />
@@ -727,13 +746,13 @@ const App: React.FC = () => {
           </nav>
 
           <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
-            {/* HEADER MOBILE/DESKTOP */}
-            <div className="md:absolute md:top-4 md:right-6 z-40 bg-white/90 backdrop-blur border-b md:border border-orange-200 px-4 py-3 md:py-1.5 md:rounded-full shadow-sm flex items-center justify-between md:justify-start gap-2 w-full md:w-auto">
+            {/* HEADER MOBILE ONLY - MANTIDO NO MOBILE */}
+            <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40">
               <div className="flex items-center gap-2">
                   <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
                   <span className="text-xs font-bold text-gray-700 uppercase">{currentUser.name}</span>
               </div>
-              <button onClick={() => setShowLogoutModal(true)} className="md:hidden text-gray-400"><LogOut size={18} /></button>
+              <button onClick={() => setShowLogoutModal(true)} className="text-gray-400"><LogOut size={18} /></button>
             </div>
 
             {currentView === 'pos' && (
