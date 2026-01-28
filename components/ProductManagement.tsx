@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package } from 'lucide-react';
 
 interface ProductManagementProps {
   products: Product[];
@@ -22,6 +22,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
   const [isAvailable, setIsAvailable] = useState(true);
+  
+  // Novos campos para Estoque Inicial
+  const [stock, setStock] = useState('');
+  const [barcode, setBarcode] = useState('');
 
   const resetForm = () => {
     setName('');
@@ -29,6 +33,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setCategory('');
     setImageUrl('');
     setDescription('');
+    setStock('');
+    setBarcode('');
     setIsAvailable(true);
     setEditingProduct(null);
     setIsModalOpen(false);
@@ -41,6 +47,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setCategory(product.category);
     setImageUrl(product.imageUrl);
     setDescription(product.description || '');
+    setStock(product.stock ? product.stock.toString() : '');
+    setBarcode(product.barcode || '');
     setIsAvailable(product.isAvailable !== false);
     setIsModalOpen(true);
   };
@@ -48,6 +56,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Converte estoque para número se houver entrada
+    const stockValue = stock ? parseInt(stock) : 0;
+
     const productData = {
       id: editingProduct ? editingProduct.id : generateId(),
       name,
@@ -55,7 +66,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
       category,
       imageUrl: imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem',
       description,
-      isAvailable: isAvailable
+      isAvailable: isAvailable,
+      stock: stockValue,
+      barcode: barcode
     };
 
     if (editingProduct) {
@@ -163,6 +176,13 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                         <span className="absolute top-2 left-2 text-[8px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
                             {product.category}
                         </span>
+
+                         {/* Estoque Tag */}
+                         {product.stock !== undefined && (
+                            <span className={`absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${product.stock > 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                QTD: {product.stock}
+                            </span>
+                         )}
                     </div>
                     
                     {/* Info */}
@@ -256,6 +276,29 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                         <option value="Bebidas" />
                         <option value="Doces" />
                     </datalist>
+                 </div>
+
+                 {/* NOVOS CAMPOS DE ESTOQUE E CÓDIGO DE BARRAS */}
+                 <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Package size={12}/> Estoque Inicial</label>
+                    <input 
+                      type="number" 
+                      value={stock}
+                      onChange={e => setStock(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700"
+                      placeholder="Qtd"
+                    />
+                 </div>
+                 
+                 <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Barcode size={12}/> Código Barras</label>
+                    <input 
+                      type="text" 
+                      value={barcode}
+                      onChange={e => setBarcode(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700 font-mono"
+                      placeholder="Opcional"
+                    />
                  </div>
 
                  <div className="col-span-2">
