@@ -56,6 +56,7 @@ export interface Expense {
   timestamp: number;
   registeredBy: string;
   category: 'compra' | 'retirada' | 'pagamento' | 'outros';
+  receiptUrl?: string; // Novo campo para Nota Fiscal
 }
 
 export interface DailySummary {

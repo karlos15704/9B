@@ -23,8 +23,19 @@ import { Transaction, User, Product, AppSettings, Expense } from '../types';
     amount numeric NOT NULL,
     timestamp bigint NOT NULL,
     "registeredBy" text,
-    category text
+    category text,
+    "receiptUrl" text
   );
+
+  -- 4. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS)
+  -- Rode isso apenas uma vez para criar o bucket 'receipts'
+  INSERT INTO storage.buckets (id, name, public) 
+  VALUES ('receipts', 'receipts', true)
+  ON CONFLICT (id) DO NOTHING;
+
+  -- Políticas de Segurança para o Storage (Permitir Upload e Leitura pública)
+  CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
+  CREATE POLICY "Public Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
 
   -- Garante permissões de escrita
   GRANT ALL ON public.settings TO anon, authenticated, service_role;
@@ -257,6 +268,35 @@ export const fetchExpenses = async (): Promise<Expense[]> => {
         }
         return data as Expense[];
     } catch (err) { return []; }
+};
+
+export const uploadReceiptImage = async (file: File): Promise<string | null> => {
+    if (!supabase) return null;
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+        
+        // 1. Upload
+        const { error: uploadError } = await supabase.storage
+            .from('receipts')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Error uploading receipt:', uploadError);
+            if (uploadError.message.includes('Bucket not found')) {
+                alert("ERRO: Bucket 'receipts' não encontrado. Rode o SQL no Supabase!");
+            }
+            return null;
+        }
+
+        // 2. Get Public URL
+        const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Unexpected upload error:', error);
+        return null;
+    }
 };
 
 export const createExpense = async (expense: Expense): Promise<boolean> => {

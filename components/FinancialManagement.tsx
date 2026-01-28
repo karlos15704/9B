@@ -4,9 +4,9 @@ import { generateId, formatCurrency } from '../utils';
 import { 
   DollarSign, TrendingDown, TrendingUp, Package, Barcode, 
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
-  ArrowRight, Filter, AlertCircle
+  ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2
 } from 'lucide-react';
-import { createExpense, deleteExpense, fetchExpenses } from '../services/supabase';
+import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage } from '../services/supabase';
 
 interface FinancialManagementProps {
   products: Product[];
@@ -28,6 +28,8 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
   const [desc, setDesc] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState<'compra' | 'retirada' | 'pagamento' | 'outros'>('compra');
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Carregar despesas ao montar
   useEffect(() => {
@@ -64,20 +66,37 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
         return;
     }
 
+    setIsUploading(true);
+    let receiptUrl = undefined;
+
+    // Upload da Nota Fiscal se houver
+    if (receiptFile) {
+        const url = await uploadReceiptImage(receiptFile);
+        if (url) {
+            receiptUrl = url;
+        } else {
+            alert("Erro ao fazer upload da imagem. A despesa será salva sem a foto.");
+        }
+    }
+
     const newExpense: Expense = {
       id: generateId(),
       description: desc,
       amount: val,
       category,
       timestamp: Date.now(),
-      registeredBy: 'Professor' // Assumindo que só o professor acessa aqui
+      registeredBy: 'Professor',
+      receiptUrl: receiptUrl
     };
 
     const success = await createExpense(newExpense);
+    setIsUploading(false);
+
     if (success) {
       setExpenses([newExpense, ...expenses]);
       setDesc('');
       setAmount('');
+      setReceiptFile(null); // Limpa o arquivo
       alert("Despesa registrada com sucesso!");
     } else {
       alert("Erro ao salvar despesa.");
@@ -190,8 +209,48 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                     <option value="outros">Outros</option>
                                 </select>
                             </div>
-                            <button type="submit" className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-200">
-                                REGISTRAR SAÍDA
+                            
+                            {/* Input de Nota Fiscal */}
+                            <div>
+                                <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Foto da Nota Fiscal</label>
+                                <div className="relative">
+                                    <input 
+                                        type="file" 
+                                        accept="image/*"
+                                        id="receipt-upload"
+                                        className="hidden"
+                                        onChange={e => setReceiptFile(e.target.files?.[0] || null)}
+                                    />
+                                    <label 
+                                        htmlFor="receipt-upload" 
+                                        className={`w-full flex items-center justify-center gap-2 border-2 border-dashed rounded-xl p-3 cursor-pointer transition-colors ${receiptFile ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-300 hover:border-blue-400 text-gray-500'}`}
+                                    >
+                                        {receiptFile ? (
+                                            <>
+                                                <ImageIcon size={18} />
+                                                <span className="text-xs font-bold truncate max-w-[200px]">{receiptFile.name}</span>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Upload size={18} />
+                                                <span className="text-xs font-bold">Enviar Foto (Opcional)</span>
+                                            </>
+                                        )}
+                                    </label>
+                                    {receiptFile && (
+                                        <button 
+                                            type="button" 
+                                            onClick={() => setReceiptFile(null)}
+                                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-sm hover:bg-red-600"
+                                        >
+                                            <Trash2 size={12} />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={isUploading} className="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition-colors shadow-lg shadow-red-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                                {isUploading ? <Loader2 className="animate-spin" size={20} /> : 'REGISTRAR SAÍDA'}
                             </button>
                         </form>
                     </div>
@@ -214,6 +273,7 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                         <tr>
                                             <th className="px-4 py-3 font-bold">Descrição</th>
                                             <th className="px-4 py-3 font-bold">Categoria</th>
+                                            <th className="px-4 py-3 font-bold">Nota</th>
                                             <th className="px-4 py-3 font-bold">Data</th>
                                             <th className="px-4 py-3 font-bold text-right">Valor</th>
                                             <th className="px-4 py-3 font-bold text-center">Ação</th>
@@ -225,6 +285,22 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                                 <td className="px-4 py-3 font-bold text-gray-700">{exp.description}</td>
                                                 <td className="px-4 py-3">
                                                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs font-bold uppercase">{exp.category}</span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {exp.receiptUrl ? (
+                                                        <a 
+                                                            href={exp.receiptUrl} 
+                                                            target="_blank" 
+                                                            rel="noopener noreferrer"
+                                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded w-fit"
+                                                            title="Ver Nota Fiscal"
+                                                        >
+                                                            <FileText size={14} />
+                                                            <span className="text-xs font-bold">Ver</span>
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-gray-300 text-xs">-</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 text-gray-500 text-xs">{new Date(exp.timestamp).toLocaleDateString()} {new Date(exp.timestamp).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
                                                 <td className="px-4 py-3 text-right font-black text-red-500">-{formatCurrency(exp.amount)}</td>
