@@ -114,7 +114,14 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
 
   // --- HANDLERS ESTOQUE ---
   const handleUpdateStock = (product: Product, newStock: number) => {
-    onUpdateProduct({ ...product, stock: Math.max(0, newStock) });
+    const stockVal = Math.max(0, newStock);
+    // CORREÇÃO: Se o estoque for maior que 0, força a disponibilidade para TRUE.
+    // Se for 0, força para FALSE (Esgotado).
+    onUpdateProduct({ 
+        ...product, 
+        stock: stockVal,
+        isAvailable: stockVal > 0 
+    });
   };
   
   const handleUpdateBarcode = (product: Product, code: string) => {

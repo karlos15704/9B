@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { generateId, formatCurrency } from '../utils';
 import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package } from 'lucide-react';
@@ -26,6 +26,14 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   // Novos campos para Estoque Inicial
   const [stock, setStock] = useState('');
   const [barcode, setBarcode] = useState('');
+
+  // Efeito para ativar disponibilidade automaticamente ao digitar estoque positivo
+  useEffect(() => {
+    const val = parseInt(stock);
+    if (!isNaN(val) && val > 0) {
+        setIsAvailable(true);
+    }
+  }, [stock]);
 
   const resetForm = () => {
     setName('');
