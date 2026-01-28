@@ -1,22 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
-import { Transaction, User, Product, AppSettings } from '../types';
+import { Transaction, User, Product, AppSettings, Expense } from '../types';
 
 /* 
   ==============================================================================
   🚨 CÓDIGO SQL PARA O SUPABASE (SQL EDITOR) 🚨
   ==============================================================================
   
-  -- Execute isso para habilitar o novo CMS Visual e Correções:
-  
+  -- 1. Habilitar CMS Visual e Correções:
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerLayout" jsonb;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerHeroUrl" text;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerWelcomeTitle" text;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "marqueeText" text;
 
+  -- 2. Atualizar Produtos com Estoque e Código de Barras
+  ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "stock" integer DEFAULT 0;
+  ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "barcode" text;
+
+  -- 3. Criar Tabela de Despesas (Controle de Gastos)
+  CREATE TABLE IF NOT EXISTS public.expenses (
+    id text PRIMARY KEY,
+    description text NOT NULL,
+    amount numeric NOT NULL,
+    timestamp bigint NOT NULL,
+    "registeredBy" text,
+    category text
+  );
+
   -- Garante permissões de escrita
-  GRANT ALL ON public.settings TO anon;
-  GRANT ALL ON public.settings TO authenticated;
-  GRANT ALL ON public.settings TO service_role;
+  GRANT ALL ON public.settings TO anon, authenticated, service_role;
+  GRANT ALL ON public.products TO anon, authenticated, service_role;
+  GRANT ALL ON public.expenses TO anon, authenticated, service_role;
 
 */
 
@@ -230,24 +243,52 @@ export const deleteProduct = async (productId: string): Promise<boolean> => {
     } catch (err) { return false; }
 };
 
+// --- FUNÇÕES DE DESPESAS (EXPENSES) ---
+
+export const fetchExpenses = async (): Promise<Expense[]> => {
+    if (!supabase) return [];
+    try {
+        const { data, error } = await supabase.from('expenses').select('*').order('timestamp', { ascending: false });
+        if (error) {
+            if (error.message.includes('relation') && error.message.includes('does not exist')) {
+                 console.log("🚨 RODE O SQL PARA CRIAR A TABELA EXPENSES");
+            }
+            return [];
+        }
+        return data as Expense[];
+    } catch (err) { return []; }
+};
+
+export const createExpense = async (expense: Expense): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('expenses').insert([expense]);
+        return !error;
+    } catch (err) { return false; }
+};
+
+export const deleteExpense = async (expenseId: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+        return !error;
+    } catch (err) { return false; }
+};
+
+
 // --- FUNÇÕES DE SETTINGS (NOVO) ---
 
 export const fetchSettings = async (): Promise<AppSettings | null> => {
     if (!supabase) return null;
     try {
-        // Assume que existe apenas uma linha com id='global'
         const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
         if (error) { 
-            // Se o erro for de coluna faltando, avisa no console
             if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
                 console.error("🚨 ERRO CRÍTICO: FALTAM COLUNAS NO SUPABASE 🚨");
-                console.log("Copie e rode este SQL no Supabase:\n\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerLayout\" jsonb;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerHeroUrl\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerWelcomeTitle\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"marqueeText\" text;");
             }
-            // Se não encontrar, tenta criar o padrão
             if (error.code === 'PGRST116') {
-                return null; // Retorna null para o app usar os defaults
+                return null;
             }
-            console.warn('Supabase Error (Fetch Settings):', error.message);
             return null; 
         }
         return data as AppSettings;
@@ -257,14 +298,11 @@ export const fetchSettings = async (): Promise<AppSettings | null> => {
 export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
     if (!supabase) return false;
     try {
-        // Upsert com id fixo 'global'
         const { error } = await supabase.from('settings').upsert({ id: 'global', ...settings });
         
         if (error) {
-            console.error("Erro ao salvar settings:", error.message);
              if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
-                 alert("ERRO SQL: Faltam colunas na tabela 'settings'. Veja o console (F12) para o código SQL.");
-                 console.log("🚨 RODE ISSO NO SQL EDITOR:\n\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerLayout\" jsonb;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerHeroUrl\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"customerWelcomeTitle\" text;\nALTER TABLE public.settings ADD COLUMN IF NOT EXISTS \"marqueeText\" text;");
+                 alert("ERRO SQL: Faltam colunas na tabela. Verifique o console.");
              }
             return false;
         }
@@ -281,7 +319,7 @@ export const subscribeToTransactions = (onUpdate: () => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
-    // Ouve especificamente a tabela settings para atualizações globais
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
         console.log("Settings changed remotely!");
         onUpdate();

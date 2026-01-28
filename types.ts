@@ -14,6 +14,9 @@ export interface Product {
   imageUrl: string;
   description?: string;
   isAvailable?: boolean;
+  // Novos campos
+  stock?: number;
+  barcode?: string;
 }
 
 export interface CartItem extends Product {
@@ -45,6 +48,16 @@ export interface Transaction {
   kitchenStatus: 'pending' | 'done';
 }
 
+// Nova Interface para Despesas (Retiradas/Compras)
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  timestamp: number;
+  registeredBy: string;
+  category: 'compra' | 'retirada' | 'pagamento' | 'outros';
+}
+
 export interface DailySummary {
   totalSales: number;
   totalRevenue: number;
@@ -59,6 +72,7 @@ export interface AppModules {
   reports: boolean;  // Relatórios
   users: boolean;    // Equipe
   customer: boolean; // Autoatendimento (Cliente)
+  financial: boolean; // Financeiro e Estoque (NOVO)
 }
 
 // --- NOVO SISTEMA DE CMS (BLOCO) ---
