@@ -408,6 +408,43 @@ const App: React.FC = () => {
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const total = Math.max(0, subtotal - discount);
       
+      // --- 1. BAIXA DE ESTOQUE AUTOMÁTICA ---
+      const productsCopy = [...products];
+      
+      // Usamos Promise.all para processar as atualizações de estoque em paralelo
+      await Promise.all(cart.map(async (cartItem) => {
+        const productIndex = productsCopy.findIndex(p => p.id === cartItem.id);
+        
+        if (productIndex > -1) {
+            const currentProduct = productsCopy[productIndex];
+            
+            // Só debita se o produto tiver controle de estoque (stock definido)
+            if (typeof currentProduct.stock === 'number') {
+                const newStock = Math.max(0, currentProduct.stock - cartItem.quantity);
+                const isSoldOut = newStock === 0;
+
+                // Atualiza o objeto local
+                const updatedProduct = {
+                    ...currentProduct,
+                    stock: newStock,
+                    isAvailable: isSoldOut ? false : currentProduct.isAvailable // Se zerou, marca false. Se não, mantém o que estava.
+                };
+                
+                productsCopy[productIndex] = updatedProduct;
+
+                // Atualiza no Banco de Dados
+                if (isConnected) {
+                    await updateProductSupabase(updatedProduct);
+                }
+            }
+        }
+      }));
+
+      // Atualiza estado visual dos produtos (para mostrar ESGOTADO imediatamente)
+      setProducts(productsCopy);
+      localStorage.setItem('app_products', JSON.stringify(productsCopy));
+
+      // --- 2. PROCESSAMENTO DA VENDA ---
       let transactionToSave: Transaction;
 
       if (currentPendingOrderId) {
