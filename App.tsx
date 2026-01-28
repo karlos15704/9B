@@ -363,6 +363,15 @@ const App: React.FC = () => {
   };
 
   const addToCart = (product: Product) => {
+    // --- VALIDAÇÃO DE ESTOQUE ---
+    const existingItem = cart.find(item => item.id === product.id);
+    const currentQty = existingItem ? existingItem.quantity : 0;
+    
+    if (product.stock !== undefined && (currentQty + 1) > product.stock) {
+        alert(`Estoque limite atingido! Só existem ${product.stock} unidades de "${product.name}" disponíveis.`);
+        return;
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -375,6 +384,19 @@ const App: React.FC = () => {
   };
 
   const updateCartQuantity = (productId: string, delta: number) => {
+    // --- VALIDAÇÃO DE ESTOQUE (Apenas ao aumentar) ---
+    if (delta > 0) {
+        const product = products.find(p => p.id === productId);
+        const item = cart.find(i => i.id === productId);
+        
+        if (product && item && product.stock !== undefined) {
+             if ((item.quantity + delta) > product.stock) {
+                 alert(`Estoque limite atingido! Só existem ${product.stock} unidades disponíveis.`);
+                 return;
+             }
+        }
+    }
+
     setCart(prev => prev.map(item => {
       if (item.id === productId) {
         const newQuantity = Math.max(1, item.quantity + delta);

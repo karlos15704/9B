@@ -118,6 +118,16 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const addToCart = (product: Product) => {
     if (product.isAvailable === false) return; 
+    
+    // --- VALIDAÇÃO DE ESTOQUE ---
+    const existingItem = cart.find(item => item.id === product.id);
+    const currentQty = existingItem ? existingItem.quantity : 0;
+    
+    if (product.stock !== undefined && (currentQty + 1) > product.stock) {
+        alert(`Ops! Só existem ${product.stock} unidades de "${product.name}" disponíveis.`);
+        return;
+    }
+
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
@@ -126,6 +136,19 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
 
   const updateQuantity = (id: string, delta: number) => {
+    // --- VALIDAÇÃO DE ESTOQUE (Apenas ao aumentar) ---
+    if (delta > 0) {
+        const product = products.find(p => p.id === id);
+        const item = cart.find(i => i.id === id);
+        
+        if (product && item && product.stock !== undefined) {
+             if ((item.quantity + delta) > product.stock) {
+                 alert(`Ops! Limite de estoque atingido. Só temos ${product.stock} disponíveis.`);
+                 return;
+             }
+        }
+    }
+
     setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter(item => item.quantity > 0));
   };
 
