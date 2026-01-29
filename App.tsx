@@ -673,7 +673,7 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>

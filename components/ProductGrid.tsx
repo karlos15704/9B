@@ -75,7 +75,11 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* --- GRID DE PRODUTOS --- */}
-      <div className="flex-1 overflow-y-auto p-3 pb-24 md:pb-3">
+      {/* 
+          ADJUST: pb-40 ensures that on mobile, the last items can scroll well above 
+          the floating cart button (bottom-20) and the bottom nav (h-16).
+      */}
+      <div className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3">
         {filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
             <UtensilsCrossed size={48} className="mb-2" />
