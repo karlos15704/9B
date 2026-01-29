@@ -31,8 +31,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Fallback layout se não houver um definido
+  // ATENÇÃO: Removido 'settings.customerHeroUrl' para garantir que a nova imagem seja usada por padrão
   const displayLayout = settings.customerLayout || [
-      { id: 'h1', type: 'hero', title: settings.customerWelcomeTitle || 'Bem-vindo', imageUrl: settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', style: { height: 'medium', alignment: 'center' } },
+      { id: 'h1', type: 'hero', title: settings.customerWelcomeTitle || 'Bem-vindo', imageUrl: 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', style: { height: 'medium', alignment: 'center' } },
       { id: 'p1', type: 'products' }
   ];
 
