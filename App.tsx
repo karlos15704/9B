@@ -736,9 +736,10 @@ const App: React.FC = () => {
           )}
 
           {/* MAIN NAV (DESKTOP) */}
-          <nav className="hidden md:flex w-20 bg-gray-900 flex-col items-center py-4 gap-6 z-30 shadow-xl border-r border-gray-800 pt-6">
-            <div className="mb-2 p-2 rounded-full" style={{ backgroundColor: `${appSettings.primaryColor}30` }}><Flame style={{ color: appSettings.primaryColor }} className="animate-pulse" size={24} /></div>
+          <nav className="hidden md:flex w-20 bg-gray-900 flex-col items-center py-2 gap-2 z-30 shadow-xl border-r border-gray-800 overflow-y-auto scrollbar-hide">
+            <div className="mb-2 mt-2 p-2 rounded-full flex-shrink-0" style={{ backgroundColor: `${appSettings.primaryColor}30` }}><Flame style={{ color: appSettings.primaryColor }} className="animate-pulse" size={24} /></div>
             
+            <div className="flex flex-col gap-2 w-full px-2 items-center">
             {navItems.map(item => {
                 // Check Role Visibility AND Module Status
                 if (!item.enabled) return null;
@@ -749,21 +750,22 @@ const App: React.FC = () => {
                     <button 
                         key={item.view}
                         onClick={() => setCurrentView(item.view as any)} 
-                        className={`p-3 rounded-2xl transition-all duration-300 group relative ${isActive ? 'text-white shadow-lg scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} 
+                        className={`p-2.5 rounded-xl transition-all duration-300 group relative flex-shrink-0 ${isActive ? 'text-white shadow-lg scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} 
                         title={item.title}
-                        style={isActive ? { backgroundColor: appSettings.primaryColor, boxShadow: `0 10px 15px -3px ${appSettings.primaryColor}50` } : {}}
+                        style={isActive ? { backgroundColor: appSettings.primaryColor, boxShadow: `0 4px 10px -2px ${appSettings.primaryColor}50` } : {}}
                     >
-                        <item.icon size={24} />
+                        <item.icon size={22} />
                     </button>
                 )
             })}
+            </div>
 
             <div className="flex-1"></div>
 
             {/* USER INFO DESKTOP - MOVIDO PARA CÁ PARA NÃO ATRAPALHAR O HEADER */}
-            <div className="flex flex-col items-center gap-1 mb-2 group relative cursor-help">
-                <div className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 border border-gray-700 shadow-inner">
-                    <UserCircle2 size={24} />
+            <div className="flex flex-col items-center gap-1 mb-2 group relative cursor-help flex-shrink-0">
+                <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 border border-gray-700 shadow-inner">
+                    <UserCircle2 size={20} />
                 </div>
                 <span className="text-[9px] font-bold text-gray-500 uppercase text-center max-w-[4.5rem] leading-tight line-clamp-2">
                     {currentUser.name.split(' ')[0]} 
@@ -778,14 +780,14 @@ const App: React.FC = () => {
                 </div>
             </div>
 
-            <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-4 select-none group ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
-              <div className={`relative w-12 h-12 rounded-xl flex items-center justify-center p-2 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
+            <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-2 select-none group flex-shrink-0 ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
+              <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center p-1.5 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
                 <img src={appSettings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" />
                 {isBurning && <div className="fire-container"><div className="flame-base"></div><div className="flame-body"></div><div className="flame-core"></div></div>}
               </div>
-              <span className={`text-[9px] font-black uppercase tracking-widest transition-colors z-10 relative ${isBurning ? 'text-fire scale-110' : 'text-gray-500'}`}>{appSettings.schoolClass}</span>
+              <span className={`text-[8px] font-black uppercase tracking-widest transition-colors z-10 relative ${isBurning ? 'text-fire scale-110' : 'text-gray-500'}`}>{appSettings.schoolClass}</span>
             </button>
-            <button onClick={() => setShowLogoutModal(true)} className="p-3 rounded-2xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-4 hover:scale-110 active:scale-95"><LogOut size={24} /></button>
+            <button onClick={() => setShowLogoutModal(true)} className="p-2.5 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-2 hover:scale-110 active:scale-95 flex-shrink-0"><LogOut size={22} /></button>
           </nav>
 
           <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
