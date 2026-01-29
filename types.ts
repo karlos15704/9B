@@ -6,6 +6,11 @@ export enum PaymentMethod {
   PIX = 'Pix'
 }
 
+export interface ComboItem {
+  productId: string;
+  quantity: number;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -17,6 +22,8 @@ export interface Product {
   // Novos campos
   stock?: number;
   barcode?: string;
+  // Campo para Combos
+  comboItems?: ComboItem[]; // Se existir e tiver itens, é um combo
 }
 
 export interface CartItem extends Product {

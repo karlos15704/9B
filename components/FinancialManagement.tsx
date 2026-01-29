@@ -4,7 +4,7 @@ import { generateId, formatCurrency } from '../utils';
 import { 
   DollarSign, TrendingDown, TrendingUp, Package, Barcode, 
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
-  ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2
+  ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers
 } from 'lucide-react';
 import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage } from '../services/supabase';
 
@@ -114,6 +114,11 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
 
   // --- HANDLERS ESTOQUE ---
   const handleUpdateStock = (product: Product, newStock: number) => {
+    if (product.comboItems && product.comboItems.length > 0) {
+        alert("O estoque de combos é calculado automaticamente baseado nos ingredientes.");
+        return;
+    }
+
     const stockVal = Math.max(0, newStock);
     // CORREÇÃO: Se o estoque for maior que 0, força a disponibilidade para TRUE.
     // Se for 0, força para FALSE (Esgotado).
@@ -126,6 +131,24 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
   
   const handleUpdateBarcode = (product: Product, code: string) => {
     onUpdateProduct({ ...product, barcode: code });
+  };
+
+  // Helper para calcular estoque virtual de combo
+  const getDisplayStock = (product: Product) => {
+    if (product.comboItems && product.comboItems.length > 0) {
+        let minStock = 999999;
+        product.comboItems.forEach(item => {
+            const ingredient = products.find(p => p.id === item.productId);
+            if (ingredient && typeof ingredient.stock === 'number') {
+                const possibleCombos = Math.floor(ingredient.stock / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
+            } else {
+                minStock = 0;
+            }
+        });
+        return minStock === 999999 ? 0 : minStock;
+    }
+    return product.stock || 0;
   };
 
   const filteredProducts = products.filter(p => 
@@ -355,15 +378,27 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredProducts.map(product => (
+                            {filteredProducts.map(product => {
+                                const isCombo = !!(product.comboItems && product.comboItems.length > 0);
+                                const displayStock = getDisplayStock(product);
+                                
+                                return (
                                 <tr key={product.id} className="hover:bg-blue-50/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0">
+                                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 relative">
                                                 <img src={product.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                                                {isCombo && (
+                                                    <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full p-0.5 border border-white">
+                                                        <Layers size={10} />
+                                                    </div>
+                                                )}
                                             </div>
                                             <div>
-                                                <p className="font-bold text-gray-800">{product.name}</p>
+                                                <p className="font-bold text-gray-800 flex items-center gap-1">
+                                                    {product.name}
+                                                    {isCombo && <span className="text-[9px] bg-purple-100 text-purple-700 px-1 rounded uppercase">Combo</span>}
+                                                </p>
                                                 <p className="text-xs text-gray-500">{product.category}</p>
                                             </div>
                                         </div>
@@ -381,19 +416,23 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <div className={`inline-flex flex-col items-center justify-center px-4 py-1 rounded-lg border ${product.stock && product.stock > 10 ? 'bg-green-50 border-green-100 text-green-700' : product.stock && product.stock > 0 ? 'bg-yellow-50 border-yellow-100 text-yellow-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
-                                            <span className="text-lg font-black">{product.stock || 0}</span>
-                                            <span className="text-[9px] font-bold uppercase">Unidades</span>
+                                        <div className={`inline-flex flex-col items-center justify-center px-4 py-1 rounded-lg border ${displayStock > 10 ? 'bg-green-50 border-green-100 text-green-700' : displayStock > 0 ? 'bg-yellow-50 border-yellow-100 text-yellow-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                                            <span className="text-lg font-black">{displayStock}</span>
+                                            <span className="text-[9px] font-bold uppercase">{isCombo ? 'Calculado' : 'Unidades'}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg">-</button>
-                                            <button onClick={() => handleUpdateStock(product, (product.stock || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg">+</button>
-                                        </div>
+                                        {!isCombo ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg">-</button>
+                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg">+</button>
+                                            </div>
+                                        ) : (
+                                            <span className="text-xs text-gray-400 italic">Automático</span>
+                                        )}
                                     </td>
                                 </tr>
-                            ))}
+                            )})}
                         </tbody>
                     </table>
                     {filteredProducts.length === 0 && (

@@ -12,9 +12,10 @@ import { Transaction, User, Product, AppSettings, Expense } from '../types';
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "customerWelcomeTitle" text;
   ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS "marqueeText" text;
 
-  -- 2. Atualizar Produtos com Estoque e Código de Barras
+  -- 2. Atualizar Produtos com Estoque, Código de Barras e COMBOS
   ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "stock" integer DEFAULT 0;
   ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "barcode" text;
+  ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "comboItems" jsonb; -- NOVO: Lista de ingredientes do combo
 
   -- 3. Criar Tabela de Despesas (Controle de Gastos)
   CREATE TABLE IF NOT EXISTS public.expenses (

@@ -362,14 +362,38 @@ const App: React.FC = () => {
     if (isConnected) await deleteUser(userId);
   };
 
+  // --- HELPER PARA CALCULAR ESTOQUE DE COMBO ---
+  const getCalculatedStock = (product: Product): number => {
+    if (product.comboItems && product.comboItems.length > 0) {
+        let minStock = 999999;
+        product.comboItems.forEach(item => {
+            const ingredient = products.find(p => p.id === item.productId);
+            if (ingredient && typeof ingredient.stock === 'number') {
+                const possibleCombos = Math.floor(ingredient.stock / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
+            } else {
+                minStock = 0;
+            }
+        });
+        return minStock === 999999 ? 0 : minStock;
+    }
+    return product.stock || 0;
+  };
+
   const addToCart = (product: Product) => {
-    // --- VALIDAÇÃO DE ESTOQUE ---
+    // --- VALIDAÇÃO DE ESTOQUE (COMBO & SIMPLES) ---
     const existingItem = cart.find(item => item.id === product.id);
     const currentQty = existingItem ? existingItem.quantity : 0;
     
-    if (product.stock !== undefined && (currentQty + 1) > product.stock) {
-        alert(`Estoque limite atingido! Só existem ${product.stock} unidades de "${product.name}" disponíveis.`);
-        return;
+    // Calcula o estoque real disponível (se for combo, calcula baseado nos ingredientes)
+    const availableStock = getCalculatedStock(product);
+
+    if (product.stock !== undefined || (product.comboItems && product.comboItems.length > 0)) {
+        if ((currentQty + 1) > availableStock) {
+             const isCombo = !!product.comboItems?.length;
+             alert(`${isCombo ? 'Ingredientes insuficientes' : 'Estoque limite atingido'}! Só existem ${availableStock} unidades disponíveis para "${product.name}".`);
+             return;
+        }
     }
 
     setCart(prev => {
@@ -389,9 +413,10 @@ const App: React.FC = () => {
         const product = products.find(p => p.id === productId);
         const item = cart.find(i => i.id === productId);
         
-        if (product && item && product.stock !== undefined) {
-             if ((item.quantity + delta) > product.stock) {
-                 alert(`Estoque limite atingido! Só existem ${product.stock} unidades disponíveis.`);
+        if (product && item) {
+             const availableStock = getCalculatedStock(product);
+             if ((item.quantity + delta) > availableStock) {
+                 alert(`Estoque limite atingido! Só existem ${availableStock} unidades disponíveis.`);
                  return;
              }
         }
@@ -430,37 +455,55 @@ const App: React.FC = () => {
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const total = Math.max(0, subtotal - discount);
       
-      // --- 1. BAIXA DE ESTOQUE AUTOMÁTICA ---
-      const productsCopy = [...products];
+      // --- 1. BAIXA DE ESTOQUE INTELIGENTE (COMBO & SIMPLES) ---
+      // Trabalhamos em uma cópia para acumular os descontos antes de salvar
+      const productsCopy = [...products]; 
       
-      // Usamos Promise.all para processar as atualizações de estoque em paralelo
-      await Promise.all(cart.map(async (cartItem) => {
-        const productIndex = productsCopy.findIndex(p => p.id === cartItem.id);
-        
-        if (productIndex > -1) {
-            const currentProduct = productsCopy[productIndex];
-            
-            // Só debita se o produto tiver controle de estoque (stock definido)
-            if (typeof currentProduct.stock === 'number') {
-                const newStock = Math.max(0, currentProduct.stock - cartItem.quantity);
-                const isSoldOut = newStock === 0;
+      // Mapeamento de quanto descontar de cada ID real (produto simples)
+      const deductions = new Map<string, number>();
 
-                // Atualiza o objeto local
-                const updatedProduct = {
-                    ...currentProduct,
-                    stock: newStock,
-                    isAvailable: isSoldOut ? false : currentProduct.isAvailable // Se zerou, marca false. Se não, mantém o que estava.
-                };
-                
-                productsCopy[productIndex] = updatedProduct;
+      cart.forEach(cartItem => {
+          if (cartItem.comboItems && cartItem.comboItems.length > 0) {
+              // É UM COMBO: Desconta dos ingredientes
+              cartItem.comboItems.forEach(ingredient => {
+                  const totalDeduction = ingredient.quantity * cartItem.quantity;
+                  const currentDeduction = deductions.get(ingredient.productId) || 0;
+                  deductions.set(ingredient.productId, currentDeduction + totalDeduction);
+              });
+          } else {
+              // PRODUTO SIMPLES: Desconta dele mesmo
+              const currentDeduction = deductions.get(cartItem.id) || 0;
+              deductions.set(cartItem.id, currentDeduction + cartItem.quantity);
+          }
+      });
 
-                // Atualiza no Banco de Dados
-                if (isConnected) {
-                    await updateProductSupabase(updatedProduct);
-                }
-            }
-        }
-      }));
+      // Aplica as deduções acumuladas
+      const productsToUpdate: Product[] = [];
+      
+      deductions.forEach((qtyToDeduct, productId) => {
+          const productIndex = productsCopy.findIndex(p => p.id === productId);
+          if (productIndex > -1) {
+              const product = productsCopy[productIndex];
+              if (typeof product.stock === 'number') {
+                  const newStock = Math.max(0, product.stock - qtyToDeduct);
+                  const isSoldOut = newStock === 0;
+
+                  const updatedProduct = {
+                      ...product,
+                      stock: newStock,
+                      isAvailable: isSoldOut ? false : product.isAvailable
+                  };
+                  
+                  productsCopy[productIndex] = updatedProduct;
+                  productsToUpdate.push(updatedProduct);
+              }
+          }
+      });
+
+      // Atualiza o DB com os produtos modificados
+      if (isConnected) {
+          await Promise.all(productsToUpdate.map(p => updateProductSupabase(p)));
+      }
 
       // Atualiza estado visual dos produtos (para mostrar ESGOTADO imediatamente)
       setProducts(productsCopy);

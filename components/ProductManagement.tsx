@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Product } from '../types';
+import { Product, ComboItem } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package, Layers } from 'lucide-react';
 
 interface ProductManagementProps {
   products: Product[];
@@ -27,13 +27,21 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const [stock, setStock] = useState('');
   const [barcode, setBarcode] = useState('');
 
-  // Efeito para ativar disponibilidade automaticamente ao digitar estoque positivo
+  // States para COMBO
+  const [isCombo, setIsCombo] = useState(false);
+  const [comboItems, setComboItems] = useState<ComboItem[]>([]);
+  const [selectedSubProduct, setSelectedSubProduct] = useState('');
+  const [subProductQty, setSubProductQty] = useState(1);
+
+  // Efeito para ativar disponibilidade automaticamente ao digitar estoque positivo (apenas se não for combo)
   useEffect(() => {
-    const val = parseInt(stock);
-    if (!isNaN(val) && val > 0) {
-        setIsAvailable(true);
+    if (!isCombo) {
+        const val = parseInt(stock);
+        if (!isNaN(val) && val > 0) {
+            setIsAvailable(true);
+        }
     }
-  }, [stock]);
+  }, [stock, isCombo]);
 
   const resetForm = () => {
     setName('');
@@ -44,6 +52,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setStock('');
     setBarcode('');
     setIsAvailable(true);
+    setIsCombo(false);
+    setComboItems([]);
+    setSelectedSubProduct('');
+    setSubProductQty(1);
     setEditingProduct(null);
     setIsModalOpen(false);
   };
@@ -58,16 +70,40 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setStock(product.stock ? product.stock.toString() : '');
     setBarcode(product.barcode || '');
     setIsAvailable(product.isAvailable !== false);
+    
+    // Configura Combo
+    const isProductCombo = !!(product.comboItems && product.comboItems.length > 0);
+    setIsCombo(isProductCombo);
+    setComboItems(product.comboItems || []);
+
     setIsModalOpen(true);
+  };
+
+  const handleAddSubProduct = () => {
+    if (!selectedSubProduct || subProductQty < 1) return;
+    
+    // Verifica se já existe
+    if (comboItems.find(i => i.productId === selectedSubProduct)) {
+        alert("Este produto já está no combo. Remova-o para adicionar novamente se quiser mudar a quantidade.");
+        return;
+    }
+
+    setComboItems([...comboItems, { productId: selectedSubProduct, quantity: subProductQty }]);
+    setSelectedSubProduct('');
+    setSubProductQty(1);
+  };
+
+  const handleRemoveSubProduct = (id: string) => {
+    setComboItems(comboItems.filter(i => i.productId !== id));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Converte estoque para número se houver entrada
-    const stockValue = stock ? parseInt(stock) : 0;
+    // Converte estoque para número se houver entrada e NÃO for combo
+    const stockValue = isCombo ? 0 : (stock ? parseInt(stock) : 0);
 
-    const productData = {
+    const productData: Product = {
       id: editingProduct ? editingProduct.id : generateId(),
       name,
       price: parseFloat(price.replace(',', '.')),
@@ -76,7 +112,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
       description,
       isAvailable: isAvailable,
       stock: stockValue,
-      barcode: barcode
+      barcode: barcode,
+      comboItems: isCombo ? comboItems : undefined // Salva itens do combo
     };
 
     if (editingProduct) {
@@ -137,6 +174,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
         {/* LISTA DE PRODUTOS EXISTENTES */}
         {filteredProducts.map(product => {
             const isSoldOut = product.isAvailable === false;
+            const isProductCombo = !!(product.comboItems && product.comboItems.length > 0);
+            
             return (
               <div key={product.id} className={`bg-white rounded-xl shadow-sm border overflow-visible transition-all group flex flex-col relative hover:shadow-xl hover:-translate-y-1 hover:ring-2 hover:ring-blue-400 ${isSoldOut ? 'border-red-200 opacity-80' : 'border-gray-200'}`}>
                 
@@ -179,6 +218,13 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                                 <span className="bg-red-600 text-white text-[10px] font-black px-2 py-0.5 rounded transform -rotate-6 shadow-sm">ESGOTADO</span>
                             </div>
                         )}
+
+                        {/* Tag de COMBO */}
+                        {isProductCombo && (
+                             <div className="absolute bottom-2 right-2 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1">
+                                <Layers size={10} /> COMBO
+                             </div>
+                        )}
                         
                         {/* Categoria Tag */}
                         <span className="absolute top-2 left-2 text-[8px] font-bold uppercase tracking-wider bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded border border-gray-200">
@@ -186,7 +232,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                         </span>
 
                          {/* Estoque Tag */}
-                         {product.stock !== undefined && (
+                         {product.stock !== undefined && !isProductCombo && (
                             <span className={`absolute top-2 right-2 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${product.stock > 0 ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
                                 QTD: {product.stock}
                             </span>
@@ -241,6 +287,24 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                   </button>
               </div>
 
+              {/* TIPO DE PRODUTO (Simples vs Combo) */}
+              <div className="flex gap-2 mb-4">
+                 <button 
+                    type="button" 
+                    onClick={() => setIsCombo(false)} 
+                    className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 ${!isCombo ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                 >
+                    <Package size={18} /> Produto Simples
+                 </button>
+                 <button 
+                    type="button" 
+                    onClick={() => { setIsCombo(true); setStock('0'); }} 
+                    className={`flex-1 py-3 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 ${isCombo ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                 >
+                    <Layers size={18} /> Combo / Kit
+                 </button>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                  <div className="col-span-2">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome do Produto</label>
@@ -286,28 +350,90 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                     </datalist>
                  </div>
 
-                 {/* NOVOS CAMPOS DE ESTOQUE E CÓDIGO DE BARRAS */}
-                 <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Package size={12}/> Estoque Inicial</label>
-                    <input 
-                      type="number" 
-                      value={stock}
-                      onChange={e => setStock(e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700"
-                      placeholder="Qtd"
-                    />
-                 </div>
-                 
-                 <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Barcode size={12}/> Código Barras</label>
-                    <input 
-                      type="text" 
-                      value={barcode}
-                      onChange={e => setBarcode(e.target.value)}
-                      className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700 font-mono"
-                      placeholder="Opcional"
-                    />
-                 </div>
+                 {/* CAMPOS DE ESTOQUE - SÓ APARECEM SE NÃO FOR COMBO */}
+                 {!isCombo && (
+                    <>
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Package size={12}/> Estoque Inicial</label>
+                        <input 
+                        type="number" 
+                        value={stock}
+                        onChange={e => setStock(e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700"
+                        placeholder="Qtd"
+                        />
+                    </div>
+                    
+                    <div>
+                        <label className="text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1"><Barcode size={12}/> Código Barras</label>
+                        <input 
+                        type="text" 
+                        value={barcode}
+                        onChange={e => setBarcode(e.target.value)}
+                        className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700 font-mono"
+                        placeholder="Opcional"
+                        />
+                    </div>
+                    </>
+                 )}
+
+                 {/* CONFIGURAÇÃO DE COMBO */}
+                 {isCombo && (
+                    <div className="col-span-2 bg-purple-50 border-2 border-purple-100 rounded-xl p-4">
+                        <h4 className="text-sm font-black text-purple-700 uppercase mb-2 flex items-center gap-2"><Layers size={16}/> Composição do Combo</h4>
+                        <p className="text-xs text-purple-500 mb-3 leading-tight">Ao vender este combo, o estoque dos itens abaixo será descontado automaticamente.</p>
+                        
+                        <div className="flex gap-2 mb-3">
+                            <select 
+                                value={selectedSubProduct}
+                                onChange={e => setSelectedSubProduct(e.target.value)}
+                                className="flex-1 text-sm border border-purple-200 rounded-lg p-2 focus:outline-none"
+                            >
+                                <option value="">Selecione um produto...</option>
+                                {products.filter(p => !p.comboItems || p.comboItems.length === 0).filter(p => p.id !== editingProduct?.id).map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                ))}
+                            </select>
+                            <input 
+                                type="number" 
+                                min="1" 
+                                value={subProductQty}
+                                onChange={e => setSubProductQty(parseInt(e.target.value))}
+                                className="w-16 text-sm border border-purple-200 rounded-lg p-2 focus:outline-none text-center" 
+                            />
+                            <button 
+                                type="button" 
+                                onClick={handleAddSubProduct}
+                                className="bg-purple-600 text-white p-2 rounded-lg font-bold"
+                            >
+                                <Plus size={18}/>
+                            </button>
+                        </div>
+
+                        {/* LISTA DE ITENS DO COMBO */}
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {comboItems.length === 0 ? (
+                                <p className="text-xs text-gray-400 text-center italic py-2">Nenhum item adicionado ao combo.</p>
+                            ) : (
+                                comboItems.map((item, idx) => {
+                                    const prod = products.find(p => p.id === item.productId);
+                                    return (
+                                        <div key={idx} className="bg-white p-2 rounded-lg border border-purple-100 flex justify-between items-center shadow-sm">
+                                            <span className="text-xs font-bold text-gray-700">{item.quantity}x {prod?.name || 'Item Removido'}</span>
+                                            <button 
+                                                type="button" 
+                                                onClick={() => handleRemoveSubProduct(item.productId)}
+                                                className="text-red-400 hover:text-red-600"
+                                            >
+                                                <X size={14} />
+                                            </button>
+                                        </div>
+                                    )
+                                })
+                            )}
+                        </div>
+                    </div>
+                 )}
 
                  <div className="col-span-2">
                     <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Link da Imagem</label>
