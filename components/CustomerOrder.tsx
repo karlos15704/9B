@@ -248,10 +248,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         switch(block.type) {
             case 'hero':
                 return (
-                    <div key={block.id} className={`relative w-full overflow-hidden ${block.style?.height === 'small' ? 'h-32' : block.style?.height === 'large' ? 'h-64' : 'h-48'}`}>
-                        <img src={block.imageUrl} className="w-full h-full object-cover" alt="Hero" />
-                        <div className={`absolute inset-0 bg-black/40 flex items-center p-6 ${block.style?.alignment === 'center' ? 'justify-center text-center' : block.style?.alignment === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>
-                            <h2 className="text-white font-black text-2xl leading-tight drop-shadow-md animate-in slide-in-from-bottom-2">{block.title}</h2>
+                    <div key={block.id} className={`relative w-full overflow-hidden ${block.style?.height === 'small' ? 'h-32' : block.style?.height === 'large' ? 'h-64' : 'h-48'} bg-gray-900`}>
+                        {/* 
+                            ALTERAÇÃO: 
+                            - object-contain: Garante que a imagem inteira apareça, sem cortar, ajustando-se ao container. 
+                            - bg-gray-900: Fundo escuro para preencher o espaço sobrando caso a imagem não seja larga o suficiente.
+                        */}
+                        <img src={block.imageUrl} className="w-full h-full object-contain" alt="Hero" />
+                        
+                        <div className={`absolute inset-0 flex items-center p-6 ${block.style?.alignment === 'center' ? 'justify-center text-center' : block.style?.alignment === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>
+                            {/* Overlay de texto removido ou apenas sombra no texto para não cobrir a imagem */}
+                            <h2 className="text-white font-black text-2xl leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-2">{block.title}</h2>
                         </div>
                     </div>
                 );

@@ -134,7 +134,7 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                              <input type="url" value={formData.customerHeroUrl || ''} onChange={e => handleChange('customerHeroUrl', e.target.value)} className="w-full border-2 border-gray-200 rounded-lg p-2 text-xs" placeholder="URL da imagem..." />
                           </div>
                           {formData.customerHeroUrl ? (
-                              <img src={formData.customerHeroUrl} className="h-32 w-full object-cover mt-2 border rounded-xl bg-gray-50" />
+                              <img src={formData.customerHeroUrl} className="h-32 w-full object-contain mt-2 border rounded-xl bg-gray-900" />
                           ) : (
                               <p className="text-[10px] text-gray-400 mt-1 italic">Se vazio, será usada a imagem padrão.</p>
                           )}
