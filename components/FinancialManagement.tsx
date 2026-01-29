@@ -4,7 +4,7 @@ import { generateId, formatCurrency } from '../utils';
 import { 
   DollarSign, TrendingDown, TrendingUp, Package, Barcode, 
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
-  ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers
+  ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers, Minus
 } from 'lucide-react';
 import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage } from '../services/supabase';
 
@@ -151,10 +151,15 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     return product.stock || 0;
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
-    (p.barcode && p.barcode.includes(stockSearch))
-  );
+  // --- ORDENAÇÃO ESTÁVEL PARA EVITAR PULO ---
+  const filteredProducts = useMemo(() => {
+    return products
+      .filter(p => 
+        p.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
+        (p.barcode && p.barcode.includes(stockSearch))
+      )
+      .sort((a, b) => a.name.localeCompare(b.name)); // Ordena por nome SEMPRE
+  }, [products, stockSearch]);
 
   return (
     <div className="h-full bg-slate-100 flex flex-col overflow-hidden">
@@ -373,8 +378,8 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                             <tr>
                                 <th className="px-6 py-4 font-bold">Produto</th>
                                 <th className="px-6 py-4 font-bold">Código de Barras</th>
-                                <th className="px-6 py-4 font-bold text-center">Estoque Atual</th>
-                                <th className="px-6 py-4 font-bold text-center">Ações Rápidas</th>
+                                <th className="px-6 py-4 font-bold text-center">Status</th>
+                                <th className="px-6 py-4 font-bold text-center">Editar Estoque</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -424,8 +429,21 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                     <td className="px-6 py-4 text-center">
                                         {!isCombo ? (
                                             <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg">-</button>
-                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg">+</button>
+                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Minus size={16}/></button>
+                                                
+                                                {/* INPUT DIRETO DE ESTOQUE */}
+                                                <input 
+                                                    type="number" 
+                                                    min="0"
+                                                    value={product.stock || 0}
+                                                    onChange={(e) => {
+                                                        const val = parseInt(e.target.value);
+                                                        if (!isNaN(val)) handleUpdateStock(product, val);
+                                                    }}
+                                                    className="w-16 h-8 text-center font-black text-gray-800 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                                                />
+
+                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Plus size={16}/></button>
                                             </div>
                                         ) : (
                                             <span className="text-xs text-gray-400 italic">Automático</span>
