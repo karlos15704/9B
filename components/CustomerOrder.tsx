@@ -30,12 +30,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Fallback layout: Prioriza as configurações simples (settings.customerHeroUrl) se não houver um layout complexo
-  const displayLayout = settings.customerLayout || [
+  // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
+  const displayLayout: LayoutBlock[] = [
       { 
           id: 'h1', 
           type: 'hero', 
           title: settings.customerWelcomeTitle || 'Bem-vindo', 
+          // Prioriza a configuração, mas se não houver, usa a imagem solicitada
           imageUrl: settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', 
           style: { height: 'medium', alignment: 'center' } 
       },
