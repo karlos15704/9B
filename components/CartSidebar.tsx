@@ -161,8 +161,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
     return (
       <div className="h-full flex flex-col items-center justify-center text-gray-400 p-8 bg-white border-l border-orange-100 relative overflow-hidden">
         {onClose && (
-          <button onClick={onClose} className="absolute top-4 left-4 md:hidden p-2 bg-gray-100 rounded-full text-gray-600 z-50">
-            <ChevronDown size={24} />
+          <button onClick={onClose} className="absolute top-4 left-4 md:hidden p-3 bg-white shadow-md border border-gray-100 rounded-full text-gray-600 z-50 hover:bg-gray-50 active:scale-95 transition-all">
+            <X size={24} />
           </button>
         )}
         
@@ -234,7 +234,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   };
 
   return (
-    <div className="flex flex-col h-[100dvh] bg-white border-l border-gray-200">
+    <div className="flex flex-col h-full bg-white border-l border-gray-200">
       {/* CASH MODAL */}
       {showCashModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -288,7 +288,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
         </div>
       )}
 
-      {/* PIX MODAL (Igual, só wrapper) */}
+      {/* PIX MODAL */}
       {showPixModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full max-h-[90vh] overflow-y-auto flex flex-col animate-in zoom-in-95 duration-200 relative">
@@ -309,7 +309,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
       <div className="flex flex-col h-full overflow-hidden">
         <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center shadow-sm flex-shrink-0">
           <div className="flex items-center gap-2">
-            {onClose && <button onClick={onClose} className="md:hidden p-1.5 mr-1 bg-white rounded-lg border border-gray-200 text-gray-600 shadow-sm active:scale-95"><ChevronDown size={20} /></button>}
+            {onClose && <button onClick={onClose} className="md:hidden p-2 mr-1 bg-white rounded-full border border-gray-200 text-gray-600 shadow-md active:scale-95"><X size={20} /></button>}
             <div className="p-2 bg-white rounded-full shadow-sm hidden md:block" style={{ color: primaryColor }}><ShoppingCart size={20} /></div>
             <h2 className="font-bold text-gray-800 text-lg">Carrinho</h2>
           </div>
@@ -333,7 +333,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
             </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-8">
           {cart.map((item) => (
             <div key={item.id} className="flex gap-3 bg-white border border-gray-100 rounded-xl p-2 shadow-sm hover:shadow-md transition-shadow group relative">
                <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative">
@@ -342,8 +342,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
                </div>
                <div className="flex-1 flex flex-col justify-between">
                   <div className="flex justify-between items-start">
-                     <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight pr-6">{item.name}</h4>
-                     <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1 rounded-md transition-colors absolute top-2 right-2"><X size={16} /></button>
+                     <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight pr-8">{item.name}</h4>
+                     <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors absolute top-1 right-1"><X size={18} /></button>
                   </div>
                   {item.notes && <p className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 italic my-1 break-words">"{item.notes}"</p>}
                   <div className="flex justify-between items-end mt-1">
@@ -353,9 +353,9 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
                             <button onClick={() => handleAddNote(item)} className={`p-1.5 rounded-lg border transition-colors ${item.notes ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:text-blue-500'}`}><Edit3 size={14} /></button>
                         )}
                         <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                            <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600 disabled:opacity-50"><Minus size={12} /></button>
-                            <span className="text-sm font-bold text-gray-800 w-4 text-center">{item.quantity}</span>
-                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 h-6 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600"><Plus size={12} /></button>
+                            <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600 disabled:opacity-50 active:scale-90 transition-transform"><Minus size={14} /></button>
+                            <span className="text-sm font-bold text-gray-800 w-5 text-center">{item.quantity}</span>
+                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600 active:scale-90 transition-transform"><Plus size={14} /></button>
                         </div>
                      </div>
                   </div>
@@ -364,7 +364,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
           ))}
         </div>
 
-        <div className="bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] p-4 space-y-4 flex-shrink-0 pb-4">
+        <div className="bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] p-4 space-y-4 flex-shrink-0 pb-6">
            {/* Subtotal e Descontos */}
            <div className="space-y-2">
              <div className="flex justify-between text-gray-500 text-sm"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>

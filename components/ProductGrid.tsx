@@ -48,12 +48,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-orange-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-orange-300"
-            style={{ focusRingColor: primaryColor }} // Note: inline styles for focus rings are tricky, relying on tailwind defaults or css variables injected in App.tsx
+            style={{ focusRingColor: primaryColor }} 
           />
         </div>
 
-        {/* Categorias */}
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        {/* Categorias - Com padding extra para não cortar scrollbar */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map(cat => {
             const isSelected = selectedCategory === cat;
             return (
@@ -75,7 +75,8 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* --- GRID DE PRODUTOS --- */}
-      <div className="flex-1 overflow-y-auto p-3 md:pb-3">
+      {/* Aplicando pb-40 diretamente aqui e h-full para forçar o scroll container */}
+      <div className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative">
         {filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
             <UtensilsCrossed size={48} className="mb-2" />
@@ -89,13 +90,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                 const quantity = cartItem ? cartItem.quantity : 0;
                 const isSoldOut = product.isAvailable === false;
 
-                // Borda dinâmica se selecionado
                 const borderStyle = quantity > 0 ? { borderColor: primaryColor } : {};
 
                 return (
                   <div 
                     key={product.id} 
-                    className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col
+                    className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full
                       ${isSoldOut ? 'border-red-200 opacity-90' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
                       ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
                     `}
@@ -174,13 +174,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                 );
               })}
             </div>
-            
-            {/* 
-              ESPAÇADOR GIGANTE PARA MOBILE 
-              Isso garante que o conteúdo role até o topo da tela se necessário,
-              livrando completamente o botão flutuante e a navbar.
-            */}
-            <div className="w-full h-64 md:hidden block" aria-hidden="true" />
+
+            {/* SPACER FÍSICO (Div transparente para forçar o scroll) */}
+            <div className="w-full h-32 md:hidden block pointer-events-none" aria-hidden="true" />
           </>
         )}
       </div>

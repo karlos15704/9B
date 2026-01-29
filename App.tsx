@@ -673,7 +673,7 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className={`h-[100dvh] w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
@@ -856,7 +856,7 @@ const App: React.FC = () => {
 
             {/* --- MOBILE BOTTOM NAVIGATION (SCROLLABLE & BETTER SPACING) --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2">
-              <div className="flex w-full min-w-max gap-1 px-1">
+              <div className="flex w-full min-w-max gap-2 px-1 justify-center md:justify-start">
                   {navItems.map(item => {
                     if (!item.enabled) return null;
                     if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
@@ -867,11 +867,11 @@ const App: React.FC = () => {
                         <button 
                             key={item.view}
                             onClick={() => setCurrentView(item.view as any)} 
-                            className={`flex flex-col items-center justify-center min-w-[72px] h-14 rounded-xl transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+                            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-lg transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
                             style={isActive ? { color: appSettings.primaryColor, backgroundColor: `${appSettings.primaryColor}15` } : {}}
                         >
-                            <item.icon size={22} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
-                            <span className="text-[9px] uppercase leading-none">{item.title}</span>
+                            <item.icon size={20} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
+                            <span className="text-[8px] uppercase leading-none">{item.title}</span>
                         </button>
                     )
                   })}
