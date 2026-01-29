@@ -16,7 +16,7 @@ interface SettingsManagementProps {
 
 // Default Layout se não existir
 const DEFAULT_LAYOUT: LayoutBlock[] = [
-  { id: 'hero-1', type: 'hero', title: 'O que você quer comer?', imageUrl: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60', style: { height: 'medium', alignment: 'center' } },
+  { id: 'hero-1', type: 'hero', title: 'O que você quer comer?', imageUrl: 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', style: { height: 'medium', alignment: 'center' } },
   { id: 'products-1', type: 'products', title: 'Cardápio Completo' },
 ];
 

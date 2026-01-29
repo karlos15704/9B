@@ -32,7 +32,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   // Fallback layout se não houver um definido
   const displayLayout = settings.customerLayout || [
-      { id: 'h1', type: 'hero', title: settings.customerWelcomeTitle || 'Bem-vindo', imageUrl: settings.customerHeroUrl || 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=500&q=60', style: { height: 'medium', alignment: 'center' } },
+      { id: 'h1', type: 'hero', title: settings.customerWelcomeTitle || 'Bem-vindo', imageUrl: settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', style: { height: 'medium', alignment: 'center' } },
       { id: 'p1', type: 'products' }
   ];
 
