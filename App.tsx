@@ -854,27 +854,28 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* --- MOBILE BOTTOM NAVIGATION (DINÂMICA) --- */}
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex justify-between items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb px-1">
-              {navItems.map(item => {
-                 if (!item.enabled) return null;
-                 if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
-                 // Outras regras de role para mobile
-                 if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
+            {/* --- MOBILE BOTTOM NAVIGATION (SCROLLABLE & BETTER SPACING) --- */}
+            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2">
+              <div className="flex w-full min-w-max gap-1 px-1">
+                  {navItems.map(item => {
+                    if (!item.enabled) return null;
+                    if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
+                    if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
 
-                 const isActive = currentView === item.view;
-                 return (
-                    <button 
-                        key={item.view}
-                        onClick={() => setCurrentView(item.view as any)} 
-                        className={`flex-1 flex flex-col items-center justify-center w-full h-full gap-1 transition-colors ${isActive ? 'bg-orange-50/50' : 'text-gray-400 hover:text-gray-600'}`}
-                        style={isActive ? { color: appSettings.primaryColor } : {}}
-                    >
-                        <item.icon size={20} className={isActive ? 'fill-current' : ''} />
-                        <span className="text-[9px] font-bold uppercase leading-none">{item.title}</span>
-                    </button>
-                 )
-              })}
+                    const isActive = currentView === item.view;
+                    return (
+                        <button 
+                            key={item.view}
+                            onClick={() => setCurrentView(item.view as any)} 
+                            className={`flex flex-col items-center justify-center min-w-[72px] h-14 rounded-xl transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+                            style={isActive ? { color: appSettings.primaryColor, backgroundColor: `${appSettings.primaryColor}15` } : {}}
+                        >
+                            <item.icon size={22} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
+                            <span className="text-[9px] uppercase leading-none">{item.title}</span>
+                        </button>
+                    )
+                  })}
+              </div>
             </div>
 
           </main>

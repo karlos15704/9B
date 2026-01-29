@@ -234,7 +234,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   };
 
   return (
-    <>
+    <div className="flex flex-col h-[100dvh] bg-white border-l border-gray-200">
       {/* CASH MODAL */}
       {showCashModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -306,8 +306,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
       )}
 
       {/* Main Sidebar Content */}
-      <div className="flex flex-col h-full bg-white border-l border-gray-200">
-        <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center shadow-sm">
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center shadow-sm flex-shrink-0">
           <div className="flex items-center gap-2">
             {onClose && <button onClick={onClose} className="md:hidden p-1.5 mr-1 bg-white rounded-lg border border-gray-200 text-gray-600 shadow-sm active:scale-95"><ChevronDown size={20} /></button>}
             <div className="p-2 bg-white rounded-full shadow-sm hidden md:block" style={{ color: primaryColor }}><ShoppingCart size={20} /></div>
@@ -319,7 +319,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
           </div>
         </div>
 
-        <div className="px-4 pt-4">
+        <div className="px-4 pt-4 flex-shrink-0">
              <div className="relative">
                 <UserIcon className="absolute left-3 top-3" size={18} style={{ color: primaryColor }} />
                 <input 
@@ -364,7 +364,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
           ))}
         </div>
 
-        <div className="bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] p-4 space-y-4">
+        <div className="bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] p-4 space-y-4 flex-shrink-0 pb-4">
            {/* Subtotal e Descontos */}
            <div className="space-y-2">
              <div className="flex justify-between text-gray-500 text-sm"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
@@ -385,7 +385,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
            </div>
 
            {/* BOTÕES DE PAGAMENTO COM TAMANHO DINÂMICO */}
-           <div className="grid grid-cols-2 gap-2 pt-2 pb-24 md:pb-0">
+           <div className="grid grid-cols-2 gap-2 pt-2">
               <button onClick={() => handlePaymentSelect(PaymentMethod.CREDIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95" style={dynamicBtnStyle}><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Crédito</span></button>
               <button onClick={() => handlePaymentSelect(PaymentMethod.DEBIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95" style={dynamicBtnStyle}><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Débito</span></button>
               <button onClick={() => handlePaymentSelect(PaymentMethod.PIX)} className="flex flex-col items-center justify-center rounded-xl border border-teal-100 bg-teal-50 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all active:scale-95" style={dynamicBtnStyle}><QrCode size={20} className="mb-1" /><span className="text-xs font-bold">Pix</span></button>
@@ -393,7 +393,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
            </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
