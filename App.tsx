@@ -672,8 +672,9 @@ const App: React.FC = () => {
     { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações', enabled: true }, // Config sempre ativa para Admin
   ];
 
+  // FIX: Using fixed inset-0 to prevent body scroll interference on mobile
   return (
-    <div className={`h-screen w-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
@@ -762,7 +763,7 @@ const App: React.FC = () => {
 
             <div className="flex-1"></div>
 
-            {/* USER INFO DESKTOP - MOVIDO PARA CÁ PARA NÃO ATRAPALHAR O HEADER */}
+            {/* USER INFO DESKTOP */}
             <div className="flex flex-col items-center gap-1 mb-2 group relative cursor-help flex-shrink-0">
                 <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 border border-gray-700 shadow-inner">
                     <UserCircle2 size={20} />
@@ -771,11 +772,9 @@ const App: React.FC = () => {
                     {currentUser.name.split(' ')[0]} 
                 </span>
                 
-                {/* Tooltip for full name/role */}
                 <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-gray-700">
                     <p>{currentUser.name}</p>
                     <p className="text-[10px] text-gray-400 uppercase">{currentUser.role === 'admin' ? 'Professor' : currentUser.role}</p>
-                    {/* Tiny arrow */}
                     <div className="absolute top-1/2 right-full -translate-y-1/2 -mr-1 w-2 h-2 bg-gray-900 transform rotate-45 border-l border-b border-gray-700"></div>
                 </div>
             </div>
@@ -790,8 +789,8 @@ const App: React.FC = () => {
             <button onClick={() => setShowLogoutModal(true)} className="p-2.5 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-2 hover:scale-110 active:scale-95 flex-shrink-0"><LogOut size={22} /></button>
           </nav>
 
-          <main className="flex-1 flex flex-col overflow-hidden relative pb-16 md:pb-0">
-            {/* HEADER MOBILE ONLY - MANTIDO NO MOBILE */}
+          <main className="flex-1 flex flex-col overflow-hidden relative">
+            {/* HEADER MOBILE ONLY */}
             <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40">
               <div className="flex items-center gap-2">
                   <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
@@ -854,7 +853,7 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* --- MOBILE BOTTOM NAVIGATION (SCROLLABLE & BETTER SPACING) --- */}
+            {/* --- MOBILE BOTTOM NAVIGATION --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2">
               <div className="flex w-full min-w-max gap-2 px-1 justify-center md:justify-start">
                   {navItems.map(item => {

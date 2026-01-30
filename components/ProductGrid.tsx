@@ -47,9 +47,17 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             placeholder="Buscar produto..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-orange-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-orange-300"
+            className="w-full pl-10 pr-10 py-3 rounded-xl border border-orange-200 bg-orange-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-orange-300"
             style={{ focusRingColor: primaryColor }} 
           />
+          {searchTerm && (
+            <button 
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 p-1 rounded-full hover:bg-orange-50 transition-colors"
+            >
+                <X size={16} />
+            </button>
+          )}
         </div>
 
         {/* Categorias - Com padding extra para não cortar scrollbar */}
@@ -76,7 +84,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
 
       {/* --- GRID DE PRODUTOS --- */}
       {/* Aplicando pb-40 diretamente aqui e h-full para forçar o scroll container */}
-      <div className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative">
+      <div 
+        className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative" 
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
         {filteredProducts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
             <UtensilsCrossed size={48} className="mb-2" />
