@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw } from 'lucide-react';
-import { fetchPendingTransactions } from '../services/supabase';
+import { fetchPendingTransactions, updateTransactionStatus } from '../services/supabase';
 
 interface CartSidebarProps {
   cart: CartItem[];
@@ -76,6 +76,15 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
     onLoadPendingOrder(order);
     setCustomerName(order.customerName || '');
     setShowPendingModal(false);
+  };
+
+  const handleDeletePending = async (e: React.MouseEvent, id: string, orderNumber: string) => {
+    e.stopPropagation(); // Impede que o clique selecione o pedido
+    if (window.confirm(`Tem certeza que deseja remover o pedido #${orderNumber}?`)) {
+        setIsLoadingPending(true);
+        await updateTransactionStatus(id, 'cancelled');
+        await loadPending(); // Recarrega a lista
+    }
   };
 
   const resetState = () => {
@@ -184,22 +193,32 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
                           <div className="text-center py-8 text-gray-400">Nenhum pedido pendente.</div>
                       ) : (
                           pendingOrders.map(order => (
-                              <button 
-                                key={order.id} 
-                                onClick={() => handleSelectPendingOrder(order)}
-                                className="w-full text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-blue-400 hover:shadow-md transition-all group"
-                              >
-                                  <div className="flex justify-between items-start mb-2">
-                                      <span className="font-black text-lg" style={{ color: primaryColor }}>#{order.orderNumber}</span>
-                                      <span className="font-bold text-gray-800">{formatCurrency(order.total)}</span>
-                                  </div>
-                                  <div className="flex items-center gap-2 mb-2">
-                                      <UserIcon size={14} className="text-gray-400" />
-                                      <span className="font-bold text-gray-700">{order.customerName}</span>
-                                  </div>
-                                  <p className="text-xs text-gray-500 line-clamp-1">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
-                                  <div className="mt-2 text-[10px] text-gray-400 text-right">{new Date(order.timestamp).toLocaleTimeString()}</div>
-                              </button>
+                              <div key={order.id} className="relative group">
+                                <button 
+                                    onClick={() => handleSelectPendingOrder(order)}
+                                    className="w-full text-left bg-white border border-gray-200 rounded-xl p-3 hover:border-blue-400 hover:shadow-md transition-all pr-12"
+                                >
+                                    <div className="flex justify-between items-start mb-2">
+                                        <span className="font-black text-lg" style={{ color: primaryColor }}>#{order.orderNumber}</span>
+                                        <span className="font-bold text-gray-800">{formatCurrency(order.total)}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <UserIcon size={14} className="text-gray-400" />
+                                        <span className="font-bold text-gray-700">{order.customerName}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 line-clamp-1">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
+                                    <div className="mt-2 text-[10px] text-gray-400 text-right">{new Date(order.timestamp).toLocaleTimeString()}</div>
+                                </button>
+                                
+                                {/* Botão de Excluir Pedido Pendente */}
+                                <button 
+                                    onClick={(e) => handleDeletePending(e, order.id, order.orderNumber)}
+                                    className="absolute top-2 right-2 p-2 bg-gray-50 text-gray-400 hover:bg-red-100 hover:text-red-500 rounded-lg transition-colors z-10"
+                                    title="Excluir pedido"
+                                >
+                                    <Trash2 size={18} />
+                                </button>
+                              </div>
                           ))
                       )}
                   </div>
