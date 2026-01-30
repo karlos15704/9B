@@ -123,15 +123,53 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const categories = useMemo(() => ['Todos', ...Array.from(new Set(products.map(p => p.category)))], [products]);
   const filteredProducts = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) && (selectedCategory === 'Todos' || p.category === selectedCategory)), [products, searchTerm, selectedCategory]);
 
+  // --- LÓGICA DE CÁLCULO DE ESTOQUE (INCLUINDO COMBOS) ---
+  const calculateMaxStock = (product: Product): number => {
+    // 1. Se estiver indisponível manualmente
+    if (product.isAvailable === false) return 0;
+
+    // 2. Se for Combo
+    if (product.comboItems && product.comboItems.length > 0) {
+        let minCombos = 999999;
+        let hasIngredients = false;
+
+        for (const item of product.comboItems) {
+            const ingredient = products.find(p => p.id === item.productId);
+            
+            // Ingrediente não existe ou indisponível => Combo Esgotado
+            if (!ingredient || ingredient.isAvailable === false) return 0;
+            
+            hasIngredients = true;
+
+            // Ingrediente com estoque controlado
+            if (ingredient.stock !== undefined && ingredient.stock !== null) {
+                const possible = Math.floor(ingredient.stock / item.quantity);
+                if (possible < minCombos) minCombos = possible;
+            }
+        }
+        // Se calculou e deu um número válido, retorna. Se não teve limitação, retorna "infinito"
+        return minCombos === 999999 ? 999999 : minCombos; 
+    }
+
+    // 3. Produto Simples com Estoque
+    if (product.stock !== undefined && product.stock !== null) {
+        return product.stock;
+    }
+
+    // 4. Sem limite
+    return 999999;
+  };
+
   const addToCart = (product: Product) => {
-    if (product.isAvailable === false) return; 
-    
-    // --- VALIDAÇÃO DE ESTOQUE ---
+    const maxStock = calculateMaxStock(product);
+    if (maxStock === 0) return; // Esgotado
+
     const existingItem = cart.find(item => item.id === product.id);
     const currentQty = existingItem ? existingItem.quantity : 0;
     
-    if (product.stock !== undefined && (currentQty + 1) > product.stock) {
-        alert(`Ops! Só existem ${product.stock} unidades de "${product.name}" disponíveis.`);
+    if ((currentQty + 1) > maxStock) {
+        const isCombo = !!product.comboItems?.length;
+        alert(`Ops! ${isCombo ? 'Ingredientes insuficientes' : 'Estoque insuficiente'}. Só temos ${maxStock} unidades de "${product.name}".`);
         return;
     }
 
@@ -148,9 +186,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         const product = products.find(p => p.id === id);
         const item = cart.find(i => i.id === id);
         
-        if (product && item && product.stock !== undefined) {
-             if ((item.quantity + delta) > product.stock) {
-                 alert(`Ops! Limite de estoque atingido. Só temos ${product.stock} disponíveis.`);
+        if (product && item) {
+             const maxStock = calculateMaxStock(product);
+             if ((item.quantity + delta) > maxStock) {
+                 alert(`Ops! Limite de estoque atingido. Só temos ${maxStock} disponíveis.`);
                  return;
              }
         }
@@ -221,7 +260,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             <div className="grid grid-cols-1 gap-4">
                 {filteredProducts.map(product => {
                     const inCart = cart.find(i => i.id === product.id);
-                    const isSoldOut = product.isAvailable === false;
+                    
+                    // --- CALCULA DISPONIBILIDADE REAL (INCLUINDO COMBO) ---
+                    const maxStock = calculateMaxStock(product);
+                    const isSoldOut = maxStock === 0;
+
                     return (
                         <div key={product.id} className={`bg-white p-3 rounded-2xl shadow-sm border flex gap-4 overflow-hidden relative ${isSoldOut ? 'border-red-200 opacity-90' : 'border-gray-100'}`}>
                                 <div className="w-24 h-24 bg-gray-50 rounded-xl flex-shrink-0 relative">
