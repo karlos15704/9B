@@ -34,7 +34,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   }, [products, searchTerm, selectedCategory]);
 
   return (
-    <div className="absolute inset-0 flex flex-col bg-orange-50/50">
+    <div className="h-full w-full flex flex-col bg-orange-50/50">
       
       {/* --- BARRA DE FERRAMENTAS --- */}
       <div className="flex-none p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm z-40">
