@@ -23,11 +23,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   }, [products]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
-      return matchesSearch && matchesCategory;
-    });
+    return products
+      .filter(product => {
+        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
+        return matchesSearch && matchesCategory;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)); // Ordenação Alfabética A-Z
   }, [products, searchTerm, selectedCategory]);
 
   // Função para calcular estoque real (Considerando ingredientes do combo)

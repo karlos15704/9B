@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw } from 'lucide-react';
@@ -54,6 +54,11 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
   const PIX_QR_IMAGE = "https://i.ibb.co/8LFWSQfx/Captura-de-tela-2026-01-20-181523.png";
   const EMPTY_CART_MASCOT = emptyCartImageUrl || "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png";
+
+  // ORDENAÇÃO ALFABÉTICA DOS ITENS
+  const sortedCart = useMemo(() => {
+    return [...cart].sort((a, b) => a.name.localeCompare(b.name));
+  }, [cart]);
 
   useEffect(() => {
     if (showCashModal && cashInputRef.current) {
@@ -352,31 +357,43 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
             </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 pb-8">
-          {cart.map((item) => (
-            <div key={item.id} className="flex gap-3 bg-white border border-gray-100 rounded-xl p-2 shadow-sm hover:shadow-md transition-shadow group relative">
-               <div className="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden relative">
+        {/* LISTA DE PRODUTOS COMPACTA E ORDENADA */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-8">
+          {sortedCart.map((item) => (
+            <div key={item.id} className="flex gap-2 bg-white border-b border-gray-50 last:border-0 p-2 hover:bg-gray-50 transition-colors group relative rounded-lg">
+               
+               {/* Imagem Menor */}
+               <div className="w-10 h-10 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden relative border border-gray-200">
                  <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                 <div className="absolute top-0 right-0 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-bl-lg" style={{ backgroundColor: primaryColor }}>x{item.quantity}</div>
                </div>
-               <div className="flex-1 flex flex-col justify-between">
+               
+               <div className="flex-1 flex flex-col justify-center">
                   <div className="flex justify-between items-start">
-                     <h4 className="text-sm font-bold text-gray-800 line-clamp-2 leading-tight pr-8">{item.name}</h4>
-                     <button onClick={() => onRemoveItem(item.id)} className="text-red-400 hover:text-red-600 bg-red-50 hover:bg-red-100 p-2 rounded-lg transition-colors absolute top-1 right-1"><X size={18} /></button>
-                  </div>
-                  {item.notes && <p className="text-[10px] text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 italic my-1 break-words">"{item.notes}"</p>}
-                  <div className="flex justify-between items-end mt-1">
-                     <p className="text-sm font-bold" style={{ color: primaryColor }}>{formatCurrency(item.price * item.quantity)}</p>
-                     <div className="flex items-center gap-2">
-                        {onUpdateNote && (
-                            <button onClick={() => handleAddNote(item)} className={`p-1.5 rounded-lg border transition-colors ${item.notes ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-gray-50 text-gray-400 border-gray-200 hover:text-blue-500'}`}><Edit3 size={14} /></button>
-                        )}
-                        <div className="flex items-center gap-2 bg-gray-50 rounded-lg p-1 border border-gray-200">
-                            <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600 disabled:opacity-50 active:scale-90 transition-transform"><Minus size={14} /></button>
-                            <span className="text-sm font-bold text-gray-800 w-5 text-center">{item.quantity}</span>
-                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-7 h-7 flex items-center justify-center bg-white rounded shadow-sm hover:text-orange-600 active:scale-90 transition-transform"><Plus size={14} /></button>
-                        </div>
+                     {/* Texto Menor e Compacto */}
+                     <h4 className="text-xs font-bold text-gray-800 leading-tight pr-6 line-clamp-2">{item.name}</h4>
+                     
+                     <div className="flex flex-col items-end">
+                        <p className="text-xs font-bold whitespace-nowrap" style={{ color: primaryColor }}>{formatCurrency(item.price * item.quantity)}</p>
                      </div>
+                  </div>
+                  
+                  {item.notes && <p className="text-[9px] text-blue-600 truncate mt-0.5">Obs: {item.notes}</p>}
+
+                  <div className="flex items-center justify-between mt-1">
+                     {/* Controles Compactos */}
+                     <div className="flex items-center gap-2">
+                         <div className="flex items-center border border-gray-200 rounded-md bg-white shadow-sm h-6">
+                            <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-6 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600 disabled:opacity-50"><Minus size={10} /></button>
+                            <span className="text-xs font-bold w-5 text-center leading-none">{item.quantity}</span>
+                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600"><Plus size={10} /></button>
+                         </div>
+                         
+                         {onUpdateNote && (
+                            <button onClick={() => handleAddNote(item)} className={`h-6 w-6 flex items-center justify-center rounded-md border transition-colors ${item.notes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-400 border-gray-200 hover:text-blue-500'}`} title="Adicionar observação"><Edit3 size={12} /></button>
+                        )}
+                     </div>
+
+                     <button onClick={() => onRemoveItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Remover"><X size={14} /></button>
                   </div>
                </div>
             </div>
