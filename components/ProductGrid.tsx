@@ -8,23 +8,20 @@ interface ProductGridProps {
   cart: CartItem[];
   onAddToCart: (product: Product) => void;
   onRemoveFromCart?: (productId: string) => void;
-  settings?: AppSettings; // Configurações visuais opcionais
+  settings?: AppSettings;
 }
 
 const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, onRemoveFromCart, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
 
-  // Cores dinâmicas (Fallback se settings for undefined)
   const primaryColor = settings?.primaryColor || '#ea580c';
 
-  // Extrair categorias
   const categories = useMemo(() => {
     const cats = Array.from(new Set(products.map(p => p.category)));
     return ['Todos', ...cats];
   }, [products]);
 
-  // Filtrar produtos
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
       const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -36,10 +33,8 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   return (
     <div className="h-full w-full flex flex-col bg-orange-50/50 overflow-hidden">
       
-      {/* --- BARRA DE FERRAMENTAS --- */}
+      {/* BARRA DE FERRAMENTAS FIXA */}
       <div className="flex-none p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm z-40">
-        
-        {/* Busca */}
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
@@ -60,7 +55,6 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
           )}
         </div>
 
-        {/* Categorias - Com padding extra para não cortar scrollbar */}
         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {categories.map(cat => {
             const isSelected = selectedCategory === cat;
@@ -82,10 +76,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
         </div>
       </div>
 
-      {/* --- GRID DE PRODUTOS --- */}
-      {/* Aplicando pb-48 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes do mobile */}
+      {/* GRID DE PRODUTOS COM SCROLL INTERNO */}
+      {/* pb-48 garante espaço para o menu mobile e botão flutuante */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-48 md:pb-3 relative" 
+        className="flex-1 overflow-y-auto p-3 pb-48 md:pb-4 relative" 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (
@@ -102,101 +96,95 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             )}
           </div>
         ) : (
-          <>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 content-start">
-              {filteredProducts.map((product) => {
-                const cartItem = cart.find(item => item.id === product.id);
-                const quantity = cartItem ? cartItem.quantity : 0;
-                const isSoldOut = product.isAvailable === false;
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 content-start">
+            {filteredProducts.map((product) => {
+              const cartItem = cart.find(item => item.id === product.id);
+              const quantity = cartItem ? cartItem.quantity : 0;
+              const isSoldOut = product.isAvailable === false;
+              const borderStyle = quantity > 0 ? { borderColor: primaryColor } : {};
 
-                const borderStyle = quantity > 0 ? { borderColor: primaryColor } : {};
+              return (
+                <div 
+                  key={product.id} 
+                  className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full
+                    ${isSoldOut ? 'border-red-200 bg-red-50/10' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
+                    ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
+                  `}
+                  style={borderStyle}
+                  onClick={() => {
+                      if (!isSoldOut) onAddToCart(product);
+                  }}
+                >
+                  {/* Imagem */}
+                  <div className="relative h-28 md:h-40 w-full bg-white p-2">
+                    <img 
+                      src={product.imageUrl} 
+                      alt={product.name} 
+                      className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-80' : 'group-hover:scale-110'} drop-shadow-sm`}
+                      loading="lazy"
+                    />
+                    
+                    {isSoldOut && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-30">
+                            <div className="bg-red-600 text-white font-black uppercase text-sm px-6 py-1 transform -rotate-12 border-2 border-white shadow-xl">
+                                ESGOTADO
+                            </div>
+                        </div>
+                    )}
 
-                return (
-                  <div 
-                    key={product.id} 
-                    className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full
-                      ${isSoldOut ? 'border-red-200 bg-red-50/10' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
-                      ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
-                    `}
-                    style={borderStyle}
-                    onClick={() => {
-                        if (!isSoldOut) onAddToCart(product);
-                    }}
-                  >
-                    {/* Imagem */}
-                    <div className="relative h-28 md:h-40 w-full bg-white p-2">
-                      <img 
-                        src={product.imageUrl} 
-                        alt={product.name} 
-                        className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-80' : 'group-hover:scale-110'} drop-shadow-sm`}
-                        loading="lazy"
-                      />
-                      
-                      {isSoldOut && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-30">
-                              <div className="bg-red-600 text-white font-black uppercase text-sm px-6 py-1 transform -rotate-12 border-2 border-white shadow-xl">
-                                  ESGOTADO
-                              </div>
-                          </div>
-                      )}
+                    {!isSoldOut && (
+                        <div className="hidden md:flex absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors items-center justify-center opacity-0 group-hover:opacity-100 duration-300">
+                            <div className="text-white rounded-full p-2 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300" style={{ backgroundColor: primaryColor }}>
+                                <Plus size={24} />
+                            </div>
+                        </div>
+                    )}
 
-                      {!isSoldOut && (
-                          <div className="hidden md:flex absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors items-center justify-center opacity-0 group-hover:opacity-100 duration-300">
-                              <div className="text-white rounded-full p-2 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300" style={{ backgroundColor: primaryColor }}>
-                                  <Plus size={24} />
-                              </div>
-                          </div>
-                      )}
-
-                      {quantity > 0 && !isSoldOut && (
+                    {quantity > 0 && !isSoldOut && (
+                      <>
+                        <div className="absolute top-2 right-2 text-white font-black text-sm w-7 h-7 flex items-center justify-center rounded-full shadow-md animate-in zoom-in duration-200 border-2 border-white z-20" style={{ backgroundColor: primaryColor }}>
+                          {quantity}
+                        </div>
+                        
+                        <button 
+                          className="absolute top-2 left-2 z-30 bg-white text-red-500 rounded-full p-1.5 shadow-md border border-red-100 hover:bg-red-50 hover:scale-110 transition-all animate-in zoom-in duration-200"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onRemoveFromCart) onRemoveFromCart(product.id);
+                          }}
+                        >
+                          <X size={14} strokeWidth={3} />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                  
+                  {/* Info */}
+                  <div className="p-3 bg-white border-t border-gray-50 flex-1 flex flex-col justify-between">
+                    <h3 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-orange-600 transition-colors">
+                      {product.name}
+                    </h3>
+                    <div className="flex flex-col md:flex-row md:items-center justify-between mt-2 gap-1">
+                      {isSoldOut ? (
+                          <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider bg-red-50 px-1.5 py-0.5 rounded border border-red-100 w-full text-center">
+                            INDISPONÍVEL
+                          </span>
+                      ) : (
                         <>
-                          <div className="absolute top-2 right-2 text-white font-black text-sm w-7 h-7 flex items-center justify-center rounded-full shadow-md animate-in zoom-in duration-200 border-2 border-white z-20" style={{ backgroundColor: primaryColor }}>
-                            {quantity}
-                          </div>
-                          
-                          <button 
-                            className="absolute top-2 left-2 z-30 bg-white text-red-500 rounded-full p-1.5 shadow-md border border-red-100 hover:bg-red-50 hover:scale-110 transition-all animate-in zoom-in duration-200"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onRemoveFromCart) onRemoveFromCart(product.id);
-                            }}
-                          >
-                            <X size={14} strokeWidth={3} />
-                          </button>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
+                                {product.category}
+                            </span>
+                            <p className="font-black text-sm md:text-base" style={{ color: primaryColor }}>
+                                {formatCurrency(product.price)}
+                            </p>
                         </>
                       )}
                     </div>
-                    
-                    {/* Info */}
-                    <div className="p-3 bg-white border-t border-gray-50 flex-1 flex flex-col justify-between">
-                      <h3 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-orange-600 transition-colors">
-                        {product.name}
-                      </h3>
-                      <div className="flex flex-col md:flex-row md:items-center justify-between mt-2 gap-1">
-                        {isSoldOut ? (
-                            <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider bg-red-50 px-1.5 py-0.5 rounded border border-red-100 w-full text-center">
-                              INDISPONÍVEL
-                            </span>
-                        ) : (
-                          <>
-                              <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
-                                  {product.category}
-                              </span>
-                              <p className="font-black text-sm md:text-base" style={{ color: primaryColor }}>
-                                  {formatCurrency(product.price)}
-                              </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* SPACER FÍSICO GIGANTE (Div transparente para forçar o scroll no final) */}
-            <div className="w-full h-48 md:hidden block pointer-events-none" aria-hidden="true" />
-          </>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>

@@ -12,7 +12,7 @@ import ProductManagement from './components/ProductManagement';
 import SettingsManagement from './components/SettingsManagement';
 import PublicDisplay from './components/PublicDisplay'; 
 import CustomerOrder from './components/CustomerOrder';
-import FinancialManagement from './components/FinancialManagement'; // Import NOVO
+import FinancialManagement from './components/FinancialManagement';
 import { 
   supabase, 
   fetchTransactions, 
@@ -48,7 +48,7 @@ const App: React.FC = () => {
     reports: true,
     users: true,
     customer: true,
-    financial: true // Default habilitado
+    financial: true
   };
 
   // Settings State (Global App Config)
@@ -77,10 +77,10 @@ const App: React.FC = () => {
   // Data State
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
-  // PENDING ORDER STATE (For Cashier to edit/pay pending online orders)
+  // PENDING ORDER STATE
   const [currentPendingOrderId, setCurrentPendingOrderId] = useState<string | null>(null);
   
-  // PRODUCTS STATE (Sync with Supabase)
+  // PRODUCTS STATE
   const [products, setProducts] = useState<Product[]>([]);
 
   const [isConnected, setIsConnected] = useState(true);
@@ -97,12 +97,10 @@ const App: React.FC = () => {
   const [isBurning, setIsBurning] = useState(false);
 
   // --- APLICAR TEMA DINÂMICO ---
-  // Injeta variáveis CSS na raiz para que todo o app obedeça à cor escolhida
   useEffect(() => {
     const root = document.documentElement;
     root.style.setProperty('--primary-color', appSettings.primaryColor || '#ea580c');
     
-    // Define escala baseada no tamanho do botão
     let scale = '1rem';
     let padding = '0.75rem 1rem';
     
@@ -117,17 +115,14 @@ const App: React.FC = () => {
 
   // --- CARREGAMENTO DE DADOS BLINDADO ---
   const loadData = async () => {
-    console.log("Loading Data..."); // Debug para verificar se está sendo chamado
-
-    // --- CARREGAR CONFIGURAÇÕES GERAIS PRIMEIRO ---
+    // --- CARREGAR CONFIGURAÇÕES ---
     try {
         const remoteSettings = await fetchSettings();
         if (remoteSettings) {
-            // Merge cuidadoso para garantir que 'modules' exista
             setAppSettings(prev => ({ 
                 ...prev, 
                 ...remoteSettings,
-                modules: remoteSettings.modules || defaultModules // Fallback se modules for null no banco antigo
+                modules: remoteSettings.modules || defaultModules 
             }));
             localStorage.setItem('app_settings', JSON.stringify(remoteSettings));
         } else {
@@ -139,13 +134,12 @@ const App: React.FC = () => {
         }
     } catch (e) { console.error("Erro loading settings", e); }
 
-    // Check for Active Session only once on load
+    // Check Session
     if (!currentUser) {
         const savedSession = localStorage.getItem('active_user');
         if (savedSession) {
             const user = JSON.parse(savedSession);
             setCurrentUser(user);
-            // Redirecionamento inicial baseado em Role, mas respeitando views
             if (user.role === 'kitchen') setCurrentView('kitchen');
             else if (user.role === 'display') setCurrentView('display');
             else setCurrentView('pos');
@@ -191,11 +185,8 @@ const App: React.FC = () => {
         DEFAULT_STAFF.forEach(u => createUser(u));
       } else {
         const savedUsers = localStorage.getItem('app_users');
-        if (savedUsers) {
-          setUsers(JSON.parse(savedUsers));
-        } else {
-          setUsers(DEFAULT_STAFF);
-        }
+        if (savedUsers) setUsers(JSON.parse(savedUsers));
+        else setUsers(DEFAULT_STAFF);
       }
     } catch (e) {
       setUsers(DEFAULT_STAFF);
@@ -254,7 +245,6 @@ const App: React.FC = () => {
 
   useEffect(() => {
     loadData();
-    // Importante: subscribeToTransactions agora vai chamar loadData quando a tabela settings mudar
     const subscription = subscribeToTransactions(() => {
         console.log("Realtime Update Received!"); 
         loadData();
@@ -264,7 +254,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentView === 'users' || currentView === 'settings') return; 
-    const intervalId = setInterval(() => loadData(), 5000); // Sincronia de segurança a cada 5s
+    const intervalId = setInterval(() => loadData(), 5000);
     return () => clearInterval(intervalId);
   }, [currentView]);
 
@@ -273,15 +263,12 @@ const App: React.FC = () => {
   const handleUpdateSettings = async (newSettings: AppSettings) => {
     setAppSettings(newSettings);
     localStorage.setItem('app_settings', JSON.stringify(newSettings));
-    // Salva no Supabase para sincronizar com todos
     if (isConnected) {
         await saveSettings(newSettings);
-        // Force reload imediato após salvar para garantir
         setTimeout(() => loadData(), 500); 
     }
   };
 
-  // ... (Rest of actions: handleAddProduct, handleUpdateProduct, etc. remain the same)
   const handleAddProduct = async (newProduct: Product) => {
     const updated = [...products, newProduct];
     setProducts(updated);
@@ -361,7 +348,6 @@ const App: React.FC = () => {
     if (isConnected) await deleteUser(userId);
   };
 
-  // --- HELPER PARA CALCULAR ESTOQUE DE COMBO ---
   const getCalculatedStock = (product: Product): number => {
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
@@ -380,11 +366,9 @@ const App: React.FC = () => {
   };
 
   const addToCart = (product: Product) => {
-    // --- VALIDAÇÃO DE ESTOQUE (COMBO & SIMPLES) ---
     const existingItem = cart.find(item => item.id === product.id);
     const currentQty = existingItem ? existingItem.quantity : 0;
     
-    // Calcula o estoque real disponível (se for combo, calcula baseado nos ingredientes)
     const availableStock = getCalculatedStock(product);
 
     if (product.stock !== undefined || (product.comboItems && product.comboItems.length > 0)) {
@@ -407,7 +391,6 @@ const App: React.FC = () => {
   };
 
   const updateCartQuantity = (productId: string, delta: number) => {
-    // --- VALIDAÇÃO DE ESTOQUE (Apenas ao aumentar) ---
     if (delta > 0) {
         const product = products.find(p => p.id === productId);
         const item = cart.find(i => i.id === productId);
@@ -454,31 +437,23 @@ const App: React.FC = () => {
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const total = Math.max(0, subtotal - discount);
       
-      // --- 1. BAIXA DE ESTOQUE INTELIGENTE (COMBO & SIMPLES) ---
-      // Trabalhamos em uma cópia para acumular os descontos antes de salvar
       const productsCopy = [...products]; 
-      
-      // Mapeamento de quanto descontar de cada ID real (produto simples)
       const deductions = new Map<string, number>();
 
       cart.forEach(cartItem => {
           if (cartItem.comboItems && cartItem.comboItems.length > 0) {
-              // É UM COMBO: Desconta dos ingredientes
               cartItem.comboItems.forEach(ingredient => {
                   const totalDeduction = ingredient.quantity * cartItem.quantity;
                   const currentDeduction = deductions.get(ingredient.productId) || 0;
                   deductions.set(ingredient.productId, currentDeduction + totalDeduction);
               });
           } else {
-              // PRODUTO SIMPLES: Desconta dele mesmo
               const currentDeduction = deductions.get(cartItem.id) || 0;
               deductions.set(cartItem.id, currentDeduction + cartItem.quantity);
           }
       });
 
-      // Aplica as deduções acumuladas
       const productsToUpdate: Product[] = [];
-      
       deductions.forEach((qtyToDeduct, productId) => {
           const productIndex = productsCopy.findIndex(p => p.id === productId);
           if (productIndex > -1) {
@@ -492,23 +467,17 @@ const App: React.FC = () => {
                       stock: newStock,
                       isAvailable: isSoldOut ? false : product.isAvailable
                   };
-                  
                   productsCopy[productIndex] = updatedProduct;
                   productsToUpdate.push(updatedProduct);
               }
           }
       });
 
-      // Atualiza o DB com os produtos modificados
-      if (isConnected) {
-          await Promise.all(productsToUpdate.map(p => updateProductSupabase(p)));
-      }
+      if (isConnected) await Promise.all(productsToUpdate.map(p => updateProductSupabase(p)));
 
-      // Atualiza estado visual dos produtos (para mostrar ESGOTADO imediatamente)
       setProducts(productsCopy);
       localStorage.setItem('app_products', JSON.stringify(productsCopy));
 
-      // --- 2. PROCESSAMENTO DA VENDA ---
       let transactionToSave: Transaction;
 
       if (currentPendingOrderId) {
@@ -592,7 +561,6 @@ const App: React.FC = () => {
         alert("Ação não autorizada.");
         return;
     }
-
     if (isConnected) {
         const success = await resetDatabase();
         if (success) {
@@ -609,14 +577,6 @@ const App: React.FC = () => {
     }
   };
 
-  const printReceipt = (t: Transaction) => {
-      const printWindow = window.open('', '', 'width=300,height=600');
-      if (!printWindow) return;
-      // ... (Print Logic permanece igual)
-      // ...
-      printWindow.print();
-  };
-
   const cartItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   if (isLoading) {
@@ -628,7 +588,6 @@ const App: React.FC = () => {
     );
   }
 
-  // --- MODO CLIENTE (AUTOATENDIMENTO) ---
   if (currentView === 'customer') {
       return (
           <CustomerOrder 
@@ -660,7 +619,6 @@ const App: React.FC = () => {
     );
   }
 
-  // DEFINIÇÃO DA BARRA DE NAVEGAÇÃO DINÂMICA
   const navItems = [
     { view: 'pos', icon: LayoutGrid, roles: ['admin', 'manager', 'staff'], title: 'Caixa', enabled: appSettings.modules?.pos ?? true },
     { view: 'kitchen', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'], title: 'Cozinha', enabled: appSettings.modules?.kitchen ?? true },
@@ -668,10 +626,9 @@ const App: React.FC = () => {
     { view: 'financial', icon: Wallet, roles: ['0', 'admin'], title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
     { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
     { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe', enabled: appSettings.modules?.users ?? true },
-    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações', enabled: true }, // Config sempre ativa para Admin
+    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações', enabled: true }, 
   ];
 
-  // FIX: Using fixed inset-0 to prevent body scroll interference on mobile
   return (
     <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
@@ -741,7 +698,6 @@ const App: React.FC = () => {
             
             <div className="flex flex-col gap-2 w-full px-2 items-center">
             {navItems.map(item => {
-                // Check Role Visibility AND Module Status
                 if (!item.enabled) return null;
                 if (!item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
                 
@@ -770,21 +726,8 @@ const App: React.FC = () => {
                 <span className="text-[9px] font-bold text-gray-500 uppercase text-center max-w-[4.5rem] leading-tight line-clamp-2">
                     {currentUser.name.split(' ')[0]} 
                 </span>
-                
-                <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs font-bold px-3 py-2 rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50 pointer-events-none border border-gray-700">
-                    <p>{currentUser.name}</p>
-                    <p className="text-[10px] text-gray-400 uppercase">{currentUser.role === 'admin' ? 'Professor' : currentUser.role}</p>
-                    <div className="absolute top-1/2 right-full -translate-y-1/2 -mr-1 w-2 h-2 bg-gray-900 transform rotate-45 border-l border-b border-gray-700"></div>
-                </div>
             </div>
 
-            <button onClick={handleBurn} className={`relative flex flex-col items-center gap-1 transition-all cursor-pointer mb-2 select-none group flex-shrink-0 ${isBurning ? 'scale-110' : 'opacity-80 hover:opacity-100'}`}>
-              <div className={`relative w-10 h-10 rounded-xl flex items-center justify-center p-1.5 border shadow-inner transition-colors duration-200 z-10 ${isBurning ? 'bg-orange-900 border-orange-500 shadow-orange-500/50' : 'bg-white/10 border-white/10'}`}>
-                <img src={appSettings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" />
-                {isBurning && <div className="fire-container"><div className="flame-base"></div><div className="flame-body"></div><div className="flame-core"></div></div>}
-              </div>
-              <span className={`text-[8px] font-black uppercase tracking-widest transition-colors z-10 relative ${isBurning ? 'text-fire scale-110' : 'text-gray-500'}`}>{appSettings.schoolClass}</span>
-            </button>
             <button onClick={() => setShowLogoutModal(true)} className="p-2.5 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-2 hover:scale-110 active:scale-95 flex-shrink-0"><LogOut size={22} /></button>
           </nav>
 
