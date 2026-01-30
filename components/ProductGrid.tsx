@@ -43,7 +43,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-10 py-3 rounded-xl border border-orange-200 bg-orange-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-orange-300"
-            style={{ focusRingColor: primaryColor }} 
+            style={{ '--tw-ring-color': primaryColor } as React.CSSProperties} 
           />
           {searchTerm && (
             <button 
@@ -77,9 +77,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* GRID DE PRODUTOS COM SCROLL INTERNO */}
-      {/* pb-48 garante espaço para o menu mobile e botão flutuante */}
+      {/* pb-24 garante espaço para o menu mobile, mas não excessivo em desktop */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-48 md:pb-4 relative" 
+        className="flex-1 overflow-y-auto p-3 pb-24 md:pb-4 relative" 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (

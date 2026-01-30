@@ -328,7 +328,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 rounded-xl border border-orange-200 bg-orange-50/50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-bold text-gray-800"
-                    style={{ focusRingColor: primaryColor }}
+                    style={{ '--tw-ring-color': primaryColor } as React.CSSProperties}
                 />
             </div>
         </div>
