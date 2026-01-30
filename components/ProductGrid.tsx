@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw } from 'lucide-react';
+import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers } from 'lucide-react';
 
 interface ProductGridProps {
   products: Product[];
@@ -29,6 +29,41 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       return matchesSearch && matchesCategory;
     });
   }, [products, searchTerm, selectedCategory]);
+
+  // Função para calcular estoque real (Considerando ingredientes do combo)
+  const getProductStockStatus = (product: Product) => {
+    // Se for desativado manualmente, retorna 0 (Esgotado)
+    if (product.isAvailable === false) return 0;
+
+    // Se for um combo, calcula baseado nos ingredientes
+    if (product.comboItems && product.comboItems.length > 0) {
+        let minCombos = 999999;
+        
+        product.comboItems.forEach(comboItem => {
+            const ingredient = products.find(p => p.id === comboItem.productId);
+            // Se o ingrediente não existe ou não tem estoque controlado, assumimos que tem
+            // Se o ingrediente tem estoque controlado:
+            if (ingredient && typeof ingredient.stock === 'number') {
+                const possible = Math.floor(ingredient.stock / comboItem.quantity);
+                if (possible < minCombos) minCombos = possible;
+            } else if (ingredient && ingredient.isAvailable === false) {
+                // Se um ingrediente foi marcado como indisponível manualmente
+                minCombos = 0;
+            }
+        });
+        
+        // Se minCombos não foi alterado (nenhum ingrediente com estoque), retorna -1 (Infinito/Disponível)
+        return minCombos === 999999 ? -1 : minCombos;
+    }
+
+    // Se for produto simples com controle de estoque
+    if (typeof product.stock === 'number') {
+        return product.stock;
+    }
+
+    // Sem controle de estoque e disponível
+    return -1;
+  };
 
   return (
     <div className="h-full w-full flex flex-col bg-gray-50/50">
@@ -76,10 +111,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
         </div>
       </div>
 
-      {/* GRID DE PRODUTOS - O Scroll é tratado pelo container pai no App.tsx ou aqui, 
-          mas como o header é sticky, precisamos que este container role. 
-          O pb-24 garante espaço para a nav mobile.
-      */}
+      {/* GRID DE PRODUTOS */}
       <div 
         className="flex-1 p-4 pb-24 md:pb-6 overflow-y-auto"
         style={{ WebkitOverflowScrolling: 'touch' }}
@@ -104,7 +136,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             {filteredProducts.map((product) => {
               const cartItem = cart.find(item => item.id === product.id);
               const quantity = cartItem ? cartItem.quantity : 0;
-              const isSoldOut = product.isAvailable === false;
+              
+              const currentStock = getProductStockStatus(product);
+              // É esgotado se stock for explicitamente 0
+              const isSoldOut = currentStock === 0;
+              const isCombo = !!(product.comboItems && product.comboItems.length > 0);
+
               const borderStyle = quantity > 0 ? { borderColor: primaryColor } : {};
 
               return (
@@ -128,6 +165,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                       loading="lazy"
                     />
                     
+                    {isCombo && (
+                        <div className="absolute top-2 left-2 z-20 bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-purple-200">
+                            <Layers size={10} /> Combo
+                        </div>
+                    )}
+
                     {isSoldOut && (
                         <div className="absolute inset-0 flex items-center justify-center z-30">
                             <div className="bg-red-600 text-white font-black uppercase text-[10px] md:text-xs px-3 py-1 transform -rotate-12 border-2 border-white shadow-lg">

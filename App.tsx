@@ -854,9 +854,9 @@ const App: React.FC = () => {
                   </button>
                 )}
 
-                {/* --- MOBILE BOTTOM NAVIGATION (FIXED BOTTOM) --- */}
-                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] px-2 flex-shrink-0">
-                  <div className="flex w-full min-w-max gap-2 px-1 justify-center">
+                {/* --- MOBILE BOTTOM NAVIGATION (FIXED BOTTOM - COM SCROLL HORIZONTAL) --- */}
+                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] overflow-x-auto no-scrollbar overscroll-x-contain">
+                  <div className="flex min-w-full gap-2 px-4 justify-start md:justify-center">
                       {navItems.map(item => {
                         if (!item.enabled) return null;
                         if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
@@ -867,7 +867,7 @@ const App: React.FC = () => {
                             <button 
                                 key={item.view}
                                 onClick={() => setCurrentView(item.view as any)} 
-                                className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-lg transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+                                className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-lg transition-all flex-shrink-0 ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
                                 style={isActive ? { color: appSettings.primaryColor, backgroundColor: `${appSettings.primaryColor}15` } : {}}
                             >
                                 <item.icon size={20} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
@@ -875,6 +875,8 @@ const App: React.FC = () => {
                             </button>
                         )
                       })}
+                      {/* Espaçador para garantir que o último item seja clicável */}
+                      <div className="w-2 flex-shrink-0"></div>
                   </div>
                 </div>
 
