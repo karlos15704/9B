@@ -581,9 +581,9 @@ const App: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-orange-50">
-        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 mb-4" style={{ borderColor: appSettings.primaryColor }}></div>
-        <p className="text-gray-600 font-bold animate-pulse">Iniciando sistema...</p>
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 mb-4 border-orange-500"></div>
+        <p className="text-white font-bold animate-pulse">Carregando sistema...</p>
       </div>
     );
   }
@@ -630,7 +630,7 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row overflow-hidden bg-slate-900 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row bg-slate-100 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
@@ -695,8 +695,8 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* --- NEW STATIC LEFT SIDEBAR (PREMIUM DARK) --- */}
-          <nav className="hidden md:flex flex-col w-24 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-30">
+          {/* --- SIDEBAR DESKTOP (FIXA À ESQUERDA) --- */}
+          <nav className="hidden md:flex flex-col w-24 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-30 h-full">
             {/* App Logo */}
             <div className="h-24 flex items-center justify-center border-b border-slate-800/50 mb-4">
                <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center shadow-inner relative group cursor-pointer overflow-hidden" title={appSettings.appName}>
@@ -749,105 +749,126 @@ const App: React.FC = () => {
             </div>
           </nav>
 
-          {/* --- MAIN CONTENT AREA (FLOATING CARD EFFECT) --- */}
-          <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100 md:bg-slate-900">
+          {/* --- MAIN CONTENT AREA (Full Height & Scrollable) --- */}
+          <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50">
             
-            {/* WRAPPER PARA EFEITO DE CARTÃO NO DESKTOP */}
-            <div className="flex-1 flex flex-col overflow-hidden relative md:my-2 md:mr-2 md:rounded-3xl md:bg-white md:shadow-2xl md:border md:border-slate-200">
-            
-                {/* HEADER MOBILE ONLY */}
-                <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0">
+                {/* HEADER MOBILE ONLY (FIXED TOP) */}
+                <div className="md:hidden bg-white/90 backdrop-blur-sm border-b border-gray-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0 h-16">
                   <div className="flex items-center gap-2">
-                      <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
-                      <span className="text-xs font-bold text-gray-700 uppercase">{currentUser.name}</span>
+                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                        <UserCircle2 size={20} />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-gray-400 uppercase leading-none">Operador</span>
+                        <span className="text-sm font-black text-gray-800 leading-none">{currentUser.name}</span>
+                      </div>
                   </div>
-                  <button onClick={() => setShowLogoutModal(true)} className="text-gray-400"><LogOut size={18} /></button>
+                  <button onClick={() => setShowLogoutModal(true)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors">
+                    <LogOut size={18} />
+                  </button>
                 </div>
 
-                {currentView === 'pos' ? (
-                  <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
-                    <div className="flex-1 flex flex-col min-w-0 h-full">
-                      <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px] flex-shrink-0">
-                        <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
-                          <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
-                          <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
+                {/* CONTENT WRAPPER - SCROLLABLE AREA */}
+                {/* overflow-y-auto aqui permite que o conteúdo role independentemente da navegação fixa */}
+                <div className="flex-1 overflow-y-auto relative w-full h-full">
+                    {currentView === 'pos' ? (
+                      <div className="flex flex-col md:flex-row h-full">
+                        {/* ESQUERDA: GRID DE PRODUTOS */}
+                        <div className="flex-1 flex flex-col min-h-0 bg-white md:bg-transparent">
+                          {/* Desktop Header */}
+                          <header className="hidden md:flex px-8 py-6 bg-white border-b border-gray-200 shadow-sm items-center justify-between sticky top-0 z-20">
+                            <div className="flex items-center gap-4">
+                              <img src={appSettings.mascotUrl} className="w-12 h-12 object-contain" alt="Logo" />
+                              <div>
+                                <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none">{appSettings.appName}</h1>
+                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{appSettings.schoolClass} • Vendas</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full">
+                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                <span className="text-xs font-bold text-gray-600 uppercase">Sistema Online</span>
+                            </div>
+                          </header>
+                          
+                          {/* Grid com padding inferior no mobile para não cobrir com a nav */}
+                          <div className="flex-1 relative">
+                            <ProductGrid 
+                                products={products} 
+                                cart={cart} 
+                                onAddToCart={addToCart} 
+                                onRemoveFromCart={removeFromCart}
+                                settings={appSettings} 
+                            />
+                          </div>
                         </div>
-                      </header>
-                      
-                      {/* Container da Grid de Produtos com Flex Grow e Min Height 0 para rolagem funcionar */}
-                      <div className="flex-1 min-h-0 relative">
-                        <ProductGrid 
-                            products={products} 
+                        
+                        {/* DIREITA: CARRINHO (SIDEBAR DIREITA NO DESKTOP, DRAWER NO MOBILE) */}
+                        <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+                          <CartSidebar 
                             cart={cart} 
-                            onAddToCart={addToCart} 
-                            onRemoveFromCart={removeFromCart}
-                            settings={appSettings} 
-                        />
+                            users={users} 
+                            onRemoveItem={removeFromCart} 
+                            onUpdateQuantity={updateCartQuantity} 
+                            onUpdateNote={updateCartNote} 
+                            onClearCart={clearCart} 
+                            onCheckout={handleCheckout} 
+                            onClose={() => setIsMobileCartOpen(false)}
+                            onLoadPendingOrder={handleLoadPendingOrder}
+                            emptyCartImageUrl={appSettings.emptyCartImageUrl}
+                            settings={appSettings}
+                          />
+                        </div>
                       </div>
+                    ) : (
+                        // WRAPPER GENÉRICO PARA OUTRAS VIEWS
+                        <div className="h-full flex flex-col pb-20 md:pb-0"> 
+                            {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
+                            {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
+                            {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
+                            {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
+                            {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
+                            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
+                        </div>
+                    )}
+                </div>
+
+                {/* MOBILE FAB CART BUTTON */}
+                {currentView === 'pos' && !isMobileCartOpen && (
+                  <button 
+                    onClick={() => setIsMobileCartOpen(true)} 
+                    className="md:hidden fixed bottom-20 right-4 text-white p-4 rounded-full shadow-lg z-50 animate-bounce"
+                    style={{ backgroundColor: appSettings.primaryColor }}
+                  >
+                    <div className="relative">
+                        <ShoppingCart size={24} />
+                        {cartItemCount > 0 && <span className="absolute -top-2 -right-2 bg-white text-orange-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border border-orange-100">{cartItemCount}</span>}
                     </div>
-                    
-                    <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                      <CartSidebar 
-                        cart={cart} 
-                        users={users} 
-                        onRemoveItem={removeFromCart} 
-                        onUpdateQuantity={updateCartQuantity} 
-                        onUpdateNote={updateCartNote} 
-                        onClearCart={clearCart} 
-                        onCheckout={handleCheckout} 
-                        onClose={() => setIsMobileCartOpen(false)}
-                        onLoadPendingOrder={handleLoadPendingOrder}
-                        emptyCartImageUrl={appSettings.emptyCartImageUrl}
-                        settings={appSettings}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                    // WRAPPER GENÉRICO PARA OUTRAS VIEWS (CORRIGE O SCROLL DE RELATÓRIOS/FINANCEIRO)
-                    <div className="flex-1 h-full overflow-hidden relative flex flex-col bg-slate-50 md:bg-white md:rounded-none">
-                        {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
-                        {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
-                        {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
-                        {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
-                        {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
-                        {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
-                    </div>
+                  </button>
                 )}
-            </div>
 
-            {currentView === 'pos' && !isMobileCartOpen && (
-              <button 
-                onClick={() => setIsMobileCartOpen(true)} 
-                className="md:hidden fixed bottom-20 right-6 text-white p-4 rounded-full shadow-lg z-50 animate-bounce"
-                style={{ backgroundColor: appSettings.primaryColor }}
-              >
-                <div className="relative"><ShoppingCart size={24} />{cartItemCount > 0 && <span className="absolute -top-2 -right-2 bg-white text-orange-600 text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full border border-orange-100">{cartItemCount}</span>}</div>
-              </button>
-            )}
+                {/* --- MOBILE BOTTOM NAVIGATION (FIXED BOTTOM) --- */}
+                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2 flex-shrink-0">
+                  <div className="flex w-full min-w-max gap-2 px-1 justify-center">
+                      {navItems.map(item => {
+                        if (!item.enabled) return null;
+                        if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
+                        if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
 
-            {/* --- MOBILE BOTTOM NAVIGATION (HIDDEN ON DESKTOP) --- */}
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2 flex-shrink-0">
-              <div className="flex w-full min-w-max gap-2 px-1 justify-center md:justify-start">
-                  {navItems.map(item => {
-                    if (!item.enabled) return null;
-                    if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
-                    if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
-
-                    const isActive = currentView === item.view;
-                    return (
-                        <button 
-                            key={item.view}
-                            onClick={() => setCurrentView(item.view as any)} 
-                            className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-lg transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
-                            style={isActive ? { color: appSettings.primaryColor, backgroundColor: `${appSettings.primaryColor}15` } : {}}
-                        >
-                            <item.icon size={20} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
-                            <span className="text-[8px] uppercase leading-none">{item.title}</span>
-                        </button>
-                    )
-                  })}
-              </div>
-            </div>
+                        const isActive = currentView === item.view;
+                        return (
+                            <button 
+                                key={item.view}
+                                onClick={() => setCurrentView(item.view as any)} 
+                                className={`flex flex-col items-center justify-center min-w-[60px] h-12 rounded-lg transition-all ${isActive ? 'bg-orange-50 text-orange-600 font-bold' : 'text-gray-400 hover:text-gray-600'}`}
+                                style={isActive ? { color: appSettings.primaryColor, backgroundColor: `${appSettings.primaryColor}15` } : {}}
+                            >
+                                <item.icon size={20} className={`mb-0.5 ${isActive ? 'fill-current' : ''}`} />
+                                <span className="text-[9px] uppercase leading-none">{item.title}</span>
+                            </button>
+                        )
+                      })}
+                  </div>
+                </div>
 
           </main>
         </>

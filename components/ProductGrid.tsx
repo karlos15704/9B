@@ -31,10 +31,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   }, [products, searchTerm, selectedCategory]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-orange-50/50 overflow-hidden">
+    <div className="h-full w-full flex flex-col bg-gray-50/50">
       
-      {/* BARRA DE FERRAMENTAS FIXA */}
-      <div className="flex-none p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm z-40">
+      {/* BARRA DE FERRAMENTAS FIXA NO TOPO DO GRID */}
+      <div className="flex-none p-4 space-y-3 bg-white border-b border-gray-200 shadow-sm z-10 sticky top-0">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
           <input 
@@ -42,30 +42,30 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             placeholder="Buscar produto..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-10 py-3 rounded-xl border border-orange-200 bg-orange-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-orange-300"
+            className="w-full pl-10 pr-10 py-3 rounded-xl border border-gray-200 bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 transition-all font-medium text-gray-700 placeholder-gray-400"
             style={{ '--tw-ring-color': primaryColor } as React.CSSProperties} 
           />
           {searchTerm && (
             <button 
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 p-1 rounded-full hover:bg-orange-50 transition-colors"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-orange-500 p-1 rounded-full hover:bg-gray-100 transition-colors"
             >
                 <X size={16} />
             </button>
           )}
         </div>
 
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
           {categories.map(cat => {
             const isSelected = selectedCategory === cat;
             return (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold transition-all border
+                className={`whitespace-nowrap px-4 py-2 rounded-lg text-sm font-bold transition-all border shadow-sm
                   ${isSelected 
                     ? 'text-white shadow-md transform scale-105' 
-                    : 'bg-white text-gray-500 border-gray-200 hover:text-gray-800'
+                    : 'bg-white text-gray-500 border-gray-200 hover:text-gray-800 hover:bg-gray-50'
                   }`}
                 style={isSelected ? { backgroundColor: primaryColor, borderColor: primaryColor } : {}}
               >
@@ -76,27 +76,31 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
         </div>
       </div>
 
-      {/* GRID DE PRODUTOS COM SCROLL INTERNO */}
-      {/* pb-24 garante espaço para o menu mobile, mas não excessivo em desktop */}
+      {/* GRID DE PRODUTOS - O Scroll é tratado pelo container pai no App.tsx ou aqui, 
+          mas como o header é sticky, precisamos que este container role. 
+          O pb-24 garante espaço para a nav mobile.
+      */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-24 md:pb-4 relative" 
+        className="flex-1 p-4 pb-24 md:pb-6 overflow-y-auto"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
-            <UtensilsCrossed size={48} className="mb-2 opacity-50" />
-            <p>Nenhum produto encontrado.</p>
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400 mt-10">
+            <div className="bg-gray-100 p-4 rounded-full mb-4">
+                <UtensilsCrossed size={40} className="opacity-50" />
+            </div>
+            <p className="font-bold text-gray-500">Nenhum produto encontrado.</p>
             {(searchTerm || selectedCategory !== 'Todos') && (
                 <button 
                     onClick={() => { setSearchTerm(''); setSelectedCategory('Todos'); }}
-                    className="mt-4 text-orange-600 font-bold flex items-center gap-2 hover:underline"
+                    className="mt-4 text-orange-600 font-bold flex items-center gap-2 hover:underline bg-white px-4 py-2 rounded-lg border border-orange-100 shadow-sm"
                 >
                     <RefreshCw size={16}/> Limpar Filtros
                 </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 content-start">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4 content-start">
             {filteredProducts.map((product) => {
               const cartItem = cart.find(item => item.id === product.id);
               const quantity = cartItem ? cartItem.quantity : 0;
@@ -106,9 +110,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
               return (
                 <div 
                   key={product.id} 
-                  className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full
-                    ${isSoldOut ? 'border-red-200 bg-red-50/10' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
-                    ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
+                  className={`bg-white rounded-2xl shadow-sm border transition-all duration-200 cursor-pointer group relative overflow-hidden flex flex-col h-full
+                    ${isSoldOut ? 'border-red-200 bg-red-50/10' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-gray-200 hover:border-gray-300'}
+                    ${!isSoldOut && 'active:scale-95 md:hover:shadow-lg md:hover:-translate-y-1'}
                   `}
                   style={borderStyle}
                   onClick={() => {
@@ -116,25 +120,25 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                   }}
                 >
                   {/* Imagem */}
-                  <div className="relative h-28 md:h-40 w-full bg-white p-2">
+                  <div className="relative h-32 md:h-40 w-full bg-white p-2">
                     <img 
                       src={product.imageUrl} 
                       alt={product.name} 
-                      className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-80' : 'group-hover:scale-110'} drop-shadow-sm`}
+                      className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-50' : 'group-hover:scale-105'} drop-shadow-sm`}
                       loading="lazy"
                     />
                     
                     {isSoldOut && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-30">
-                            <div className="bg-red-600 text-white font-black uppercase text-sm px-6 py-1 transform -rotate-12 border-2 border-white shadow-xl">
+                        <div className="absolute inset-0 flex items-center justify-center z-30">
+                            <div className="bg-red-600 text-white font-black uppercase text-[10px] md:text-xs px-3 py-1 transform -rotate-12 border-2 border-white shadow-lg">
                                 ESGOTADO
                             </div>
                         </div>
                     )}
 
                     {!isSoldOut && (
-                        <div className="hidden md:flex absolute inset-0 bg-black/5 group-hover:bg-black/10 transition-colors items-center justify-center opacity-0 group-hover:opacity-100 duration-300">
-                            <div className="text-white rounded-full p-2 shadow-lg transform scale-0 group-hover:scale-100 transition-transform duration-300" style={{ backgroundColor: primaryColor }}>
+                        <div className="hidden md:flex absolute inset-0 bg-black/5 transition-opacity opacity-0 group-hover:opacity-100 items-center justify-center">
+                            <div className="text-white rounded-full p-3 shadow-xl transform scale-0 group-hover:scale-100 transition-transform duration-300" style={{ backgroundColor: primaryColor }}>
                                 <Plus size={24} />
                             </div>
                         </div>
@@ -142,7 +146,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
 
                     {quantity > 0 && !isSoldOut && (
                       <>
-                        <div className="absolute top-2 right-2 text-white font-black text-sm w-7 h-7 flex items-center justify-center rounded-full shadow-md animate-in zoom-in duration-200 border-2 border-white z-20" style={{ backgroundColor: primaryColor }}>
+                        <div className="absolute top-2 right-2 text-white font-black text-xs md:text-sm w-6 h-6 md:w-7 md:h-7 flex items-center justify-center rounded-full shadow-md animate-in zoom-in duration-200 border-2 border-white z-20" style={{ backgroundColor: primaryColor }}>
                           {quantity}
                         </div>
                         
@@ -161,23 +165,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                   
                   {/* Info */}
                   <div className="p-3 bg-white border-t border-gray-50 flex-1 flex flex-col justify-between">
-                    <h3 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight min-h-[2.5em] group-hover:text-orange-600 transition-colors">
+                    <h3 className="font-bold text-gray-800 text-xs md:text-sm line-clamp-2 leading-tight min-h-[2.5em]">
                       {product.name}
                     </h3>
-                    <div className="flex flex-col md:flex-row md:items-center justify-between mt-2 gap-1">
+                    <div className="flex flex-col justify-between mt-2 gap-1">
                       {isSoldOut ? (
                           <span className="text-[10px] text-red-500 font-bold uppercase tracking-wider bg-red-50 px-1.5 py-0.5 rounded border border-red-100 w-full text-center">
-                            INDISPONÍVEL
+                            Sem Estoque
                           </span>
                       ) : (
-                        <>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 w-fit">
+                        <div className="flex items-center justify-between">
+                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100 truncate max-w-[60px]">
                                 {product.category}
                             </span>
                             <p className="font-black text-sm md:text-base" style={{ color: primaryColor }}>
                                 {formatCurrency(product.price)}
                             </p>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>
