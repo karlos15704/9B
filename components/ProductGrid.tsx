@@ -38,27 +38,42 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
     // Se for um combo, calcula baseado nos ingredientes
     if (product.comboItems && product.comboItems.length > 0) {
         let minCombos = 999999;
+        let hasIngredients = false;
         
-        product.comboItems.forEach(comboItem => {
+        for (const comboItem of product.comboItems) {
             const ingredient = products.find(p => p.id === comboItem.productId);
-            // Se o ingrediente não existe ou não tem estoque controlado, assumimos que tem
-            // Se o ingrediente tem estoque controlado:
-            if (ingredient && typeof ingredient.stock === 'number') {
-                const possible = Math.floor(ingredient.stock / comboItem.quantity);
-                if (possible < minCombos) minCombos = possible;
-            } else if (ingredient && ingredient.isAvailable === false) {
-                // Se um ingrediente foi marcado como indisponível manualmente
-                minCombos = 0;
+            
+            // SE O INGREDIENTE NÃO EXISTE MAIS (FOI EXCLUÍDO), O COMBO ESTÁ ESGOTADO
+            if (!ingredient) {
+                return 0;
             }
-        });
+            
+            // SE O INGREDIENTE ESTÁ INDISPONÍVEL
+            if (ingredient.isAvailable === false) {
+                return 0;
+            }
+
+            hasIngredients = true;
+
+            // Se o ingrediente tem estoque controlado (numérico)
+            if (ingredient.stock !== undefined && ingredient.stock !== null) {
+                const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
+                // Prevenção contra NaN
+                const safeStock = isNaN(stockVal) ? 0 : stockVal;
+                
+                const possible = Math.floor(safeStock / comboItem.quantity);
+                if (possible < minCombos) minCombos = possible;
+            }
+        }
         
-        // Se minCombos não foi alterado (nenhum ingrediente com estoque), retorna -1 (Infinito/Disponível)
+        // Se minCombos não foi alterado (nenhum ingrediente com estoque limitado), retorna -1
         return minCombos === 999999 ? -1 : minCombos;
     }
 
     // Se for produto simples com controle de estoque
-    if (typeof product.stock === 'number') {
-        return product.stock;
+    if (product.stock !== undefined && product.stock !== null) {
+        const stockVal = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock;
+        return isNaN(stockVal) ? 0 : stockVal;
     }
 
     // Sem controle de estoque e disponível

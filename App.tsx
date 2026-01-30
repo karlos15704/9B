@@ -351,18 +351,33 @@ const App: React.FC = () => {
   const getCalculatedStock = (product: Product): number => {
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
-        product.comboItems.forEach(item => {
+        let hasLimitedIngredient = false;
+
+        for (const item of product.comboItems) {
             const ingredient = products.find(p => p.id === item.productId);
-            if (ingredient && typeof ingredient.stock === 'number') {
-                const possibleCombos = Math.floor(ingredient.stock / item.quantity);
-                if (possibleCombos < minStock) minStock = possibleCombos;
-            } else {
-                minStock = 0;
+            
+            // SE INGREDIENTE FALTAR OU ESTIVER INDISPONÍVEL, COMBO ZERA
+            if (!ingredient || ingredient.isAvailable === false) {
+                return 0;
             }
-        });
-        return minStock === 999999 ? 0 : minStock;
+
+            if (ingredient.stock !== undefined && ingredient.stock !== null) {
+                hasLimitedIngredient = true;
+                const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
+                const possibleCombos = Math.floor(stockVal / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
+            }
+        }
+        // Se nenhum ingrediente limita, estoque é "infinito" (ex: 999999), NÃO 0.
+        return hasLimitedIngredient ? minStock : 999999;
     }
-    return product.stock || 0;
+    
+    if (product.stock !== undefined && product.stock !== null) {
+         const stockVal = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock;
+         return isNaN(stockVal) ? 0 : stockVal;
+    }
+
+    return 999999;
   };
 
   const addToCart = (product: Product) => {
