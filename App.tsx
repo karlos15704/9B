@@ -709,7 +709,7 @@ const App: React.FC = () => {
           </div>
 
           {showLogoutModal && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
                 <h3 className="text-lg font-bold text-gray-800 mb-2 flex items-center gap-2"><LogOut className="text-red-500" size={24} /> Sair do Sistema?</h3>
                 <div className="flex gap-3 justify-end">
@@ -721,7 +721,7 @@ const App: React.FC = () => {
           )}
 
           {lastCompletedOrder && currentUser.role !== 'kitchen' && (
-            <div className="absolute inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-200 relative">
                  <div className="bg-orange-100 border-2 border-dashed rounded-xl p-6 mb-8" style={{ borderColor: appSettings.primaryColor }}>
                   <span className="text-sm font-bold uppercase tracking-wider block mb-1" style={{ color: appSettings.primaryColor }}>SENHA</span>
