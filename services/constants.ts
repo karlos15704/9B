@@ -1,4 +1,4 @@
-import { Product, User } from './types';
+import { Product, User } from '../types';
 
 // =================================================================================
 // 👥 ÁREA DE LOGIN (USUÁRIOS E SENHAS)

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS } from './constants';
+import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS } from './services/constants';
 import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules } from './types';
 import { generateId, formatCurrency } from './utils';
 import ProductGrid from './components/ProductGrid';

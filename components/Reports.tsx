@@ -3,7 +3,7 @@ import { Transaction, PaymentMethod, User } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight } from 'lucide-react';
-import { APP_NAME } from '../constants';
+import { APP_NAME } from '../services/constants';
 
 interface ReportsProps {
   transactions: Transaction[];
