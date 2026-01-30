@@ -34,7 +34,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   }, [products, searchTerm, selectedCategory]);
 
   return (
-    <div className="h-full w-full flex flex-col bg-orange-50/50">
+    <div className="h-full w-full flex flex-col bg-orange-50/50 overflow-hidden">
       
       {/* --- BARRA DE FERRAMENTAS --- */}
       <div className="flex-none p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm z-40">
@@ -83,9 +83,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* --- GRID DE PRODUTOS --- */}
-      {/* Aplicando pb-40 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes */}
+      {/* Aplicando pb-48 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes do mobile */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative" 
+        className="flex-1 overflow-y-auto p-3 pb-48 md:pb-3 relative" 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (
@@ -194,7 +194,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
               })}
             </div>
 
-            {/* SPACER FÍSICO GIGANTE (Div transparente para forçar o scroll) */}
+            {/* SPACER FÍSICO GIGANTE (Div transparente para forçar o scroll no final) */}
             <div className="w-full h-48 md:hidden block pointer-events-none" aria-hidden="true" />
           </>
         )}

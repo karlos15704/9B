@@ -123,7 +123,6 @@ const App: React.FC = () => {
     try {
         const remoteSettings = await fetchSettings();
         if (remoteSettings) {
-            console.log("Settings Fetched:", remoteSettings);
             // Merge cuidadoso para garantir que 'modules' exista
             setAppSettings(prev => ({ 
                 ...prev, 
@@ -789,9 +788,9 @@ const App: React.FC = () => {
             <button onClick={() => setShowLogoutModal(true)} className="p-2.5 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-2 hover:scale-110 active:scale-95 flex-shrink-0"><LogOut size={22} /></button>
           </nav>
 
-          <main className="flex-1 flex flex-col overflow-hidden relative">
+          <main className="flex-1 flex flex-col overflow-hidden relative h-full">
             {/* HEADER MOBILE ONLY */}
-            <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40">
+            <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0">
               <div className="flex items-center gap-2">
                   <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
                   <span className="text-xs font-bold text-gray-700 uppercase">{currentUser.name}</span>
@@ -799,16 +798,18 @@ const App: React.FC = () => {
               <button onClick={() => setShowLogoutModal(true)} className="text-gray-400"><LogOut size={18} /></button>
             </div>
 
-            {currentView === 'pos' && (
-              <div className="flex-1 flex flex-col md:flex-row min-h-0 relative">
-                <div className="flex-1 flex flex-col min-w-0">
-                  <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px]">
+            {currentView === 'pos' ? (
+              <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
+                <div className="flex-1 flex flex-col min-w-0 h-full">
+                  <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px] flex-shrink-0">
                     <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
                       <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
                       <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
                     </div>
                   </header>
-                  <div className="flex-1 overflow-hidden relative min-h-0">
+                  
+                  {/* Container da Grid de Produtos com Flex Grow e Min Height 0 para rolagem funcionar */}
+                  <div className="flex-1 min-h-0 relative">
                     <ProductGrid 
                         products={products} 
                         cart={cart} 
@@ -818,6 +819,7 @@ const App: React.FC = () => {
                     />
                   </div>
                 </div>
+                
                 <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
                   <CartSidebar 
                     cart={cart} 
@@ -834,14 +836,17 @@ const App: React.FC = () => {
                   />
                 </div>
               </div>
+            ) : (
+                // WRAPPER GENÉRICO PARA OUTRAS VIEWS (CORRIGE O SCROLL DE RELATÓRIOS/FINANCEIRO)
+                <div className="flex-1 h-full overflow-hidden relative flex flex-col">
+                    {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
+                    {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
+                    {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
+                    {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
+                    {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
+                    {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
+                </div>
             )}
-
-            {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
-            {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
-            {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
-            {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
-            {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
-            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
 
             {currentView === 'pos' && !isMobileCartOpen && (
               <button 
@@ -854,7 +859,7 @@ const App: React.FC = () => {
             )}
 
             {/* --- MOBILE BOTTOM NAVIGATION --- */}
-            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2">
+            <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2 flex-shrink-0">
               <div className="flex w-full min-w-max gap-2 px-1 justify-center md:justify-start">
                   {navItems.map(item => {
                     if (!item.enabled) return null;
