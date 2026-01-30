@@ -83,9 +83,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* --- GRID DE PRODUTOS --- */}
-      {/* Aplicando pb-64 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes */}
+      {/* Aplicando pb-40 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-64 md:pb-3 relative" 
+        className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative" 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (

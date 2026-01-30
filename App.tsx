@@ -808,7 +808,7 @@ const App: React.FC = () => {
                       <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
                     </div>
                   </header>
-                  <div className="flex-1 overflow-hidden relative h-full">
+                  <div className="flex-1 overflow-hidden relative min-h-0">
                     <ProductGrid 
                         products={products} 
                         cart={cart} 
