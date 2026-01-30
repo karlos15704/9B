@@ -626,11 +626,11 @@ const App: React.FC = () => {
     { view: 'financial', icon: Wallet, roles: ['0', 'admin'], title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
     { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
     { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe', enabled: appSettings.modules?.users ?? true },
-    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Configurações', enabled: true }, 
+    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Ajustes', enabled: true }, 
   ];
 
   return (
-    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row overflow-hidden bg-orange-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row overflow-hidden bg-slate-900 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
@@ -659,11 +659,13 @@ const App: React.FC = () => {
         />
       ) : (
         <>
-          <div className="absolute top-0 left-0 w-full z-50 flex justify-center pointer-events-none">
+          {/* OFFLINE INDICATOR */}
+          <div className="absolute top-0 left-0 w-full z-[100] flex justify-center pointer-events-none">
             {!isConnected && <div className="bg-red-600 text-white text-xs py-1 px-4 rounded-b-lg shadow-md flex items-center gap-2 pointer-events-auto"><WifiOff size={14} /><span>OFFLINE</span></div>}
             {isConnected && isSyncing && <div className="bg-blue-600 text-white text-xs py-1 px-4 rounded-b-lg shadow-md flex items-center gap-2 pointer-events-auto animate-pulse"><UploadCloud size={14} /><span>Sincronizando...</span></div>}
           </div>
 
+          {/* LOGOUT MODAL */}
           {showLogoutModal && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in zoom-in-95 duration-200">
@@ -676,6 +678,7 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {/* ORDER SUCCESS MODAL */}
           {lastCompletedOrder && currentUser.role !== 'kitchen' && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-200 relative">
@@ -692,11 +695,18 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* MAIN NAV (DESKTOP) */}
-          <nav className="hidden md:flex w-20 bg-gray-900 flex-col items-center py-2 gap-2 z-30 shadow-xl border-r border-gray-800 overflow-y-auto scrollbar-hide">
-            <div className="mb-2 mt-2 p-2 rounded-full flex-shrink-0" style={{ backgroundColor: `${appSettings.primaryColor}30` }}><Flame style={{ color: appSettings.primaryColor }} className="animate-pulse" size={24} /></div>
+          {/* --- NEW STATIC LEFT SIDEBAR (PREMIUM DARK) --- */}
+          <nav className="hidden md:flex flex-col w-24 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-30">
+            {/* App Logo */}
+            <div className="h-24 flex items-center justify-center border-b border-slate-800/50 mb-4">
+               <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center shadow-inner relative group cursor-pointer overflow-hidden" title={appSettings.appName}>
+                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                  <img src={appSettings.mascotUrl} className="w-10 h-10 object-contain drop-shadow-md transform group-hover:scale-110 transition-transform duration-300" alt="App" />
+               </div>
+            </div>
             
-            <div className="flex flex-col gap-2 w-full px-2 items-center">
+            {/* Navigation Items */}
+            <div className="flex-1 flex flex-col gap-4 px-3 overflow-y-auto no-scrollbar items-center">
             {navItems.map(item => {
                 if (!item.enabled) return null;
                 if (!item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
@@ -706,90 +716,104 @@ const App: React.FC = () => {
                     <button 
                         key={item.view}
                         onClick={() => setCurrentView(item.view as any)} 
-                        className={`p-2.5 rounded-xl transition-all duration-300 group relative flex-shrink-0 ${isActive ? 'text-white shadow-lg scale-105' : 'text-gray-400 hover:text-white hover:bg-gray-800 hover:scale-110'}`} 
+                        className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 group relative
+                          ${isActive 
+                            ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' 
+                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                          }`} 
                         title={item.title}
-                        style={isActive ? { backgroundColor: appSettings.primaryColor, boxShadow: `0 4px 10px -2px ${appSettings.primaryColor}50` } : {}}
                     >
-                        <item.icon size={22} />
+                        <item.icon size={24} className={isActive ? 'animate-pulse' : ''} />
+                        <span className={`text-[9px] font-bold uppercase tracking-wide transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                          {item.title}
+                        </span>
+                        
+                        {/* Active Indicator Dot */}
+                        {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-white rounded-l-full"></div>}
                     </button>
                 )
             })}
             </div>
 
-            <div className="flex-1"></div>
-
-            {/* USER INFO DESKTOP */}
-            <div className="flex flex-col items-center gap-1 mb-2 group relative cursor-help flex-shrink-0">
-                <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-gray-300 border border-gray-700 shadow-inner">
-                    <UserCircle2 size={20} />
+            {/* Bottom User Section */}
+            <div className="mt-auto mb-4 flex flex-col items-center gap-4">
+                <div className="w-12 h-px bg-slate-800"></div>
+                <div className="flex flex-col items-center gap-1 group cursor-help" title={currentUser.name}>
+                    <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-300 shadow-lg group-hover:border-orange-500/50 transition-colors">
+                        <UserCircle2 size={24} />
+                    </div>
                 </div>
-                <span className="text-[9px] font-bold text-gray-500 uppercase text-center max-w-[4.5rem] leading-tight line-clamp-2">
-                    {currentUser.name.split(' ')[0]} 
-                </span>
+                <button onClick={() => setShowLogoutModal(true)} className="p-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-colors mb-2" title="Sair">
+                    <LogOut size={20} />
+                </button>
             </div>
-
-            <button onClick={() => setShowLogoutModal(true)} className="p-2.5 rounded-xl text-red-400 hover:bg-red-500 hover:text-white transition-all duration-300 mb-2 hover:scale-110 active:scale-95 flex-shrink-0"><LogOut size={22} /></button>
           </nav>
 
-          <main className="flex-1 flex flex-col overflow-hidden relative h-full">
-            {/* HEADER MOBILE ONLY */}
-            <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0">
-              <div className="flex items-center gap-2">
-                  <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
-                  <span className="text-xs font-bold text-gray-700 uppercase">{currentUser.name}</span>
-              </div>
-              <button onClick={() => setShowLogoutModal(true)} className="text-gray-400"><LogOut size={18} /></button>
-            </div>
-
-            {currentView === 'pos' ? (
-              <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
-                <div className="flex-1 flex flex-col min-w-0 h-full">
-                  <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px] flex-shrink-0">
-                    <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
-                      <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
-                      <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
-                    </div>
-                  </header>
-                  
-                  {/* Container da Grid de Produtos com Flex Grow e Min Height 0 para rolagem funcionar */}
-                  <div className="flex-1 min-h-0 relative">
-                    <ProductGrid 
-                        products={products} 
-                        cart={cart} 
-                        onAddToCart={addToCart} 
-                        onRemoveFromCart={removeFromCart}
-                        settings={appSettings} 
-                    />
+          {/* --- MAIN CONTENT AREA (FLOATING CARD EFFECT) --- */}
+          <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-100 md:bg-slate-900">
+            
+            {/* WRAPPER PARA EFEITO DE CARTÃO NO DESKTOP */}
+            <div className="flex-1 flex flex-col overflow-hidden relative md:my-2 md:mr-2 md:rounded-3xl md:bg-white md:shadow-2xl md:border md:border-slate-200">
+            
+                {/* HEADER MOBILE ONLY */}
+                <div className="md:hidden bg-white/90 backdrop-blur border-b border-orange-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                      <UserCircle2 size={16} style={{ color: appSettings.primaryColor }}/>
+                      <span className="text-xs font-bold text-gray-700 uppercase">{currentUser.name}</span>
                   </div>
+                  <button onClick={() => setShowLogoutModal(true)} className="text-gray-400"><LogOut size={18} /></button>
                 </div>
-                
-                <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                  <CartSidebar 
-                    cart={cart} 
-                    users={users} 
-                    onRemoveItem={removeFromCart} 
-                    onUpdateQuantity={updateCartQuantity} 
-                    onUpdateNote={updateCartNote} 
-                    onClearCart={clearCart} 
-                    onCheckout={handleCheckout} 
-                    onClose={() => setIsMobileCartOpen(false)}
-                    onLoadPendingOrder={handleLoadPendingOrder}
-                    emptyCartImageUrl={appSettings.emptyCartImageUrl}
-                    settings={appSettings}
-                  />
-                </div>
-              </div>
-            ) : (
-                // WRAPPER GENÉRICO PARA OUTRAS VIEWS (CORRIGE O SCROLL DE RELATÓRIOS/FINANCEIRO)
-                <div className="flex-1 h-full overflow-hidden relative flex flex-col">
-                    {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
-                    {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
-                    {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
-                    {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
-                    {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
-                    {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
-                </div>
-            )}
+
+                {currentView === 'pos' ? (
+                  <div className="flex-1 flex flex-col md:flex-row h-full overflow-hidden relative">
+                    <div className="flex-1 flex flex-col min-w-0 h-full">
+                      <header className="px-6 py-2 md:py-4 bg-white border-b border-orange-100 shadow-sm z-10 relative flex items-center justify-center min-h-[70px] md:min-h-[90px] flex-shrink-0">
+                        <div className="flex items-center gap-3 md:gap-5 transition-transform hover:scale-105 duration-300">
+                          <img src={appSettings.mascotUrl} className="w-12 h-12 md:w-20 md:h-20 object-contain mix-blend-multiply animate-mascot-slow drop-shadow-[0_10px_10px_rgba(0,0,0,0.2)]" alt="Mascote" />
+                          <h1 className="text-3xl md:text-5xl font-black uppercase tracking-tighter transform -skew-x-6 drop-shadow-sm" style={{ color: appSettings.primaryColor, textShadow: '2px 2px 0px rgba(0,0,0,0.8)' }}>{appSettings.appName}</h1>
+                        </div>
+                      </header>
+                      
+                      {/* Container da Grid de Produtos com Flex Grow e Min Height 0 para rolagem funcionar */}
+                      <div className="flex-1 min-h-0 relative">
+                        <ProductGrid 
+                            products={products} 
+                            cart={cart} 
+                            onAddToCart={addToCart} 
+                            onRemoveFromCart={removeFromCart}
+                            settings={appSettings} 
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 transform transition-transform duration-300 ease-in-out md:transform-none shadow-2xl md:shadow-none ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+                      <CartSidebar 
+                        cart={cart} 
+                        users={users} 
+                        onRemoveItem={removeFromCart} 
+                        onUpdateQuantity={updateCartQuantity} 
+                        onUpdateNote={updateCartNote} 
+                        onClearCart={clearCart} 
+                        onCheckout={handleCheckout} 
+                        onClose={() => setIsMobileCartOpen(false)}
+                        onLoadPendingOrder={handleLoadPendingOrder}
+                        emptyCartImageUrl={appSettings.emptyCartImageUrl}
+                        settings={appSettings}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                    // WRAPPER GENÉRICO PARA OUTRAS VIEWS (CORRIGE O SCROLL DE RELATÓRIOS/FINANCEIRO)
+                    <div className="flex-1 h-full overflow-hidden relative flex flex-col bg-slate-50 md:bg-white md:rounded-none">
+                        {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
+                        {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
+                        {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
+                        {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
+                        {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
+                        {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
+                    </div>
+                )}
+            </div>
 
             {currentView === 'pos' && !isMobileCartOpen && (
               <button 
@@ -801,7 +825,7 @@ const App: React.FC = () => {
               </button>
             )}
 
-            {/* --- MOBILE BOTTOM NAVIGATION --- */}
+            {/* --- MOBILE BOTTOM NAVIGATION (HIDDEN ON DESKTOP) --- */}
             <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-orange-100 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2 flex-shrink-0">
               <div className="flex w-full min-w-max gap-2 px-1 justify-center md:justify-start">
                   {navItems.map(item => {
