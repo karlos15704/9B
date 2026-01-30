@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR" class="h-full overflow-hidden">
+<html lang="pt-BR" class="h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
@@ -9,27 +9,23 @@
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background-color: #fff7ed;
-        /* Prevent bounce on mobile */
-        overscroll-behavior-y: none;
+        background-color: #f8fafc; /* Slate-50 */
       }
       
       /* --- SCROLLBAR CUSTOMIZATION (HIGHER CONTRAST & WIDTH) --- */
       ::-webkit-scrollbar {
-        width: 12px; /* Aumentado para facilitar o clique */
-        height: 12px;
+        width: 8px;
+        height: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #f1f1f1;
-        border-left: 1px solid #e5e7eb;
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
-        background: #fb923c; /* Orange-400 */
-        border-radius: 6px;
-        border: 2px solid #f1f1f1; /* Creates padding effect */
+        background: #cbd5e1; /* Slate-300 */
+        border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #ea580c; /* Orange-600 */
+        background: #94a3b8; /* Slate-400 */
       }
       
       /* Mobile optimization */
@@ -73,11 +69,6 @@
       @keyframes heat-pulse {
         0%, 100% { transform: scale(1); opacity: 0.8; }
         50% { transform: scale(0.9); opacity: 0.6; }
-      }
-
-      @keyframes ash-rise {
-        0% { transform: translateY(0) scale(1); opacity: 1; }
-        100% { transform: translateY(-40px) scale(0); opacity: 0; }
       }
 
       .fire-container {
@@ -131,7 +122,6 @@
 
       /* --- TRANSITION ANIMATIONS (FUNNY FIRE CURTAIN) --- */
       
-      /* O container que cobre a tela */
       .fire-curtain {
         position: fixed;
         inset: 0;
@@ -143,28 +133,24 @@
         overflow: hidden;
       }
 
-      /* LOGOUT: Sobe do chão */
       @keyframes curtain-rise {
         0% { transform: translateY(100%); }
-        40% { transform: translateY(0%); } /* Sobe rápido */
-        100% { transform: translateY(0%); } /* Fica */
+        40% { transform: translateY(0%); } 
+        100% { transform: translateY(0%); } 
       }
       
-      /* LOGIN: Abre para os lados (Explosão) */
       @keyframes curtain-split {
         0% { transform: scale(1); opacity: 1; }
-        20% { transform: scale(1.1); opacity: 1; } /* Infla */
-        100% { transform: scale(2); opacity: 0; filter: blur(20px); } /* Explode e some */
+        20% { transform: scale(1.1); opacity: 1; } 
+        100% { transform: scale(2); opacity: 0; filter: blur(20px); } 
       }
 
-      /* Tremor da tela antes de queimar */
       @keyframes shake-screen {
         0%, 100% { transform: translateX(0); }
         10%, 30%, 50%, 70%, 90% { transform: translateX(-5px) rotate(-1deg); }
         20%, 40%, 60%, 80% { transform: translateX(5px) rotate(1deg); }
       }
 
-      /* Texto engraçado girando */
       @keyframes spin-in {
         0% { transform: scale(0) rotate(-180deg); }
         60% { transform: scale(1.2) rotate(10deg); }
@@ -177,7 +163,6 @@
       .animate-shake-screen { animation: shake-screen 0.5s ease-in-out; }
       .animate-spin-in { animation: spin-in 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
 
-      /* Helpers */
       .animate-mascot-slow { animation: mascot-run 1s infinite ease-in-out; }
       .animate-mascot-chill { animation: mascot-chill 4s ease-in-out infinite; }
       .animate-cta-bounce { animation: cta-bounce 2s infinite ease-in-out; }
@@ -197,9 +182,12 @@
         50% { transform: scale(1.03); box-shadow: 0 15px 20px -5px rgba(249, 115, 22, 0.4); }
       }
 
-      /* Safe area for scrollable containers */
       .safe-area-scroll {
         padding-bottom: env(safe-area-inset-bottom, 20px);
+      }
+      
+      .safe-area-pb {
+        padding-bottom: env(safe-area-inset-bottom, 0px);
       }
 
     </style>
@@ -216,7 +204,7 @@
 }
 </script>
 </head>
-  <body class="h-full overflow-hidden">
+  <body class="h-full bg-slate-50">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

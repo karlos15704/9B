@@ -33,7 +33,7 @@ import {
   fetchSettings,
   saveSettings
 } from './services/supabase';
-import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet } from 'lucide-react';
+import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu } from 'lucide-react';
 
 const App: React.FC = () => {
   // Login & Users State
@@ -630,7 +630,7 @@ const App: React.FC = () => {
   ];
 
   return (
-    <div className={`fixed inset-0 w-full h-full flex flex-col md:flex-row bg-slate-100 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
+    <div className={`w-full min-h-screen flex flex-col md:flex-row bg-slate-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
@@ -695,18 +695,23 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {/* --- SIDEBAR DESKTOP (FIXA À ESQUERDA) --- */}
-          <nav className="hidden md:flex flex-col w-24 bg-slate-900 border-r border-slate-800 flex-shrink-0 z-30 h-full">
-            {/* App Logo */}
-            <div className="h-24 flex items-center justify-center border-b border-slate-800/50 mb-4">
-               <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center shadow-inner relative group cursor-pointer overflow-hidden" title={appSettings.appName}>
-                  <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                  <img src={appSettings.mascotUrl} className="w-10 h-10 object-contain drop-shadow-md transform group-hover:scale-110 transition-transform duration-300" alt="App" />
+          {/* --- SIDEBAR DESKTOP PROFISSIONAL (FIXA À ESQUERDA) --- */}
+          <aside className="hidden md:flex flex-col w-64 bg-white border-r border-gray-200 h-screen fixed left-0 top-0 z-30 shadow-sm">
+            {/* App Logo Area */}
+            <div className="h-20 flex items-center px-6 border-b border-gray-100 mb-4">
+               <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-orange-50 rounded-xl flex items-center justify-center border border-orange-100">
+                    <img src={appSettings.mascotUrl} className="w-8 h-8 object-contain" alt="App" />
+                  </div>
+                  <div>
+                    <h1 className="font-black text-gray-800 leading-none tracking-tight uppercase text-lg">{appSettings.appName}</h1>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{appSettings.schoolClass}</p>
+                  </div>
                </div>
             </div>
             
-            {/* Navigation Items */}
-            <div className="flex-1 flex flex-col gap-4 px-3 overflow-y-auto no-scrollbar items-center">
+            {/* Navigation Items (Lista) */}
+            <div className="flex-1 flex flex-col gap-1 px-3 overflow-y-auto no-scrollbar">
             {navItems.map(item => {
                 if (!item.enabled) return null;
                 if (!item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
@@ -716,46 +721,48 @@ const App: React.FC = () => {
                     <button 
                         key={item.view}
                         onClick={() => setCurrentView(item.view as any)} 
-                        className={`w-16 h-16 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all duration-300 group relative
+                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 font-bold text-sm relative group
                           ${isActive 
-                            ? 'bg-gradient-to-br from-orange-500 to-orange-600 text-white shadow-lg shadow-orange-900/50 scale-105' 
-                            : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                            ? 'bg-orange-50 text-orange-700' 
+                            : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                           }`} 
                         title={item.title}
                     >
-                        <item.icon size={24} className={isActive ? 'animate-pulse' : ''} />
-                        <span className={`text-[9px] font-bold uppercase tracking-wide transition-opacity duration-300 ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
-                          {item.title}
-                        </span>
-                        
-                        {/* Active Indicator Dot */}
-                        {isActive && <div className="absolute -right-3 top-1/2 -translate-y-1/2 w-1.5 h-8 bg-white rounded-l-full"></div>}
+                        {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 h-6 w-1 bg-orange-500 rounded-r-full"></div>}
+                        <item.icon size={20} className={isActive ? 'text-orange-600' : 'text-gray-400 group-hover:text-gray-600'} />
+                        <span>{item.title}</span>
                     </button>
                 )
             })}
             </div>
 
             {/* Bottom User Section */}
-            <div className="mt-auto mb-4 flex flex-col items-center gap-4">
-                <div className="w-12 h-px bg-slate-800"></div>
-                <div className="flex flex-col items-center gap-1 group cursor-help" title={currentUser.name}>
-                    <div className="w-10 h-10 rounded-full bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-slate-300 shadow-lg group-hover:border-orange-500/50 transition-colors">
-                        <UserCircle2 size={24} />
+            <div className="mt-auto p-4 border-t border-gray-100">
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                    <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 shadow-sm">
+                            <UserCircle2 size={20} />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-xs font-bold text-gray-800 leading-none">{currentUser.name.split(' ')[0]}</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase leading-none mt-1">Conectado</span>
+                        </div>
                     </div>
+                    <button onClick={() => setShowLogoutModal(true)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Sair">
+                        <LogOut size={18} />
+                    </button>
                 </div>
-                <button onClick={() => setShowLogoutModal(true)} className="p-3 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-xl transition-colors mb-2" title="Sair">
-                    <LogOut size={20} />
-                </button>
             </div>
-          </nav>
+          </aside>
 
-          {/* --- MAIN CONTENT AREA (Full Height & Scrollable) --- */}
-          <main className="flex-1 flex flex-col h-full relative overflow-hidden bg-slate-50">
+          {/* --- MAIN CONTENT AREA (Scrollable Body) --- */}
+          {/* md:ml-64 empurra o conteúdo para a direita no desktop para não ficar embaixo da sidebar fixa */}
+          <main className="flex-1 flex flex-col min-h-screen md:ml-64 bg-slate-50 transition-all duration-300">
             
-                {/* HEADER MOBILE ONLY (FIXED TOP) */}
-                <div className="md:hidden bg-white/90 backdrop-blur-sm border-b border-gray-200 px-4 py-3 shadow-sm flex items-center justify-between w-full z-40 flex-shrink-0 h-16">
-                  <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600">
+                {/* HEADER MOBILE ONLY (Sticky Top) */}
+                <div className="md:hidden bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3 shadow-sm flex items-center justify-between sticky top-0 z-40 h-16">
+                  <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
                         <UserCircle2 size={20} />
                       </div>
                       <div className="flex flex-col">
@@ -763,34 +770,32 @@ const App: React.FC = () => {
                         <span className="text-sm font-black text-gray-800 leading-none">{currentUser.name}</span>
                       </div>
                   </div>
-                  <button onClick={() => setShowLogoutModal(true)} className="p-2 bg-gray-100 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors">
+                  <button onClick={() => setShowLogoutModal(true)} className="p-2 bg-gray-50 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-50 transition-colors">
                     <LogOut size={18} />
                   </button>
                 </div>
 
-                {/* CONTENT WRAPPER - SCROLLABLE AREA */}
-                {/* overflow-y-auto aqui permite que o conteúdo role independentemente da navegação fixa */}
-                <div className="flex-1 overflow-y-auto relative w-full h-full">
+                {/* CONTENT WRAPPER - Agora usa o fluxo normal do documento */}
+                {/* pb-24 no mobile garante que a navbar fixa embaixo não cubra o conteúdo */}
+                <div className="flex-1 w-full pb-24 md:pb-0">
                     {currentView === 'pos' ? (
                       <div className="flex flex-col md:flex-row h-full">
                         {/* ESQUERDA: GRID DE PRODUTOS */}
-                        <div className="flex-1 flex flex-col min-h-0 bg-white md:bg-transparent">
-                          {/* Desktop Header */}
-                          <header className="hidden md:flex px-8 py-6 bg-white border-b border-gray-200 shadow-sm items-center justify-between sticky top-0 z-20">
-                            <div className="flex items-center gap-4">
-                              <img src={appSettings.mascotUrl} className="w-12 h-12 object-contain" alt="Logo" />
-                              <div>
-                                <h1 className="text-2xl font-black text-gray-900 tracking-tight uppercase leading-none">{appSettings.appName}</h1>
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">{appSettings.schoolClass} • Vendas</span>
-                              </div>
+                        <div className="flex-1 flex flex-col min-h-0">
+                          {/* Desktop Header Content (Barra Superior Branca) */}
+                          <header className="hidden md:flex px-8 py-5 bg-white border-b border-gray-200 items-center justify-between sticky top-0 z-20 shadow-sm">
+                            <div className="flex items-center gap-2 text-gray-400 text-sm font-medium">
+                                <span className="hover:text-gray-800 cursor-pointer">Início</span>
+                                <span>/</span>
+                                <span className="text-gray-800 font-bold">Frente de Caixa</span>
                             </div>
-                            <div className="flex items-center gap-2 bg-gray-100 px-3 py-1.5 rounded-full">
+                            <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full border border-green-100">
                                 <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                <span className="text-xs font-bold text-gray-600 uppercase">Sistema Online</span>
+                                <span className="text-xs font-bold text-green-700 uppercase">Sistema Online</span>
                             </div>
                           </header>
                           
-                          {/* Grid com padding inferior no mobile para não cobrir com a nav */}
+                          {/* Grid */}
                           <div className="flex-1 relative">
                             <ProductGrid 
                                 products={products} 
@@ -803,7 +808,8 @@ const App: React.FC = () => {
                         </div>
                         
                         {/* DIREITA: CARRINHO (SIDEBAR DIREITA NO DESKTOP, DRAWER NO MOBILE) */}
-                        <div className={`fixed inset-y-0 right-0 z-50 w-full md:relative md:w-96 md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+                        {/* No desktop, fixamos a altura para ser independente da rolagem principal se desejado, ou deixamos fluir */}
+                        <div className={`fixed inset-y-0 right-0 z-50 w-full md:fixed md:w-96 md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                           <CartSidebar 
                             cart={cart} 
                             users={users} 
@@ -818,10 +824,12 @@ const App: React.FC = () => {
                             settings={appSettings}
                           />
                         </div>
+                        {/* Espaçador para compensar o carrinho fixo no desktop */}
+                        <div className="hidden md:block w-96 flex-shrink-0"></div>
                       </div>
                     ) : (
                         // WRAPPER GENÉRICO PARA OUTRAS VIEWS
-                        <div className="h-full flex flex-col pb-20 md:pb-0"> 
+                        <div className="h-full flex flex-col"> 
                             {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
                             {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
                             {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
@@ -847,7 +855,7 @@ const App: React.FC = () => {
                 )}
 
                 {/* --- MOBILE BOTTOM NAVIGATION (FIXED BOTTOM) --- */}
-                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] safe-area-pb overflow-x-auto no-scrollbar px-2 flex-shrink-0">
+                <div className="md:hidden fixed bottom-0 left-0 w-full bg-white border-t border-gray-200 z-40 flex items-center h-16 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] px-2 flex-shrink-0">
                   <div className="flex w-full min-w-max gap-2 px-1 justify-center">
                       {navItems.map(item => {
                         if (!item.enabled) return null;
