@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, X, Search, UtensilsCrossed, Ban } from 'lucide-react';
+import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw } from 'lucide-react';
 
 interface ProductGridProps {
   products: Product[];
@@ -34,10 +34,10 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   }, [products, searchTerm, selectedCategory]);
 
   return (
-    <div className="flex flex-col h-full bg-orange-50/50">
+    <div className="absolute inset-0 flex flex-col bg-orange-50/50">
       
       {/* --- BARRA DE FERRAMENTAS --- */}
-      <div className="p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm sticky top-0 z-40">
+      <div className="flex-none p-4 space-y-3 bg-white border-b border-orange-100 shadow-sm z-40">
         
         {/* Busca */}
         <div className="relative">
@@ -83,15 +83,23 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
       </div>
 
       {/* --- GRID DE PRODUTOS --- */}
-      {/* Aplicando pb-40 diretamente aqui e h-full para forçar o scroll container */}
+      {/* Aplicando pb-64 para garantir que o scroll vá até o final mesmo com barras de navegação flutuantes */}
       <div 
-        className="flex-1 overflow-y-auto p-3 pb-40 md:pb-3 relative" 
+        className="flex-1 overflow-y-auto p-3 pb-64 md:pb-3 relative" 
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-64 text-gray-400 opacity-60">
-            <UtensilsCrossed size={48} className="mb-2" />
+          <div className="flex flex-col items-center justify-center h-64 text-gray-400">
+            <UtensilsCrossed size={48} className="mb-2 opacity-50" />
             <p>Nenhum produto encontrado.</p>
+            {(searchTerm || selectedCategory !== 'Todos') && (
+                <button 
+                    onClick={() => { setSearchTerm(''); setSelectedCategory('Todos'); }}
+                    className="mt-4 text-orange-600 font-bold flex items-center gap-2 hover:underline"
+                >
+                    <RefreshCw size={16}/> Limpar Filtros
+                </button>
+            )}
           </div>
         ) : (
           <>
@@ -107,7 +115,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                   <div 
                     key={product.id} 
                     className={`bg-white rounded-xl shadow-sm border transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full
-                      ${isSoldOut ? 'border-red-200 opacity-90' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
+                      ${isSoldOut ? 'border-red-200 bg-red-50/10' : quantity > 0 ? 'ring-2 ring-orange-100' : 'border-orange-100 hover:border-gray-300'}
                       ${!isSoldOut && 'active:scale-95 md:hover:scale-105 md:hover:shadow-xl'}
                     `}
                     style={borderStyle}
@@ -120,12 +128,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                       <img 
                         src={product.imageUrl} 
                         alt={product.name} 
-                        className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale' : 'group-hover:scale-110'} drop-shadow-sm`}
+                        className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-80' : 'group-hover:scale-110'} drop-shadow-sm`}
                         loading="lazy"
                       />
                       
                       {isSoldOut && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] z-30">
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/5 backdrop-blur-[1px] z-30">
                               <div className="bg-red-600 text-white font-black uppercase text-sm px-6 py-1 transform -rotate-12 border-2 border-white shadow-xl">
                                   ESGOTADO
                               </div>
@@ -186,8 +194,8 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
               })}
             </div>
 
-            {/* SPACER FÍSICO (Div transparente para forçar o scroll) */}
-            <div className="w-full h-32 md:hidden block pointer-events-none" aria-hidden="true" />
+            {/* SPACER FÍSICO GIGANTE (Div transparente para forçar o scroll) */}
+            <div className="w-full h-48 md:hidden block pointer-events-none" aria-hidden="true" />
           </>
         )}
       </div>
