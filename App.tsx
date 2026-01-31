@@ -824,7 +824,7 @@ const App: React.FC = () => {
                         
                         {/* DIREITA: CARRINHO (SIDEBAR DIREITA NO DESKTOP, DRAWER NO MOBILE) */}
                         {/* No desktop, fixamos a altura para ser independente da rolagem principal se desejado, ou deixamos fluir */}
-                        <div className={`fixed inset-y-0 right-0 z-50 w-full md:fixed md:w-[550px] md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
+                        <div className={`fixed inset-y-0 right-0 z-50 w-full md:fixed md:w-[420px] md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                           <CartSidebar 
                             cart={cart} 
                             users={users} 
@@ -840,7 +840,7 @@ const App: React.FC = () => {
                           />
                         </div>
                         {/* Espaçador para compensar o carrinho fixo no desktop */}
-                        <div className="hidden md:block w-[550px] flex-shrink-0"></div>
+                        <div className="hidden md:block w-[420px] flex-shrink-0"></div>
                       </div>
                     ) : (
                         // WRAPPER GENÉRICO PARA OUTRAS VIEWS
