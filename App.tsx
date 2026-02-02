@@ -13,6 +13,7 @@ import SettingsManagement from './components/SettingsManagement';
 import PublicDisplay from './components/PublicDisplay'; 
 import CustomerOrder from './components/CustomerOrder';
 import FinancialManagement from './components/FinancialManagement';
+import StudentContributions from './components/StudentContributions';
 import { 
   supabase, 
   fetchTransactions, 
@@ -33,7 +34,7 @@ import {
   fetchSettings,
   saveSettings
 } from './services/supabase';
-import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu } from 'lucide-react';
+import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins } from 'lucide-react';
 
 const App: React.FC = () => {
   // Login & Users State
@@ -48,7 +49,8 @@ const App: React.FC = () => {
     reports: true,
     users: true,
     customer: true,
-    financial: true
+    financial: true,
+    contributions: true
   };
 
   // Settings State (Global App Config)
@@ -67,7 +69,7 @@ const App: React.FC = () => {
   const [transitionState, setTransitionState] = useState<'idle' | 'logging-in' | 'logging-out'>('idle');
 
   // View State
-  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'settings' | 'customer' | 'financial'>('pos');
+  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'settings' | 'customer' | 'financial' | 'contributions'>('pos');
   
   // Mobile UI States
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -639,6 +641,7 @@ const App: React.FC = () => {
     { view: 'kitchen', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'], title: 'Cozinha', enabled: appSettings.modules?.kitchen ?? true },
     { view: 'products', icon: PackageSearch, roles: ['0', 'admin'], title: 'Cardápio', enabled: appSettings.modules?.products ?? true },
     { view: 'financial', icon: Wallet, roles: ['0', 'admin'], title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
+    { view: 'contributions', icon: HandCoins, roles: ['0'], title: 'Contribuições', enabled: appSettings.modules?.contributions ?? true },
     { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
     { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe', enabled: appSettings.modules?.users ?? true },
     { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Ajustes', enabled: true }, 
@@ -851,6 +854,7 @@ const App: React.FC = () => {
                             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
                             {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
+                            {currentView === 'contributions' && <StudentContributions />}
                         </div>
                     )}
                 </div>

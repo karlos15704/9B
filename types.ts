@@ -66,6 +66,16 @@ export interface Expense {
   receiptUrl?: string; // Novo campo para Nota Fiscal
 }
 
+// NOVA INTERFACE: CONTRIBUIÇÃO DE ALUNOS
+export interface Contribution {
+  id: string;
+  studentName: string;
+  amount: number;
+  monthReference: string; // Ex: Janeiro, Fevereiro
+  paymentDate: number; // Timestamp
+  registeredBy: string;
+}
+
 export interface DailySummary {
   totalSales: number;
   totalRevenue: number;
@@ -81,6 +91,7 @@ export interface AppModules {
   users: boolean;    // Equipe
   customer: boolean; // Autoatendimento (Cliente)
   financial: boolean; // Financeiro e Estoque (NOVO)
+  contributions?: boolean; // Contribuições Escolares (NOVO)
 }
 
 // --- NOVO SISTEMA DE CMS (BLOCO) ---

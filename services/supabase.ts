@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { Transaction, User, Product, AppSettings, Expense } from '../types';
+import { Transaction, User, Product, AppSettings, Expense, Contribution } from '../types';
 
 /* 
   ==============================================================================
@@ -28,7 +28,17 @@ import { Transaction, User, Product, AppSettings, Expense } from '../types';
     "receiptUrl" text
   );
 
-  -- 4. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS)
+  -- 4. Criar Tabela de Contribuições (NOVO)
+  CREATE TABLE IF NOT EXISTS public.contributions (
+    id text PRIMARY KEY,
+    "studentName" text NOT NULL,
+    amount numeric NOT NULL,
+    "monthReference" text,
+    "paymentDate" bigint NOT NULL,
+    "registeredBy" text
+  );
+
+  -- 5. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS)
   -- Rode isso apenas uma vez para criar o bucket 'receipts'
   INSERT INTO storage.buckets (id, name, public) 
   VALUES ('receipts', 'receipts', true)
@@ -42,6 +52,7 @@ import { Transaction, User, Product, AppSettings, Expense } from '../types';
   GRANT ALL ON public.settings TO anon, authenticated, service_role;
   GRANT ALL ON public.products TO anon, authenticated, service_role;
   GRANT ALL ON public.expenses TO anon, authenticated, service_role;
+  GRANT ALL ON public.contributions TO anon, authenticated, service_role;
 
 */
 
@@ -261,13 +272,7 @@ export const fetchExpenses = async (): Promise<Expense[]> => {
     if (!supabase) return [];
     try {
         const { data, error } = await supabase.from('expenses').select('*').order('timestamp', { ascending: false });
-        if (error) {
-            if (error.message.includes('relation') && error.message.includes('does not exist')) {
-                 console.log("🚨 RODE O SQL PARA CRIAR A TABELA EXPENSES");
-            }
-            return [];
-        }
-        return data as Expense[];
+        return (data as Expense[]) || [];
     } catch (err) { return []; }
 };
 
@@ -316,6 +321,36 @@ export const deleteExpense = async (expenseId: string): Promise<boolean> => {
     } catch (err) { return false; }
 };
 
+// --- FUNÇÕES DE CONTRIBUIÇÕES (NOVO) ---
+
+export const fetchContributions = async (): Promise<Contribution[]> => {
+    if (!supabase) return [];
+    try {
+        const { data, error } = await supabase.from('contributions').select('*').order('paymentDate', { ascending: false });
+        if (error && error.message.includes('does not exist')) {
+            console.log("🚨 RODE O SQL PARA CRIAR A TABELA CONTRIBUTIONS");
+            return [];
+        }
+        return (data as Contribution[]) || [];
+    } catch (err) { return []; }
+};
+
+export const createContribution = async (contribution: Contribution): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('contributions').insert([contribution]);
+        return !error;
+    } catch (err) { return false; }
+};
+
+export const deleteContribution = async (id: string): Promise<boolean> => {
+    if (!supabase) return false;
+    try {
+        const { error } = await supabase.from('contributions').delete().eq('id', id);
+        return !error;
+    } catch (err) { return false; }
+};
+
 
 // --- FUNÇÕES DE SETTINGS (NOVO) ---
 
@@ -324,12 +359,7 @@ export const fetchSettings = async (): Promise<AppSettings | null> => {
     try {
         const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
         if (error) { 
-            if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
-                console.error("🚨 ERRO CRÍTICO: FALTAM COLUNAS NO SUPABASE 🚨");
-            }
-            if (error.code === 'PGRST116') {
-                return null;
-            }
+            if (error.code === 'PGRST116') return null;
             return null; 
         }
         return data as AppSettings;
@@ -340,14 +370,7 @@ export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
     if (!supabase) return false;
     try {
         const { error } = await supabase.from('settings').upsert({ id: 'global', ...settings });
-        
-        if (error) {
-             if (error.message && error.message.includes('column') && error.message.includes('does not exist')) {
-                 alert("ERRO SQL: Faltam colunas na tabela. Verifique o console.");
-             }
-            return false;
-        }
-        return true;
+        return !error;
     } catch (err) { return false; }
 };
 
@@ -361,6 +384,7 @@ export const subscribeToTransactions = (onUpdate: () => void) => {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'contributions' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => {
         console.log("Settings changed remotely!");
         onUpdate();

@@ -1,10 +1,10 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Transaction, PaymentMethod, User, Expense } from '../types';
+import { Transaction, PaymentMethod, User, Expense, Contribution } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus } from 'lucide-react';
+import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus, HandCoins } from 'lucide-react';
 import { APP_NAME } from '../services/constants';
-import { fetchExpenses } from '../services/supabase';
+import { fetchExpenses, fetchContributions } from '../services/supabase';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -22,6 +22,7 @@ type ViewType = 'dashboard' | 'ledger';
 const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem, currentUser }) => {
   // --- ESTADOS DE DADOS ---
   const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [contributions, setContributions] = useState<Contribution[]>([]);
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
 
   // --- ESTADOS DE FILTRO ---
@@ -49,9 +50,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
   const isProfessor = currentUser?.id === '0';
 
-  // CARREGAR DESPESAS
+  // CARREGAR DADOS FINANCEIROS ADICIONAIS
   useEffect(() => {
     fetchExpenses().then(data => setExpenses(data || []));
+    fetchContributions().then(data => setContributions(data || []));
   }, []);
 
   // --- HELPER: CALCULAR SEMANAS DO MÊS ---
@@ -98,8 +100,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   }, [selectedYear, selectedMonth]);
 
 
-  // --- LÓGICA DE FILTRAGEM UNIFICADA (VENDAS + DESPESAS) ---
-  const { filteredTransactions, filteredExpenses, periodLabel, startPeriod, endPeriod } = useMemo(() => {
+  // --- LÓGICA DE FILTRAGEM UNIFICADA (VENDAS + DESPESAS + CONTRIBUIÇÕES) ---
+  const { filteredTransactions, filteredExpenses, filteredContributions, periodLabel } = useMemo(() => {
     let start: Date, end: Date;
     let label = "";
 
@@ -139,9 +141,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
     const fTransactions = transactions.filter(t => t.timestamp >= start.getTime() && t.timestamp <= end.getTime());
     const fExpenses = expenses.filter(e => e.timestamp >= start.getTime() && e.timestamp <= end.getTime());
+    const fContributions = contributions.filter(c => c.paymentDate >= start.getTime() && c.paymentDate <= end.getTime());
 
-    return { filteredTransactions: fTransactions, filteredExpenses: fExpenses, periodLabel: label, startPeriod: start, endPeriod: end };
-  }, [transactions, expenses, dateRangeType, selectedDay, selectedYear, selectedMonth, selectedWeekIndex, weeksInMonth, customStartDate, customEndDate]);
+    return { filteredTransactions: fTransactions, filteredExpenses: fExpenses, filteredContributions: fContributions, periodLabel: label };
+  }, [transactions, expenses, contributions, dateRangeType, selectedDay, selectedYear, selectedMonth, selectedWeekIndex, weeksInMonth, customStartDate, customEndDate]);
 
 
   // --- UNIFICAÇÃO PARA EXTRATO (LEDGER) ---
@@ -168,26 +171,45 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         category: 'Despesa',
         isCancelled: false,
         originalRef: e
+      })),
+      ...filteredContributions.map(c => ({
+        type: 'IN' as const,
+        date: c.paymentDate,
+        id: c.id,
+        description: `Contribuição - ${c.studentName}`,
+        details: `Ref: ${c.monthReference}`,
+        amount: c.amount,
+        category: 'Contribuição Escolar',
+        isCancelled: false,
+        originalRef: c
       }))
     ];
     return entries.sort((a, b) => b.date - a.date); // Mais recente primeiro
-  }, [filteredTransactions, filteredExpenses]);
+  }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
   // --- ESTATÍSTICAS ---
   const stats = useMemo(() => {
     const activeTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
     
-    const totalIncome = activeTransactions.reduce((acc, t) => acc + t.total, 0);
+    const salesIncome = activeTransactions.reduce((acc, t) => acc + t.total, 0);
+    const contributionsIncome = filteredContributions.reduce((acc, c) => acc + c.amount, 0);
+    const totalIncome = salesIncome + contributionsIncome;
+
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
     const balance = totalIncome - totalExpenses;
     
-    const averageTicket = activeTransactions.length > 0 ? totalIncome / activeTransactions.length : 0;
+    const averageTicket = activeTransactions.length > 0 ? salesIncome / activeTransactions.length : 0;
     
     // By Payment Method
     const byMethod = activeTransactions.reduce((acc, t) => {
       acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.total;
       return acc;
     }, {} as Record<string, number>);
+
+    // Add Contributions to method breakdown (conceptually)
+    if (contributionsIncome > 0) {
+        byMethod['Contribuições'] = contributionsIncome;
+    }
 
     // By Seller
     const bySeller = activeTransactions.reduce((acc, t) => {
@@ -215,8 +237,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       value: byMethod[method]
     }));
 
-    return { totalIncome, totalExpenses, balance, averageTicket, chartData, byMethod, bySeller, productSales };
-  }, [filteredTransactions, filteredExpenses]);
+    return { totalIncome, totalExpenses, balance, averageTicket, chartData, byMethod, bySeller, productSales, contributionsIncome };
+  }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
   // --- ACTIONS ---
   const handleSystemReset = () => {
@@ -333,10 +355,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                 <p class="total">LUCRO LÍQUIDO: ${formatCurrency(stats.balance)}</p>
             </div>
 
+            <p style="font-size:11px;">* Inclui ${formatCurrency(stats.contributionsIncome)} em contribuições escolares.</p>
+
             <h3>Ranking Vendedores</h3>
             <table><thead><tr style="border-bottom: 1px solid #000;"><th align="left">Nome</th><th align="center">Qtd</th><th align="right">Total</th></tr></thead><tbody>${sellerRows}</tbody></table>
             
-            <h3>Formas de Pagamento</h3>
+            <h3>Entradas por Tipo</h3>
             <table>${paymentRows}</table>
 
             <h3>Produtos Vendidos</h3>
@@ -515,7 +539,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-green-100 rounded-full text-green-600"><DollarSign size={24} /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Entradas (Vendas)</p><h3 className="text-2xl font-black text-gray-900">{formatCurrency(stats.totalIncome)}</h3></div>
+                <div><p className="text-xs font-bold uppercase text-gray-400">Entradas (Vendas + Contrib.)</p><h3 className="text-2xl font-black text-gray-900">{formatCurrency(stats.totalIncome)}</h3></div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -532,7 +556,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-orange-500" />Métodos de Pagamento</h3>
+                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-orange-500" />Origem das Receitas</h3>
                 <div className="h-64">
                     {stats.chartData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
@@ -640,7 +664,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                                     </td>
                                     <td className="px-6 py-4 text-center">
                                         {/* Botão de Cancelar Apenas para Vendas (IN) não canceladas */}
-                                        {entry.type === 'IN' && !entry.isCancelled ? (
+                                        {entry.type === 'IN' && !entry.isCancelled && entry.category !== 'Contribuição Escolar' ? (
                                             <button 
                                                 onClick={() => {
                                                     setTransactionToCancel({ id: entry.id, number: (entry.originalRef as Transaction).orderNumber });
