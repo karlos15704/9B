@@ -44,13 +44,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
         </div>
 
         {/* CONTAINER PRINCIPAL RESPONSIVO */}
-        <div className="relative z-10 w-full max-w-6xl px-6 flex flex-col md:flex-row items-center justify-center md:justify-between gap-8 md:gap-16">
+        <div className="relative z-10 w-full max-w-7xl px-4 md:px-8 flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16 lg:gap-24">
             
             {/* LADO ESQUERDO (Visual / Mascote) */}
-            <div className="flex flex-col items-center md:items-start text-center md:text-left flex-1">
+            <div className="flex flex-col items-center md:items-end text-center md:text-right flex-1 w-full">
                 
                 {/* Logo / Mascote Grande com Borda Grossa */}
-                <div className="relative w-48 h-48 md:w-72 md:h-72 mb-6 animate-bounce hover:scale-110 transition-transform duration-300 cursor-pointer">
+                <div className="relative w-48 h-48 md:w-80 md:h-80 mb-6 animate-bounce hover:scale-110 transition-transform duration-300 cursor-pointer">
                     <div className="absolute inset-0 bg-white rounded-full border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-0"></div>
                     <img 
                         src={settings.mascotUrl} 
@@ -58,13 +58,13 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
                         className="w-full h-full object-contain relative z-10 p-4 drop-shadow-lg"
                     />
                     {/* Balão de Fala */}
-                    <div className="absolute -top-6 -right-10 md:-right-16 bg-white border-4 border-black px-4 py-2 rounded-2xl rounded-bl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse z-20 transform rotate-6">
+                    <div className="absolute -top-6 -right-10 md:-right-4 bg-white border-4 border-black px-4 py-2 rounded-2xl rounded-bl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse z-20 transform rotate-6">
                         <span className="font-black text-xl md:text-2xl text-black uppercase whitespace-nowrap">Fome?!</span>
                     </div>
                 </div>
 
                 {/* Título Estilo Gibi */}
-                <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter mb-4 drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black leading-none" style={{ WebkitTextStroke: '2px black' }}>
+                <h1 className="text-5xl md:text-7xl lg:text-8xl font-black text-white tracking-tighter mb-4 drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black leading-none" style={{ WebkitTextStroke: '2px black' }}>
                     {settings.appName}
                 </h1>
                 <p className="text-lg md:text-2xl text-black font-black bg-white px-4 py-2 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-2 transform hover:rotate-0 transition-transform inline-block">
@@ -73,16 +73,16 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
             </div>
 
             {/* LADO DIREITO (Ações) */}
-            <div className="flex flex-col items-center md:items-end gap-6 w-full max-w-md flex-1">
+            <div className="flex flex-col items-center md:items-start gap-6 w-full max-w-md flex-1">
                 
                 {/* BOTÃO PRINCIPAL (CLIENTE) - Estilo Botão de Arcade */}
                 <button 
                     onClick={onCustomerStart}
                     className="w-full bg-red-500 text-white p-6 md:p-8 rounded-3xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all group relative overflow-hidden"
                 >
-                    <div className="flex items-center justify-center gap-6 relative z-10">
+                    <div className="flex items-center justify-center md:justify-start gap-6 relative z-10">
                         <Utensils size={48} className="text-yellow-300 animate-wiggle flex-shrink-0" strokeWidth={3} />
-                        <div className="flex flex-col items-start text-left">
+                        <div className="flex flex-col items-center md:items-start text-center md:text-left">
                             <span className="text-3xl md:text-4xl font-black uppercase tracking-wide leading-none drop-shadow-md">QUERO COMER!</span>
                             <span className="text-sm md:text-base font-bold text-yellow-200 uppercase tracking-wider mt-1">Clique para pedir agora</span>
                         </div>
