@@ -8,6 +8,7 @@ import Reports from './components/Reports';
 import KitchenDisplay from './components/KitchenDisplay';
 import LoginScreen from './components/LoginScreen';
 import UserManagement from './components/UserManagement';
+import UserProfileModal from './components/UserProfileModal';
 import ProductManagement from './components/ProductManagement';
 import SettingsManagement from './components/SettingsManagement';
 import PublicDisplay from './components/PublicDisplay'; 
@@ -97,6 +98,7 @@ const App: React.FC = () => {
 
   // Logout Modal State
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
 
   // --- APLICAR TEMA DINÂMICO ---
@@ -712,6 +714,18 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {/* USER PROFILE MODAL */}
+          {showProfileModal && currentUser && (
+            <UserProfileModal 
+                user={currentUser} 
+                onClose={() => setShowProfileModal(false)} 
+                onUpdateUser={async (updatedUser) => {
+                    await handleUpdateUser(updatedUser);
+                    setShowProfileModal(false);
+                }}
+            />
+          )}
+
           {/* ORDER SUCCESS MODAL */}
           {lastCompletedOrder && currentUser.role !== 'kitchen' && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -774,17 +788,24 @@ const App: React.FC = () => {
 
             {/* Bottom User Section */}
             <div className="mt-auto p-4 border-t border-gray-100">
-                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-xl border border-gray-100 cursor-pointer hover:bg-gray-100 transition-colors group" onClick={() => setShowProfileModal(true)}>
                     <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 shadow-sm">
+                        <div className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-400 shadow-sm group-hover:border-orange-200 group-hover:text-orange-500 transition-colors">
                             <UserCircle2 size={20} />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-xs font-bold text-gray-800 leading-none">{currentUser.name.split(' ')[0]}</span>
-                            <span className="text-[9px] font-bold text-gray-400 uppercase leading-none mt-1">Conectado</span>
+                            <span className="text-xs font-bold text-gray-800 leading-none group-hover:text-orange-700 transition-colors">{currentUser.name.split(' ')[0]}</span>
+                            <span className="text-[9px] font-bold text-gray-400 uppercase leading-none mt-1 group-hover:text-orange-400 transition-colors">Conectado</span>
                         </div>
                     </div>
-                    <button onClick={() => setShowLogoutModal(true)} className="text-gray-400 hover:text-red-500 transition-colors p-1" title="Sair">
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setShowLogoutModal(true);
+                        }} 
+                        className="text-gray-400 hover:text-red-500 transition-colors p-1" 
+                        title="Sair"
+                    >
                         <LogOut size={18} />
                     </button>
                 </div>
