@@ -1,4 +1,24 @@
-import { Product, User } from '../types';
+import { Product, User, AppModules } from '../types';
+
+export const MODULE_LABELS: Record<keyof AppModules, string> = {
+  pos: 'Caixa / Vendas',
+  kitchen: 'Cozinha / Pedidos',
+  products: 'Cardápio / Produtos',
+  reports: 'Relatórios',
+  users: 'Gerenciar Equipe',
+  customer: 'Autoatendimento',
+  financial: 'Financeiro',
+  contributions: 'Contribuições',
+  settings: 'Ajustes do Sistema'
+};
+
+export const DEFAULT_ROLE_PERMISSIONS: Record<User['role'], Partial<AppModules>> = {
+  admin: { pos: true, kitchen: true, products: true, reports: true, users: true, customer: true, financial: true, contributions: true, settings: true },
+  manager: { pos: true, kitchen: true, products: true, reports: true, users: true, customer: true, financial: true, contributions: true, settings: false },
+  staff: { pos: true, kitchen: false, products: false, reports: false, users: false, customer: false, financial: false, contributions: false, settings: false },
+  kitchen: { pos: false, kitchen: true, products: false, reports: false, users: false, customer: false, financial: false, contributions: false, settings: false },
+  display: { pos: false, kitchen: false, products: false, reports: false, users: false, customer: true, financial: false, contributions: false, settings: false }
+};
 
 // =================================================================================
 // 👥 ÁREA DE LOGIN (USUÁRIOS E SENHAS)

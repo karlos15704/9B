@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS } from './services/constants';
+import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS, DEFAULT_ROLE_PERMISSIONS } from './services/constants';
 import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules } from './types';
 import { generateId, formatCurrency } from './utils';
 import ProductGrid from './components/ProductGrid';
@@ -50,7 +50,8 @@ const App: React.FC = () => {
     users: true,
     customer: true,
     financial: true,
-    contributions: true
+    contributions: true,
+    settings: true
   };
 
   // Settings State (Global App Config)
@@ -636,15 +637,30 @@ const App: React.FC = () => {
     );
   }
 
+  // Helper para checar permissões
+  const hasPermission = (user: User, view: string): boolean => {
+    // Admin (Professor) sempre tem acesso total
+    if (user.role === 'admin') return true;
+
+    // Se o usuário tiver permissões explícitas salvas, usa elas
+    if (user.permissions && user.permissions[view as keyof AppModules] !== undefined) {
+        return !!user.permissions[view as keyof AppModules];
+    }
+
+    // Fallback: usa as permissões padrão do cargo
+    const defaults = DEFAULT_ROLE_PERMISSIONS[user.role];
+    return !!defaults?.[view as keyof AppModules];
+  };
+
   const navItems = [
-    { view: 'pos', icon: LayoutGrid, roles: ['admin', 'manager', 'staff'], title: 'Caixa', enabled: appSettings.modules?.pos ?? true },
-    { view: 'kitchen', icon: ChefHat, roles: ['admin', 'manager', 'kitchen'], title: 'Cozinha', enabled: appSettings.modules?.kitchen ?? true },
-    { view: 'products', icon: PackageSearch, roles: ['0', 'admin'], title: 'Cardápio', enabled: appSettings.modules?.products ?? true },
-    { view: 'financial', icon: Wallet, roles: ['0', 'admin'], title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
-    { view: 'contributions', icon: HandCoins, roles: ['0'], title: 'Contribuições', enabled: appSettings.modules?.contributions ?? true },
-    { view: 'reports', icon: BarChart3, roles: ['0', 'admin'], title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
-    { view: 'users', icon: UsersIcon, roles: ['0', 'admin', 'manager'], title: 'Equipe', enabled: appSettings.modules?.users ?? true },
-    { view: 'settings', icon: Settings, roles: ['0', 'admin'], title: 'Ajustes', enabled: true }, 
+    { view: 'pos', icon: LayoutGrid, title: 'Caixa', enabled: appSettings.modules?.pos ?? true },
+    { view: 'kitchen', icon: ChefHat, title: 'Cozinha', enabled: appSettings.modules?.kitchen ?? true },
+    { view: 'products', icon: PackageSearch, title: 'Cardápio', enabled: appSettings.modules?.products ?? true },
+    { view: 'financial', icon: Wallet, title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
+    { view: 'contributions', icon: HandCoins, title: 'Contribuições', enabled: appSettings.modules?.contributions ?? true },
+    { view: 'reports', icon: BarChart3, title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
+    { view: 'users', icon: UsersIcon, title: 'Equipe', enabled: appSettings.modules?.users ?? true },
+    { view: 'settings', icon: Settings, title: 'Ajustes', enabled: appSettings.modules?.settings ?? true }, 
   ];
 
   return (
@@ -732,7 +748,9 @@ const App: React.FC = () => {
             <div className="flex-1 flex flex-col gap-1 px-3 overflow-y-auto no-scrollbar">
             {navItems.map(item => {
                 if (!item.enabled) return null;
-                if (!item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
+                
+                // Checa permissão do usuário para ver este item
+                if (!hasPermission(currentUser, item.view)) return null;
                 
                 const isActive = currentView === item.view;
                 return (

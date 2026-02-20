@@ -36,6 +36,7 @@ export interface User {
   name: string;
   password: string;
   role: 'admin' | 'manager' | 'staff' | 'kitchen' | 'display';
+  permissions?: Partial<AppModules>; // Permissões específicas por módulo
 }
 
 export interface Transaction {
@@ -92,6 +93,7 @@ export interface AppModules {
   customer: boolean; // Autoatendimento (Cliente)
   financial: boolean; // Financeiro e Estoque (NOVO)
   contributions?: boolean; // Contribuições Escolares (NOVO)
+  settings?: boolean; // Ajustes (NOVO)
 }
 
 // --- NOVO SISTEMA DE CMS (BLOCO) ---

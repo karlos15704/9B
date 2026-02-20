@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { User } from '../types';
+import React, { useState, useMemo, useEffect } from 'react';
+import { User, AppModules } from '../types';
 import { generateId } from '../utils';
-import { Plus, Trash2, Edit2, Shield, User as UserIcon, Save, X, Key, Crown, ChefHat, Store, Lock, MonitorPlay, Briefcase } from 'lucide-react';
+import { MODULE_LABELS, DEFAULT_ROLE_PERMISSIONS } from '../services/constants';
+import { Plus, Trash2, Edit2, Shield, User as UserIcon, Save, X, Key, Crown, ChefHat, Store, Lock, MonitorPlay, Briefcase, CheckSquare, Square } from 'lucide-react';
 
 interface UserManagementProps {
   users: User[];
@@ -31,12 +32,14 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
   // Form State
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<'admin' | 'manager' | 'staff' | 'kitchen' | 'display'>('staff');
+  const [role, setRole] = useState<User['role']>('staff');
+  const [permissions, setPermissions] = useState<Partial<AppModules>>({});
 
   const resetForm = () => {
     setName('');
     setPassword('');
     setRole('staff');
+    setPermissions(DEFAULT_ROLE_PERMISSIONS['staff']);
     setEditingUser(null);
     setIsModalOpen(false);
   };
@@ -52,7 +55,25 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
     setName(user.name);
     setPassword(user.password);
     setRole(user.role);
+    // Se o usuário já tem permissões salvas, usa elas. Se não, usa o padrão do cargo.
+    setPermissions(user.permissions || DEFAULT_ROLE_PERMISSIONS[user.role]);
     setIsModalOpen(true);
+  };
+
+  // Atualiza permissões padrão quando troca o cargo (apenas se for novo usuário ou se quiser resetar)
+  const handleRoleChange = (newRole: User['role']) => {
+    setRole(newRole);
+    // Opcional: Resetar permissões ao mudar cargo? 
+    // Vamos manter as permissões atuais se já foram editadas, ou carregar o default se for "novo"
+    // Mas para simplificar, vamos carregar o default do novo cargo para facilitar
+    setPermissions(DEFAULT_ROLE_PERMISSIONS[newRole]);
+  };
+
+  const togglePermission = (module: keyof AppModules) => {
+    setPermissions(prev => ({
+      ...prev,
+      [module]: !prev[module]
+    }));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -63,14 +84,16 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
         ...editingUser,
         name,
         password,
-        role
+        role,
+        permissions
       });
     } else {
       const newUser: User = {
         id: generateId(),
         name,
         password,
-        role
+        role,
+        permissions
       };
       onAddUser(newUser);
     }
@@ -266,10 +289,10 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
               {editingUser?.id !== '0' && canManageUsers && (
                 <div>
                   <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Função / Cargo</label>
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-4">
                     <button
                       type="button"
-                      onClick={() => setRole('staff')}
+                      onClick={() => handleRoleChange('staff')}
                       className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'staff' ? 'border-green-500 bg-green-50 text-green-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
                     >
                       <Store size={20} />
@@ -277,7 +300,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRole('kitchen')}
+                      onClick={() => handleRoleChange('kitchen')}
                       className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'kitchen' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
                     >
                       <ChefHat size={20} />
@@ -285,7 +308,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                     </button>
                     <button
                       type="button"
-                      onClick={() => setRole('display')}
+                      onClick={() => handleRoleChange('display')}
                       className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'display' ? 'border-purple-500 bg-purple-50 text-purple-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
                     >
                       <MonitorPlay size={20} />
@@ -297,7 +320,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                         <>
                             <button
                             type="button"
-                            onClick={() => setRole('manager')}
+                            onClick={() => handleRoleChange('manager')}
                             className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'manager' ? 'border-indigo-500 bg-indigo-50 text-indigo-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
                             >
                             <Briefcase size={20} />
@@ -306,7 +329,7 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
 
                             <button
                             type="button"
-                            onClick={() => setRole('admin')}
+                            onClick={() => handleRoleChange('admin')}
                             className={`p-2 rounded-xl border-2 font-bold text-xs flex flex-col items-center gap-2 transition-colors ${role === 'admin' ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
                             >
                             <Shield size={20} />
@@ -315,6 +338,30 @@ const UserManagement: React.FC<UserManagementProps> = ({ users, onAddUser, onUpd
                         </>
                     )}
                   </div>
+
+                  {/* PERMISSÕES GRANULARES */}
+                  {isAdmin && (
+                    <div className="border-t border-gray-100 pt-4">
+                      <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Permissões de Acesso</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {(Object.keys(MODULE_LABELS) as Array<keyof AppModules>).map((moduleKey) => (
+                          <button
+                            key={moduleKey}
+                            type="button"
+                            onClick={() => togglePermission(moduleKey)}
+                            className={`flex items-center gap-2 p-2 rounded-lg border text-xs font-bold transition-all
+                              ${permissions[moduleKey] 
+                                ? 'bg-orange-50 border-orange-200 text-orange-700' 
+                                : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'
+                              }`}
+                          >
+                            {permissions[moduleKey] ? <CheckSquare size={16} className="text-orange-500" /> : <Square size={16} />}
+                            {MODULE_LABELS[moduleKey]}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
