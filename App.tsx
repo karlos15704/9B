@@ -818,7 +818,7 @@ const App: React.FC = () => {
             
                 {/* HEADER MOBILE ONLY (Sticky Top) */}
                 <div className="md:hidden bg-white/95 backdrop-blur-sm border-b border-gray-200 px-4 py-3 shadow-sm flex items-center justify-between sticky top-0 z-40 h-16">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 cursor-pointer active:opacity-70 transition-opacity" onClick={() => setShowProfileModal(true)}>
                       <div className="w-8 h-8 rounded-full bg-orange-50 flex items-center justify-center text-orange-600 border border-orange-100">
                         <UserCircle2 size={20} />
                       </div>
