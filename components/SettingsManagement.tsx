@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AppSettings, AppModules } from '../types';
-import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type } from 'lucide-react';
+import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud } from 'lucide-react';
+import { uploadGalleryImage } from '../services/supabase';
 
 interface SettingsManagementProps {
   settings: AppSettings;
@@ -10,6 +11,7 @@ interface SettingsManagementProps {
 const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSave }) => {
   const [formData, setFormData] = useState<AppSettings>(settings);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleChange = (field: keyof AppSettings, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -23,6 +25,25 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
               [moduleKey]: !prev.modules[moduleKey]
           }
       }));
+  };
+
+  const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    
+    setIsUploading(true);
+    const file = e.target.files[0];
+    
+    const url = await uploadGalleryImage(file);
+    
+    if (url) {
+        const newImg = { id: Date.now().toString(), url, timestamp: Date.now() };
+        setFormData(prev => ({ ...prev, galleryImages: [newImg, ...(prev.galleryImages || [])] }));
+    } else {
+        alert("Erro ao fazer upload da imagem. Verifique se o bucket 'gallery' existe.");
+    }
+    
+    setIsUploading(false);
+    e.target.value = ''; // Reset input
   };
 
   const handleSave = async () => {
@@ -153,23 +174,18 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                       <ImageIcon className="text-pink-500"/> Galeria da Turma (9ºB)
                   </h3>
                   <div className="space-y-4">
-                      <div className="flex gap-2">
-                          <input 
-                            type="url" 
-                            placeholder="Cole a URL da imagem aqui..." 
-                            className="flex-1 border-2 border-gray-200 rounded-lg p-2 text-sm"
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    const val = e.currentTarget.value;
-                                    if (val) {
-                                        const newImg = { id: Date.now().toString(), url: val, timestamp: Date.now() };
-                                        setFormData(prev => ({ ...prev, galleryImages: [newImg, ...(prev.galleryImages || [])] }));
-                                        e.currentTarget.value = '';
-                                    }
-                                }
-                            }}
-                          />
-                          <button className="bg-pink-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Adicionar</button>
+                      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center bg-gray-50 p-4 rounded-lg border border-gray-200">
+                          <div className="flex-1 w-full">
+                              <label className="block text-xs font-bold text-gray-500 uppercase mb-2">Adicionar Nova Foto</label>
+                              <div className="flex gap-2">
+                                  <label className={`flex-1 flex items-center justify-center gap-2 bg-white border-2 border-dashed border-gray-300 rounded-lg p-3 cursor-pointer hover:border-pink-500 hover:text-pink-500 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                      <UploadCloud size={20} />
+                                      <span className="text-sm font-bold">{isUploading ? 'Enviando...' : 'Escolher Arquivo'}</span>
+                                      <input type="file" accept="image/*" className="hidden" onChange={handleGalleryUpload} disabled={isUploading} />
+                                  </label>
+                              </div>
+                              <p className="text-[10px] text-gray-400 mt-1 font-bold">Formatos: JPG, PNG, WEBP</p>
+                          </div>
                       </div>
                       
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -186,7 +202,7 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                           ))}
                           {(!formData.galleryImages || formData.galleryImages.length === 0) && (
                               <div className="col-span-full text-center py-8 text-gray-400 text-sm italic">
-                                  Nenhuma foto na galeria. Adicione URLs acima.
+                                  Nenhuma foto na galeria. Faça upload acima.
                               </div>
                           )}
                       </div>

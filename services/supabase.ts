@@ -38,15 +38,18 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
     "registeredBy" text
   );
 
-  -- 5. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS)
-  -- Rode isso apenas uma vez para criar o bucket 'receipts'
+  -- 5. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS) e Galeria
+  -- Rode isso apenas uma vez para criar os buckets
   INSERT INTO storage.buckets (id, name, public) 
-  VALUES ('receipts', 'receipts', true)
+  VALUES ('receipts', 'receipts', true), ('gallery', 'gallery', true)
   ON CONFLICT (id) DO NOTHING;
 
   -- Políticas de Segurança para o Storage (Permitir Upload e Leitura pública)
-  CREATE POLICY "Public Access" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
-  CREATE POLICY "Public Upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
+  CREATE POLICY "Public Access Receipts" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
+  CREATE POLICY "Public Upload Receipts" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
+  
+  CREATE POLICY "Public Access Gallery" ON storage.objects FOR SELECT USING (bucket_id = 'gallery');
+  CREATE POLICY "Public Upload Gallery" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'gallery');
 
   -- Garante permissões de escrita
   GRANT ALL ON public.settings TO anon, authenticated, service_role;
@@ -298,6 +301,35 @@ export const uploadReceiptImage = async (file: File): Promise<string | null> => 
 
         // 2. Get Public URL
         const { data } = supabase.storage.from('receipts').getPublicUrl(filePath);
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Unexpected upload error:', error);
+        return null;
+    }
+};
+
+export const uploadGalleryImage = async (file: File): Promise<string | null> => {
+    if (!supabase) return null;
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+        
+        // 1. Upload
+        const { error: uploadError } = await supabase.storage
+            .from('gallery')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Error uploading gallery image:', uploadError);
+            if (uploadError.message.includes('Bucket not found')) {
+                alert("ERRO: Bucket 'gallery' não encontrado. Rode o SQL no Supabase!");
+            }
+            return null;
+        }
+
+        // 2. Get Public URL
+        const { data } = supabase.storage.from('gallery').getPublicUrl(filePath);
         return data.publicUrl;
     } catch (error) {
         console.error('Unexpected upload error:', error);
