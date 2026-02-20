@@ -235,48 +235,115 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     );
   };
 
-  // --- COMPONENTE: PRODUTOS ---
+  // --- COMPONENTE: PRODUTOS (NOVO DESIGN) ---
   const renderProductGrid = () => (
-    <div className="p-4">
-        {/* Busca e Categorias dentro do componente para ficarem no fluxo do layout */}
-        <div className="mb-4 space-y-3">
-             <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input type="text" placeholder="O que você quer comer?" className="w-full pl-10 pr-4 py-3 rounded-xl bg-gray-100 border-none focus:ring-2 focus:ring-orange-200 focus:bg-white transition-all font-medium text-sm" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+    <div className="p-4 md:p-6 pb-32">
+        
+        {/* HERO SECTION INTEGRADA */}
+        <div className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden mb-8 shadow-xl group">
+            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-10"></div>
+            <img 
+                src={settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png'} 
+                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" 
+                alt="Hero" 
+            />
+            <div className="absolute bottom-0 left-0 p-6 md:p-8 z-20">
+                <h2 className="text-white font-black text-3xl md:text-5xl drop-shadow-lg mb-2">{settings.customerWelcomeTitle || 'Bem-vindo'}</h2>
+                <p className="text-white/90 font-medium text-sm md:text-lg max-w-md">Escolha o que você quer comer e receba rapidinho!</p>
+            </div>
+        </div>
+
+        {/* BUSCA E FILTROS */}
+        <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-30 py-4 -mx-4 px-4 md:mx-0 md:px-0 mb-6 space-y-4">
+             <div className="relative group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={20} />
+                <input 
+                    type="text" 
+                    placeholder="O que você quer comer hoje?" 
+                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border-2 border-transparent focus:border-orange-200 focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700 shadow-sm group-hover:shadow-md" 
+                    value={searchTerm} 
+                    onChange={e => setSearchTerm(e.target.value)} 
+                />
              </div>
-             <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+             
+             <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
                 {categories.map(cat => (
-                    <button key={cat} onClick={() => setSelectedCategory(cat)} className={`whitespace-nowrap px-4 py-2 rounded-full text-xs font-bold transition-all border ${selectedCategory === cat ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200'}`}>{cat}</button>
+                    <button 
+                        key={cat} 
+                        onClick={() => setSelectedCategory(cat)} 
+                        className={`snap-start flex-shrink-0 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wide transition-all transform hover:scale-105 active:scale-95 ${selectedCategory === cat ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-400 hover:bg-gray-100'}`}
+                    >
+                        {cat}
+                    </button>
                 ))}
              </div>
         </div>
 
+        {/* GRID DE PRODUTOS */}
         {filteredProducts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
-                <UtensilsCrossed size={48} className="mb-2 opacity-50" />
-                <p>Nenhum produto encontrado.</p>
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400 animate-in fade-in zoom-in duration-500">
+                <div className="bg-gray-200 p-6 rounded-full mb-4">
+                    <UtensilsCrossed size={48} className="opacity-50" />
+                </div>
+                <p className="font-bold text-lg">Nenhum produto encontrado.</p>
+                <p className="text-sm">Tente buscar por outra coisa.</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredProducts.map(product => {
                     const inCart = cart.find(i => i.id === product.id);
-                    
-                    // --- CALCULA DISPONIBILIDADE REAL (INCLUINDO COMBO) ---
                     const maxStock = calculateMaxStock(product);
                     const isSoldOut = maxStock === 0;
 
                     return (
-                        <div key={product.id} className={`bg-white p-3 rounded-2xl shadow-sm border flex gap-4 overflow-hidden relative ${isSoldOut ? 'border-red-200 opacity-90' : 'border-gray-100'}`}>
-                                <div className="w-24 h-24 bg-gray-50 rounded-xl flex-shrink-0 relative">
-                                <img src={product.imageUrl} alt={product.name} className={`w-full h-full object-contain ${isSoldOut ? 'grayscale' : ''}`} />
-                                {isSoldOut && <div className="absolute inset-0 flex items-center justify-center bg-black/10 backdrop-blur-[1px] rounded-xl"><div className="bg-red-600 text-white font-black uppercase text-[10px] px-2 py-1 transform -rotate-12 border border-white shadow-sm">ESGOTADO</div></div>}
+                        <div key={product.id} className={`group bg-white rounded-3xl p-4 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-orange-100 transition-all duration-300 flex flex-col relative overflow-hidden ${isSoldOut ? 'opacity-60 grayscale' : ''}`}>
+                                
+                                {/* Imagem com Zoom no Hover */}
+                                <div className="h-48 bg-gray-50 rounded-2xl mb-4 relative overflow-hidden">
+                                    <img 
+                                        src={product.imageUrl} 
+                                        alt={product.name} 
+                                        className="w-full h-full object-contain p-4 transform group-hover:scale-110 transition-transform duration-500" 
+                                    />
+                                    {isSoldOut && (
+                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                                            <span className="bg-red-600 text-white font-black uppercase px-4 py-2 rounded-lg transform -rotate-6 shadow-lg border-2 border-white">Esgotado</span>
+                                        </div>
+                                    )}
+                                    {/* Badge de Quantidade no Card */}
+                                    {inCart && !isSoldOut && (
+                                        <div className="absolute top-2 right-2 bg-orange-600 text-white w-8 h-8 flex items-center justify-center rounded-full font-black shadow-lg animate-in zoom-in">
+                                            {inCart.quantity}
+                                        </div>
+                                    )}
                                 </div>
-                                <div className="flex-1 flex flex-col justify-between py-1">
-                                <div><h3 className="font-bold text-gray-800 leading-tight mb-1">{product.name}</h3><p className="text-xs text-gray-400 line-clamp-2">{product.description || product.category}</p></div>
-                                <div className="flex justify-between items-end">
-                                    <span className="text-lg font-black text-orange-600">{formatCurrency(product.price)}</span>
-                                    {isSoldOut ? <button disabled className="bg-gray-100 text-gray-400 cursor-not-allowed p-2 rounded-lg font-bold flex items-center gap-1"><Ban size={16} /> Indisponível</button> : inCart ? <div className="flex items-center gap-3 bg-gray-900 text-white rounded-lg p-1.5 shadow-lg shadow-gray-200"><button onClick={() => updateQuantity(product.id, -1)}><Minus size={14}/></button><span className="text-sm font-bold w-4 text-center">{inCart.quantity}</span><button onClick={() => updateQuantity(product.id, 1)}><Plus size={14}/></button></div> : <button onClick={() => addToCart(product)} className="bg-orange-100 text-orange-700 p-2 rounded-lg font-bold hover:bg-orange-200 transition-colors"><Plus size={20} /></button>}
-                                </div>
+
+                                <div className="flex-1 flex flex-col">
+                                    <div className="mb-4">
+                                        <h3 className="font-black text-gray-800 text-lg leading-tight mb-1 group-hover:text-orange-600 transition-colors">{product.name}</h3>
+                                        <p className="text-sm text-gray-400 line-clamp-2 font-medium">{product.description || product.category}</p>
+                                    </div>
+                                    
+                                    <div className="mt-auto flex items-center justify-between">
+                                        <span className="text-2xl font-black text-gray-900">{formatCurrency(product.price)}</span>
+                                        
+                                        {isSoldOut ? (
+                                            <button disabled className="bg-gray-100 text-gray-400 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider cursor-not-allowed">Indisponível</button>
+                                        ) : inCart ? (
+                                            <div className="flex items-center bg-gray-900 text-white rounded-xl p-1 shadow-lg">
+                                                <button onClick={() => updateQuantity(product.id, -1)} className="w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-lg transition-colors"><Minus size={18}/></button>
+                                                <span className="font-black w-8 text-center">{inCart.quantity}</span>
+                                                <button onClick={() => updateQuantity(product.id, 1)} className="w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-lg transition-colors"><Plus size={18}/></button>
+                                            </div>
+                                        ) : (
+                                            <button 
+                                                onClick={() => addToCart(product)} 
+                                                className="bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
+                                            >
+                                                <Plus size={24} strokeWidth={3} />
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                         </div>
                     );
@@ -286,53 +353,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     </div>
   );
 
-  // --- RENDERIZADOR DE BLOCOS (ENGINE DO LAYOUT) ---
+  // --- RENDERIZADOR DE BLOCOS (SIMPLIFICADO PARA O NOVO DESIGN) ---
   const renderLayout = () => {
-     return displayLayout.map(block => {
-        switch(block.type) {
-            case 'hero':
-                return (
-                    <div key={block.id} className={`relative w-full overflow-hidden ${block.style?.height === 'small' ? 'h-32' : block.style?.height === 'large' ? 'h-64' : 'h-48'} bg-gray-900`}>
-                        {/* 
-                            ALTERAÇÃO: 
-                            - object-contain: Garante que a imagem inteira apareça, sem cortar, ajustando-se ao container. 
-                            - bg-gray-900: Fundo escuro para preencher o espaço sobrando caso a imagem não seja larga o suficiente.
-                        */}
-                        <img src={block.imageUrl} className="w-full h-full object-contain" alt="Hero" />
-                        
-                        <div className={`absolute inset-0 flex items-center p-6 ${block.style?.alignment === 'center' ? 'justify-center text-center' : block.style?.alignment === 'right' ? 'justify-end text-right' : 'justify-start text-left'}`}>
-                            {/* Overlay de texto removido ou apenas sombra no texto para não cobrir a imagem */}
-                            <h2 className="text-white font-black text-2xl leading-tight drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] animate-in slide-in-from-bottom-2">{block.title}</h2>
-                        </div>
-                    </div>
-                );
-            case 'text':
-                return (
-                    <div key={block.id} className="p-4" style={{ backgroundColor: block.style?.backgroundColor || 'transparent', textAlign: block.style?.alignment || 'left' }}>
-                        {block.title && <h3 className="font-bold text-lg mb-1" style={{ color: block.style?.textColor || '#1f2937' }}>{block.title}</h3>}
-                        <p className="text-sm" style={{ color: block.style?.textColor || '#4b5563' }}>{block.content}</p>
-                    </div>
-                );
-            case 'marquee':
-                return (
-                    <div key={block.id} className="py-2 overflow-hidden whitespace-nowrap font-bold text-xs uppercase tracking-widest flex items-center" style={{ backgroundColor: block.style?.backgroundColor || '#ea580c', color: block.style?.textColor || '#ffffff' }}>
-                         <div className="animate-[marquee_20s_linear_infinite] px-4 flex gap-4">
-                             <span><AlertOctagon size={14} className="inline mr-1"/> {block.content}</span>
-                             <span><AlertOctagon size={14} className="inline mr-1"/> {block.content}</span>
-                             <span><AlertOctagon size={14} className="inline mr-1"/> {block.content}</span>
-                         </div>
-                    </div>
-                );
-            case 'image':
-                return <img key={block.id} src={block.imageUrl} className="w-full h-auto object-cover" />;
-            case 'spacer':
-                return <div key={block.id} style={{ height: block.style?.height === 'large' ? '60px' : '20px' }}></div>;
-            case 'products':
-                return <React.Fragment key={block.id}>{renderProductGrid()}</React.Fragment>;
-            default:
-                return null;
-        }
-     });
+     // Ignora o layout configurado e usa o fixo com o novo design
+     return renderProductGrid();
   };
 
   if (view === 'success') {

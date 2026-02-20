@@ -27,96 +27,71 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
     }
   };
 
-  // --- TELA DE BOAS-VINDAS (CLIENTE) - NOVO LAYOUT FULL SCREEN ---
+  // --- TELA DE BOAS-VINDAS (CLIENTE) - ESTILO GAME START ---
   if (!isLoginView) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col md:flex-row overflow-hidden bg-white">
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-blue-600 font-sans">
         
-        {/* LADO ESQUERDO (DESKTOP) / TOPO (MOBILE) - VISUAL IMPACTANTE */}
-        <div className="relative w-full md:w-1/2 h-[45%] md:h-full bg-yellow-400 flex items-center justify-center overflow-hidden border-b-4 md:border-b-0 md:border-r-4 border-black">
+        {/* BACKGROUND ANIMADO (Pixel Art / Game) */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ 
+            backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)',
+            backgroundSize: '60px 60px',
+            backgroundPosition: '0 0, 30px 30px'
+        }}></div>
+        
+        {/* Círculos flutuantes */}
+        <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-400 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce delay-700"></div>
+        <div className="absolute bottom-20 right-20 w-48 h-48 bg-pink-500 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce"></div>
+
+        <div className="relative z-10 flex flex-col items-center text-center w-full max-w-4xl px-4">
             
-            {/* Background Pattern */}
-            <div className="absolute inset-0 opacity-20" style={{ 
-                backgroundImage: 'radial-gradient(#ea580c 2px, transparent 2px)', 
-                backgroundSize: '24px 24px' 
-            }}></div>
-
-            {/* Sunburst Animation */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-20">
-                 <div className="w-[200vmax] h-[200vmax] bg-[conic-gradient(from_0deg,transparent_0_15deg,#ea580c_15deg_30deg,transparent_30deg_45deg,#ea580c_45deg_60deg,transparent_60deg_75deg,#ea580c_75deg_90deg,transparent_90deg_105deg,#ea580c_105deg_120deg,transparent_120deg_135deg,#ea580c_135deg_150deg,transparent_150deg_165deg,#ea580c_165deg_180deg,transparent_180deg_195deg,#ea580c_195deg_210deg,transparent_210deg_225deg,#ea580c_225deg_240deg,transparent_240deg_255deg,#ea580c_255deg_270deg,transparent_270deg_285deg,#ea580c_285deg_300deg,transparent_300deg_315deg,#ea580c_315deg_330deg,transparent_330deg_345deg,#ea580c_345deg_360deg)] animate-[spin_60s_linear_infinite]"></div>
-            </div>
-
-            <div className="relative z-10 flex flex-col items-center text-center p-6 animate-in zoom-in duration-500">
-                {/* Mascote */}
-                <div className="relative w-40 h-40 md:w-80 md:h-80 mb-4 md:mb-8 transition-transform hover:scale-105 duration-300">
-                    <div className="absolute inset-0 bg-white rounded-full border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-0"></div>
-                    <img 
-                        src={settings.mascotUrl} 
-                        alt="Logo" 
-                        className="w-full h-full object-contain relative z-10 p-4 drop-shadow-lg"
-                    />
-                    {/* Balão "Fome?!" */}
-                    <div className="absolute -top-4 -right-8 md:top-0 md:-right-12 bg-white border-4 border-black px-3 py-1 md:px-5 md:py-2 rounded-2xl rounded-bl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-bounce z-20 transform rotate-12">
-                        <span className="font-black text-lg md:text-3xl text-black uppercase">Fome?!</span>
-                    </div>
+            {/* TURMA EM DESTAQUE (Topo) */}
+            <div className="mb-8 animate-in slide-in-from-top duration-700">
+                <div className="bg-white text-blue-600 px-8 py-2 rounded-full border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-3 hover:rotate-0 transition-transform cursor-default">
+                    <span className="text-2xl md:text-4xl font-black uppercase tracking-widest">{settings.schoolClass || '9ºB'}</span>
                 </div>
-
-                {/* Título */}
-                <h1 className="text-4xl md:text-7xl font-black text-white tracking-tighter drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black leading-none" style={{ WebkitTextStroke: '1.5px black' }}>
-                    {settings.appName}
-                </h1>
             </div>
-        </div>
 
-        {/* LADO DIREITO (DESKTOP) / BAIXO (MOBILE) - AÇÕES */}
-        <div className="w-full md:w-1/2 h-[55%] md:h-full bg-white flex flex-col items-center justify-center p-6 md:p-12 relative">
-            
-            <div className="w-full max-w-md flex flex-col gap-6 md:gap-8 animate-in slide-in-from-bottom-8 duration-700 delay-100">
-                
-                <div className="text-center md:text-left">
-                    <h2 className="text-3xl md:text-5xl font-black text-black mb-2 tracking-tight">Bora comer?</h2>
-                    <p className="text-gray-500 font-bold text-lg md:text-xl">Faça seu pedido agora mesmo!</p>
+            {/* LOGO E TÍTULO */}
+            <div className="relative mb-12 group cursor-pointer" onClick={onCustomerStart}>
+                <div className="absolute inset-0 bg-white rounded-full scale-110 blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
+                <img 
+                    src={settings.mascotUrl} 
+                    alt="Mascote" 
+                    className="w-48 h-48 md:w-64 md:h-64 object-contain relative z-10 drop-shadow-2xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300"
+                />
+                <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-4 py-1 rounded border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] whitespace-nowrap z-20">
+                    <span className="font-black text-xs uppercase">Estou com fome!</span>
                 </div>
+            </div>
 
-                {/* BOTÃO CLIENTE GIGANTE */}
-                <button 
-                    onClick={onCustomerStart}
-                    className="w-full bg-red-500 text-white p-6 md:p-10 rounded-3xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all group relative overflow-hidden flex items-center justify-between"
-                >
-                    <div className="flex flex-col items-start">
-                        <span className="text-2xl md:text-4xl font-black uppercase tracking-wide leading-none mb-1">Sou Cliente</span>
-                        <span className="text-xs md:text-sm font-bold text-yellow-200 uppercase tracking-wider bg-black/20 px-2 py-1 rounded">Toque para pedir</span>
-                    </div>
-                    <div className="bg-white/20 p-3 md:p-4 rounded-full border-2 border-white/30 group-hover:scale-110 transition-transform">
-                        <Utensils size={32} md:size={48} className="text-white" strokeWidth={3} />
-                    </div>
-                </button>
+            <h1 className="text-5xl md:text-8xl font-black text-white tracking-tighter mb-8 drop-shadow-[6px_6px_0px_rgba(0,0,0,1)] stroke-black leading-none transform hover:scale-105 transition-transform" style={{ WebkitTextStroke: '3px black' }}>
+                {settings.appName}
+            </h1>
 
-                {/* DIVISOR */}
-                <div className="flex items-center gap-4 w-full opacity-50">
-                    <div className="h-1 bg-gray-200 flex-1 rounded-full"></div>
-                    <span className="text-xs font-black text-gray-400 uppercase">OU</span>
-                    <div className="h-1 bg-gray-200 flex-1 rounded-full"></div>
+            {/* BOTÃO START (Gigante) */}
+            <button 
+                onClick={onCustomerStart}
+                className="group relative inline-flex items-center justify-center gap-4 bg-green-500 text-white px-12 py-6 rounded-2xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all mb-12"
+            >
+                <Smartphone size={40} className="animate-wiggle" strokeWidth={2.5} />
+                <div className="flex flex-col items-start">
+                    <span className="text-3xl md:text-5xl font-black uppercase tracking-wide leading-none">START</span>
+                    <span className="text-xs md:text-sm font-bold text-green-900 uppercase tracking-widest bg-green-400 px-2 rounded">Toque para começar</span>
                 </div>
+                <ArrowRight size={40} className="group-hover:translate-x-2 transition-transform" strokeWidth={3} />
+            </button>
 
-                {/* BOTÃO EQUIPE */}
-                <button 
-                    onClick={() => setIsLoginView(true)}
-                    className="w-full bg-gray-100 text-gray-800 p-4 rounded-2xl border-2 border-gray-300 hover:border-black hover:bg-white hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transition-all flex items-center justify-center gap-3 group"
-                >
-                    <Store size={20} className="text-gray-500 group-hover:text-black transition-colors" />
-                    <span className="font-black uppercase tracking-wider text-sm">Acesso da Equipe</span>
-                </button>
-
-            </div>
-
-            {/* RODAPÉ */}
-            <div className="absolute bottom-6 left-0 w-full text-center opacity-60">
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{settings.schoolClass} • Feira Cultural</p>
-            </div>
+            {/* ACESSO EQUIPE (Rodapé) */}
+            <button 
+                onClick={() => setIsLoginView(true)}
+                className="text-white/80 hover:text-white font-bold text-sm uppercase tracking-widest flex items-center gap-2 bg-black/20 px-6 py-3 rounded-full hover:bg-black/40 transition-all border border-white/10"
+            >
+                <Store size={16} />
+                Área Restrita (Equipe)
+            </button>
 
         </div>
-
       </div>
     );
   }
