@@ -115,6 +115,14 @@ export interface LayoutBlock {
   };
 }
 
+// NOVA INTERFACE: GALERIA DE FOTOS
+export interface GalleryImage {
+  id: string;
+  url: string;
+  caption?: string;
+  timestamp: number;
+}
+
 export interface AppSettings {
   appName: string;
   schoolClass: string;
@@ -127,6 +135,9 @@ export interface AppSettings {
   // Layout Builder (Novo)
   customerLayout?: LayoutBlock[]; // Array de blocos que define a home do cliente
   
+  // Galeria da Turma (Novo)
+  galleryImages?: GalleryImage[];
+
   // Mantemos compatibilidade com campos antigos, mas o customerLayout terá prioridade
   customerHeroUrl?: string; 
   customerWelcomeTitle?: string; 

@@ -11,6 +11,7 @@ interface LoginScreenProps {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCustomerStart, settings }) => {
   const [isLoginView, setIsLoginView] = useState(false);
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -82,16 +83,62 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
                 <ArrowRight size={40} className="group-hover:translate-x-2 transition-transform" strokeWidth={3} />
             </button>
 
-            {/* ACESSO EQUIPE (Rodapé) */}
-            <button 
-                onClick={() => setIsLoginView(true)}
-                className="text-white/80 hover:text-white font-bold text-sm uppercase tracking-widest flex items-center gap-2 bg-black/20 px-6 py-3 rounded-full hover:bg-black/40 transition-all border border-white/10"
-            >
-                <Store size={16} />
-                Área Restrita (Equipe)
-            </button>
+            {/* BOTÕES SECUNDÁRIOS */}
+            <div className="flex flex-col md:flex-row gap-4 items-center">
+                <button 
+                    onClick={() => setIsGalleryOpen(true)}
+                    className="text-white font-bold text-sm uppercase tracking-widest flex items-center gap-2 bg-pink-500 px-6 py-3 rounded-full hover:bg-pink-600 transition-all border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none"
+                >
+                    <Utensils size={18} />
+                    Galeria da Turma
+                </button>
+
+                <button 
+                    onClick={() => setIsLoginView(true)}
+                    className="text-white/80 hover:text-white font-bold text-sm uppercase tracking-widest flex items-center gap-2 bg-black/20 px-6 py-3 rounded-full hover:bg-black/40 transition-all border border-white/10"
+                >
+                    <Store size={16} />
+                    Área Restrita
+                </button>
+            </div>
 
         </div>
+
+        {/* MODAL DA GALERIA */}
+        {isGalleryOpen && (
+            <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
+                <div className="p-4 flex justify-between items-center bg-black/50 border-b border-white/10">
+                    <h2 className="text-white font-black text-xl uppercase tracking-widest flex items-center gap-2">
+                        <Utensils className="text-pink-500" /> Galeria {settings.schoolClass}
+                    </h2>
+                    <button onClick={() => setIsGalleryOpen(false)} className="text-white hover:text-pink-500 transition-colors bg-white/10 p-2 rounded-full">
+                        <ArrowLeft size={24} />
+                    </button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-4 md:p-8">
+                    {(!settings.galleryImages || settings.galleryImages.length === 0) ? (
+                        <div className="h-full flex flex-col items-center justify-center text-white/50">
+                            <Utensils size={64} className="mb-4 opacity-20" />
+                            <p className="font-bold text-xl">Ainda não temos fotos!</p>
+                            <p className="text-sm">Peça para o professor adicionar algumas.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto">
+                            {settings.galleryImages.map((img, idx) => (
+                                <div key={img.id} className="group relative aspect-square bg-gray-800 rounded-2xl overflow-hidden border-4 border-white shadow-2xl transform hover:scale-105 transition-transform duration-300 rotate-1 hover:rotate-0">
+                                    <img src={img.url} className="w-full h-full object-cover" alt="Galeria" />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                                        <span className="text-white font-bold text-sm">Foto #{idx + 1}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
       </div>
     );
   }

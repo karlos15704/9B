@@ -147,6 +147,52 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
               </div>
 
 
+              {/* GALERIA DA TURMA (NOVO) */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                      <ImageIcon className="text-pink-500"/> Galeria da Turma (9ºB)
+                  </h3>
+                  <div className="space-y-4">
+                      <div className="flex gap-2">
+                          <input 
+                            type="url" 
+                            placeholder="Cole a URL da imagem aqui..." 
+                            className="flex-1 border-2 border-gray-200 rounded-lg p-2 text-sm"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    const val = e.currentTarget.value;
+                                    if (val) {
+                                        const newImg = { id: Date.now().toString(), url: val, timestamp: Date.now() };
+                                        setFormData(prev => ({ ...prev, galleryImages: [newImg, ...(prev.galleryImages || [])] }));
+                                        e.currentTarget.value = '';
+                                    }
+                                }
+                            }}
+                          />
+                          <button className="bg-pink-500 text-white px-4 py-2 rounded-lg font-bold text-sm">Adicionar</button>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {formData.galleryImages?.map(img => (
+                              <div key={img.id} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                  <img src={img.url} className="w-full h-full object-cover" />
+                                  <button 
+                                    onClick={() => setFormData(prev => ({ ...prev, galleryImages: prev.galleryImages?.filter(i => i.id !== img.id) }))}
+                                    className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                  >
+                                      <Users size={14} />
+                                  </button>
+                              </div>
+                          ))}
+                          {(!formData.galleryImages || formData.galleryImages.length === 0) && (
+                              <div className="col-span-full text-center py-8 text-gray-400 text-sm italic">
+                                  Nenhuma foto na galeria. Adicione URLs acima.
+                              </div>
+                          )}
+                      </div>
+                  </div>
+              </div>
+
               {/* MÓDULOS */}
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
