@@ -240,16 +240,31 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     <div className="p-4 md:p-6 pb-32">
         
         {/* HERO SECTION INTEGRADA */}
-        <div className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden mb-8 shadow-xl group">
-            <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-transparent z-10"></div>
+        <div className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden mb-8 shadow-xl group bg-gray-900">
+            
+            {/* Background Desfocado para preencher o espaço */}
+            <div 
+                className="absolute inset-0 opacity-40 blur-2xl scale-110 transition-opacity duration-700"
+                style={{ 
+                    backgroundImage: `url(${settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png'})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center'
+                }}
+            ></div>
+
+            {/* Gradiente para garantir leitura do texto */}
+            <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent z-10"></div>
+            
+            {/* Imagem Principal (Sem cortar) */}
             <img 
                 src={settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png'} 
-                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" 
+                className="relative z-10 w-full h-full object-contain p-2 md:p-4 origin-right md:origin-center transform group-hover:scale-105 transition-transform duration-700" 
                 alt="Hero" 
             />
-            <div className="absolute bottom-0 left-0 p-6 md:p-8 z-20">
-                <h2 className="text-white font-black text-3xl md:text-5xl drop-shadow-lg mb-2">{settings.customerWelcomeTitle || 'Bem-vindo'}</h2>
-                <p className="text-white/90 font-medium text-sm md:text-lg max-w-md">Escolha o que você quer comer e receba rapidinho!</p>
+            
+            <div className="absolute bottom-0 left-0 p-6 md:p-8 z-20 max-w-lg">
+                <h2 className="text-white font-black text-3xl md:text-5xl drop-shadow-lg mb-2 leading-tight">{settings.customerWelcomeTitle || 'Bem-vindo'}</h2>
+                <p className="text-white/90 font-medium text-sm md:text-lg drop-shadow-md">Escolha o que você quer comer e receba rapidinho!</p>
             </div>
         </div>
 
