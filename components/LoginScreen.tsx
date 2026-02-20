@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
 import { User, AppSettings } from '../types';
-import { UserCircle2, Lock, ArrowRight, Smartphone } from 'lucide-react';
+import { UserCircle2, Lock, ArrowRight, Smartphone, ChefHat, ArrowLeft, Store, Utensils } from 'lucide-react';
 
 interface LoginScreenProps {
   availableUsers: User[];
   onLogin: (user: User) => void;
   onCustomerStart: () => void;
-  settings: AppSettings; // Recebe configurações dinâmicas
+  settings: AppSettings;
 }
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCustomerStart, settings }) => {
+  const [isLoginView, setIsLoginView] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -26,70 +27,119 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-orange-50 z-50 flex items-center justify-center overflow-hidden p-4">
-      
-      {/* Background Glow */}
-      <div className="fixed inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-orange-200/40 via-transparent to-transparent pointer-events-none"></div>
-
-      {/* Card Principal */}
-      <div className="bg-white rounded-3xl shadow-[0_20px_50px_rgba(249,115,22,0.15)] p-6 md:p-8 w-full max-w-sm border border-orange-100 flex flex-col items-center animate-in zoom-in-95 duration-300 relative z-10 max-h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
+  // --- TELA DE BOAS-VINDAS (CLIENTE) - ESTILO CARTOON / POP ART ---
+  if (!isLoginView) {
+    return (
+      <div className="fixed inset-0 bg-yellow-400 z-50 flex flex-col items-center justify-center overflow-hidden relative">
         
-        {/* Decorative Fire Background Glow behind mascot */}
-        <div className="absolute -top-10 -left-10 w-32 h-32 bg-orange-100/50 rounded-full blur-3xl pointer-events-none"></div>
-        <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-100/30 rounded-full blur-3xl pointer-events-none"></div>
+        {/* Background Pattern (Bolinhas Pop Art) */}
+        <div className="absolute inset-0 opacity-20" style={{ 
+            backgroundImage: 'radial-gradient(#ea580c 2px, transparent 2px)', 
+            backgroundSize: '20px 20px' 
+        }}></div>
 
-        {/* Mascote (Tamanho Reduzido) */}
-        <div className="relative w-20 h-20 md:w-24 md:h-24 mb-1 flex-shrink-0">
-          <div className="absolute inset-0 bg-orange-200 rounded-full blur-2xl opacity-40 scale-125 animate-pulse"></div>
-          <img 
-            src={settings.mascotUrl} // Dinâmico
-            alt="Mascote" 
-            className="w-full h-full object-contain relative z-10 mix-blend-multiply drop-shadow-[0_5px_5px_rgba(0,0,0,0.2)] animate-mascot-slow"
-          />
+        {/* Raios de Sol Girando (Animação Lenta) */}
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-30">
+             <div className="w-[200vw] h-[200vw] bg-[conic-gradient(from_0deg,transparent_0_15deg,#ea580c_15deg_30deg,transparent_30deg_45deg,#ea580c_45deg_60deg,transparent_60deg_75deg,#ea580c_75deg_90deg,transparent_90deg_105deg,#ea580c_105deg_120deg,transparent_120deg_135deg,#ea580c_135deg_150deg,transparent_150deg_165deg,#ea580c_165deg_180deg,transparent_180deg_195deg,#ea580c_195deg_210deg,transparent_210deg_225deg,#ea580c_225deg_240deg,transparent_240deg_255deg,#ea580c_255deg_270deg,transparent_270deg_285deg,#ea580c_285deg_300deg,transparent_300deg_315deg,#ea580c_315deg_330deg,transparent_330deg_345deg,#ea580c_345deg_360deg)] animate-[spin_60s_linear_infinite]"></div>
         </div>
 
-        {/* Burning Title */}
-        <h2 className="text-3xl md:text-4xl font-black mb-0.5 tracking-tighter text-fire text-center flex-shrink-0">
-          {settings.appName} {/* Dinâmico */}
-        </h2>
-        
-        {/* --- BOTÃO DE AUTOATENDIMENTO (CLIENTE) --- */}
-        <div className="w-full mt-4 mb-6">
+        <div className="relative z-10 flex flex-col items-center w-full max-w-md px-6 text-center">
+            
+            {/* Logo / Mascote Grande com Borda Grossa */}
+            <div className="relative w-56 h-56 mb-4 animate-bounce hover:scale-110 transition-transform duration-300 cursor-pointer">
+                <div className="absolute inset-0 bg-white rounded-full border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] z-0"></div>
+                <img 
+                    src={settings.mascotUrl} 
+                    alt="Logo" 
+                    className="w-full h-full object-contain relative z-10 p-4 drop-shadow-lg"
+                />
+                {/* Balão de Fala */}
+                <div className="absolute -top-6 -right-10 bg-white border-4 border-black px-4 py-2 rounded-2xl rounded-bl-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] animate-pulse z-20 transform rotate-6">
+                    <span className="font-black text-xl text-black uppercase">Fome?!</span>
+                </div>
+            </div>
+
+            {/* Título Estilo Gibi */}
+            <h1 className="text-6xl md:text-7xl font-black text-white tracking-tighter mb-2 drop-shadow-[4px_4px_0px_rgba(0,0,0,1)] stroke-black" style={{ WebkitTextStroke: '2px black' }}>
+                {settings.appName}
+            </h1>
+            <p className="text-xl text-black font-black bg-white px-4 py-1 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] -rotate-2 mb-10 transform hover:rotate-0 transition-transform">
+                O LANCHE MAIS TOP DA FEIRA!
+            </p>
+
+            {/* BOTÃO PRINCIPAL (CLIENTE) - Estilo Botão de Arcade */}
             <button 
                 onClick={onCustomerStart}
-                className="w-full bg-orange-600 text-white p-4 rounded-xl shadow-lg shadow-orange-200 hover:bg-orange-700 hover:scale-[1.02] active:scale-95 transition-all group relative overflow-hidden"
+                className="w-full bg-red-500 text-white p-6 rounded-3xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[4px] hover:translate-y-[4px] hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:translate-x-[8px] active:translate-y-[8px] active:shadow-none transition-all group relative overflow-hidden mb-8"
             >
-                <div className="absolute inset-0 bg-gradient-to-r from-orange-400/0 via-white/20 to-orange-400/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-                <div className="flex flex-col items-center justify-center relative z-10">
-                    <span className="flex items-center gap-2 font-black uppercase text-sm tracking-wider mb-1">
-                        <Smartphone size={18} /> Sou Cliente
-                    </span>
-                    <span className="text-xs font-medium opacity-90">Toque aqui para fazer seu pedido</span>
+                <div className="flex items-center justify-center gap-4 relative z-10">
+                    <Utensils size={40} className="text-yellow-300 animate-wiggle" strokeWidth={3} />
+                    <div className="flex flex-col items-start">
+                        <span className="text-3xl font-black uppercase tracking-wide leading-none drop-shadow-md">QUERO COMER!</span>
+                        <span className="text-sm font-bold text-yellow-200 uppercase tracking-wider">Clique para pedir agora</span>
+                    </div>
                 </div>
             </button>
-            <div className="flex items-center gap-2 my-4 w-full">
-                <div className="h-px bg-gray-200 flex-1"></div>
-                <span className="text-[10px] font-bold text-gray-400 uppercase">Área Restrita</span>
-                <div className="h-px bg-gray-200 flex-1"></div>
+
+            {/* Botão Discreto da Equipe - Estilo "Selo" */}
+            <button 
+                onClick={() => setIsLoginView(true)}
+                className="text-black font-black text-xs uppercase tracking-widest flex items-center gap-2 px-4 py-2 bg-white border-2 border-black rounded-full shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-gray-100 hover:scale-105 transition-all"
+            >
+                <Store size={14} strokeWidth={3} />
+                Área da Equipe
+            </button>
+
+            {/* Rodapé Escola */}
+            <div className="mt-8 flex items-center gap-2 opacity-80 hover:opacity-100 transition-opacity">
+                <div className="bg-black text-white px-2 py-1 font-black text-[10px] uppercase rounded">Projeto</div>
+                <span className="text-xs font-black text-black uppercase">{settings.schoolClass} • Feira Cultural</span>
             </div>
         </div>
+      </div>
+    );
+  }
 
-        <form onSubmit={handleLogin} className="w-full space-y-3 relative z-10 flex-shrink-0">
+  // --- TELA DE LOGIN (EQUIPE) - ESTILO COFRE/SECRETO ---
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+      
+      <div className="bg-white rounded-3xl border-4 border-black shadow-[10px_10px_0px_0px_#ea580c] p-8 w-full max-w-sm relative overflow-hidden">
+        
+        {/* Faixa de "Perigo" */}
+        <div className="absolute top-0 left-0 w-full h-4 bg-yellow-400 border-b-4 border-black" style={{ backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 50%, #000 50%, #000 75%, transparent 75%, transparent)', backgroundSize: '20px 20px' }}></div>
+
+        <button 
+            onClick={() => setIsLoginView(false)}
+            className="absolute top-6 left-4 p-2 text-black hover:bg-yellow-300 border-2 border-transparent hover:border-black rounded-lg transition-all"
+            title="Voltar"
+        >
+            <ArrowLeft size={24} strokeWidth={3} />
+        </button>
+
+        <div className="flex flex-col items-center mb-6 mt-6">
+            <div className="w-20 h-20 bg-orange-500 rounded-2xl flex items-center justify-center mb-3 text-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -rotate-3">
+                <ChefHat size={40} strokeWidth={2.5} />
+            </div>
+            <h2 className="text-3xl font-black text-black uppercase tracking-tighter">Área Restrita</h2>
+            <p className="text-xs text-white bg-black px-2 py-1 font-bold uppercase tracking-wider transform rotate-2">Somente Funcionários</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">Perfil</label>
+            <label className="text-xs font-black text-black uppercase ml-1 tracking-wider">Quem é você?</label>
             <div className="relative group">
-              <UserCircle2 className="absolute left-3 top-3 text-orange-400 group-focus-within:text-orange-600 transition-colors" size={18} />
+              <UserCircle2 className="absolute left-3 top-3.5 text-black z-10" size={20} strokeWidth={2.5} />
               <select 
                 value={selectedUserId}
                 onChange={(e) => {
                   setSelectedUserId(e.target.value);
                   setError(false);
                 }}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border-2 border-orange-100 bg-white focus:border-orange-500 focus:ring-4 focus:ring-orange-500/10 focus:outline-none appearance-none text-gray-700 font-bold text-sm transition-all cursor-pointer shadow-sm hover:border-orange-200"
+                className="w-full pl-10 pr-4 py-3 rounded-xl border-4 border-black bg-gray-50 focus:bg-yellow-50 focus:outline-none appearance-none text-black font-bold text-sm transition-all cursor-pointer shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]"
                 required
               >
-                <option value="" disabled>Quem é você?</option>
+                <option value="" disabled>Selecione seu usuário</option>
                 {availableUsers.map(user => (
                   <option key={user.id} value={user.id}>{user.name}</option>
                 ))}
@@ -98,9 +148,9 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
           </div>
 
           <div className="space-y-1">
-             <label className="text-[10px] font-bold text-gray-500 uppercase ml-1 tracking-wider">Senha</label>
+             <label className="text-xs font-black text-black uppercase ml-1 tracking-wider">Senha Secreta</label>
              <div className="relative group">
-               <Lock className="absolute left-3 top-3 text-orange-400 group-focus-within:text-orange-600 transition-colors" size={18} />
+               <Lock className="absolute left-3 top-3.5 text-black z-10" size={20} strokeWidth={2.5} />
                <input 
                  type="password"
                  value={password}
@@ -108,15 +158,15 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
                    setPassword(e.target.value);
                    setError(false);
                  }}
-                 className={`w-full pl-10 pr-4 py-2.5 rounded-xl border-2 bg-white focus:outline-none transition-all font-bold text-gray-700 tracking-widest text-sm
-                   ${error ? 'border-red-300 bg-red-50 focus:border-red-500 focus:ring-red-500/10' : 'border-orange-100 focus:border-orange-500 focus:ring-orange-500/10 hover:border-orange-200 shadow-sm'}`}
+                 className={`w-full pl-10 pr-4 py-3 rounded-xl border-4 bg-gray-50 focus:bg-yellow-50 focus:outline-none transition-all font-bold text-black tracking-widest text-sm shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)]
+                   ${error ? 'border-red-500 bg-red-50' : 'border-black'}`}
                  placeholder="••••"
                />
              </div>
              {error && (
-               <div className="flex items-center gap-1.5 text-red-500 text-[10px] font-bold ml-1 animate-in slide-in-from-top-1 duration-200">
+               <div className="flex items-center gap-1.5 text-white bg-red-600 px-2 py-1 rounded border-2 border-black text-[10px] font-bold ml-1 animate-bounce inline-block transform rotate-1">
                  <ArrowRight size={10} className="rotate-180" />
-                 Senha incorreta.
+                 SENHA ERRADA!
                </div>
              )}
           </div>
@@ -124,32 +174,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
           <button 
             type="submit"
             disabled={!selectedUserId || !password}
-            className="w-full bg-gray-900 text-white font-black py-3 rounded-xl hover:bg-orange-600 transition-all shadow-lg shadow-gray-200 hover:shadow-orange-300/50 flex items-center justify-center gap-2 mt-2 disabled:opacity-50 disabled:cursor-not-allowed group active:scale-95 overflow-hidden relative text-sm"
+            className="w-full bg-black text-white font-black py-4 rounded-xl hover:bg-gray-800 transition-all shadow-[4px_4px_0px_0px_#ea580c] flex items-center justify-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed active:translate-x-[2px] active:translate-y-[2px] active:shadow-none border-2 border-transparent hover:border-orange-500"
           >
-            <span className="relative z-10 flex items-center gap-2">
-              ACESSAR SISTEMA
-              <ArrowRight size={16} className="group-hover:translate-x-1.5 transition-transform" />
-            </span>
+            ENTRAR
+            <ArrowRight size={20} strokeWidth={3} />
           </button>
         </form>
-        
-        {/* RODAPÉ DA ESCOLA */}
-        <div className="mt-4 pt-3 border-t border-orange-100 w-full flex flex-col items-center gap-2 flex-shrink-0">
-           <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Projeto Feira Cultural</p>
-           
-           <div className="relative group cursor-help select-none mt-1"> 
-             <div className="flex items-center gap-2 bg-gray-900 py-1.5 px-3 rounded-full shadow-md transform group-hover:scale-105 transition-all border border-gray-800 relative z-10 group-hover:border-orange-500/50">
-                <div className="relative h-6 w-6 flex items-center justify-center origin-bottom">
-                   <img src={settings.schoolLogoUrl} alt="Escola" className="w-full h-full object-contain relative z-20" /> {/* Dinâmico */}
-                   <div className="absolute inset-0 bg-yellow-400 blur-md opacity-0 group-hover:opacity-40 z-10 rounded-full"></div>
-                </div>
-                <div className="h-3 w-px bg-gray-700 group-hover:bg-red-500 transition-colors"></div>
-                <span className="text-yellow-400 font-black text-xs tracking-tighter group-hover:text-fire transition-all">
-                  {settings.schoolClass} {/* Dinâmico */}
-                </span>
-             </div>
-           </div>
-        </div>
       </div>
     </div>
   );
