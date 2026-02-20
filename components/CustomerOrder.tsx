@@ -304,58 +304,59 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 <p className="text-sm">Tente buscar por outra coisa.</p>
             </div>
         ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                 {filteredProducts.map(product => {
                     const inCart = cart.find(i => i.id === product.id);
                     const maxStock = calculateMaxStock(product);
                     const isSoldOut = maxStock === 0;
 
                     return (
-                        <div key={product.id} className={`group bg-white rounded-3xl p-4 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-orange-100 transition-all duration-300 flex flex-col relative overflow-hidden ${isSoldOut ? 'opacity-60 grayscale' : ''}`}>
+                        <div key={product.id} className={`group bg-white rounded-2xl md:rounded-3xl p-2 md:p-4 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-orange-100 transition-all duration-300 flex flex-col relative overflow-hidden ${isSoldOut ? 'opacity-60 grayscale' : ''}`}>
                                 
                                 {/* Imagem com Zoom no Hover */}
-                                <div className="h-48 bg-gray-50 rounded-2xl mb-4 relative overflow-hidden">
+                                <div className="h-28 md:h-48 bg-gray-50 rounded-xl md:rounded-2xl mb-2 md:mb-4 relative overflow-hidden">
                                     <img 
                                         src={product.imageUrl} 
                                         alt={product.name} 
-                                        className="w-full h-full object-contain p-4 transform group-hover:scale-110 transition-transform duration-500" 
+                                        className="w-full h-full object-contain p-2 md:p-4 transform group-hover:scale-110 transition-transform duration-500" 
                                     />
                                     {isSoldOut && (
                                         <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
-                                            <span className="bg-red-600 text-white font-black uppercase px-4 py-2 rounded-lg transform -rotate-6 shadow-lg border-2 border-white">Esgotado</span>
+                                            <span className="bg-red-600 text-white font-black uppercase px-2 md:px-4 py-1 md:py-2 text-[10px] md:text-sm rounded-lg transform -rotate-6 shadow-lg border-2 border-white">Esgotado</span>
                                         </div>
                                     )}
                                     {/* Badge de Quantidade no Card */}
                                     {inCart && !isSoldOut && (
-                                        <div className="absolute top-2 right-2 bg-orange-600 text-white w-8 h-8 flex items-center justify-center rounded-full font-black shadow-lg animate-in zoom-in">
+                                        <div className="absolute top-1 right-1 md:top-2 md:right-2 bg-orange-600 text-white w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full font-black text-xs md:text-base shadow-lg animate-in zoom-in">
                                             {inCart.quantity}
                                         </div>
                                     )}
                                 </div>
 
                                 <div className="flex-1 flex flex-col">
-                                    <div className="mb-4">
-                                        <h3 className="font-black text-gray-800 text-lg leading-tight mb-1 group-hover:text-orange-600 transition-colors">{product.name}</h3>
-                                        <p className="text-sm text-gray-400 line-clamp-2 font-medium">{product.description || product.category}</p>
+                                    <div className="mb-2 md:mb-4">
+                                        <h3 className="font-black text-gray-800 text-xs md:text-lg leading-tight mb-1 group-hover:text-orange-600 transition-colors line-clamp-2">{product.name}</h3>
+                                        <p className="text-[10px] md:text-sm text-gray-400 line-clamp-2 font-medium hidden md:block">{product.description || product.category}</p>
                                     </div>
                                     
-                                    <div className="mt-auto flex items-center justify-between">
-                                        <span className="text-2xl font-black text-gray-900">{formatCurrency(product.price)}</span>
+                                    <div className="mt-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-0">
+                                        <span className="text-sm md:text-2xl font-black text-gray-900">{formatCurrency(product.price)}</span>
                                         
                                         {isSoldOut ? (
-                                            <button disabled className="bg-gray-100 text-gray-400 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-wider cursor-not-allowed">Indisponível</button>
+                                            <button disabled className="w-full md:w-auto bg-gray-100 text-gray-400 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-wider cursor-not-allowed">Esgotado</button>
                                         ) : inCart ? (
-                                            <div className="flex items-center bg-gray-900 text-white rounded-xl p-1 shadow-lg">
-                                                <button onClick={() => updateQuantity(product.id, -1)} className="w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-lg transition-colors"><Minus size={18}/></button>
-                                                <span className="font-black w-8 text-center">{inCart.quantity}</span>
-                                                <button onClick={() => updateQuantity(product.id, 1)} className="w-10 h-10 flex items-center justify-center hover:bg-white/20 rounded-lg transition-colors"><Plus size={18}/></button>
+                                            <div className="w-full md:w-auto flex items-center justify-between bg-gray-900 text-white rounded-lg md:rounded-xl p-1 shadow-lg">
+                                                <button onClick={() => updateQuantity(product.id, -1)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/20 rounded-md md:rounded-lg transition-colors"><Minus size={14} className="md:w-5 md:h-5"/></button>
+                                                <span className="font-black w-6 md:w-8 text-center text-sm md:text-base">{inCart.quantity}</span>
+                                                <button onClick={() => updateQuantity(product.id, 1)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/20 rounded-md md:rounded-lg transition-colors"><Plus size={14} className="md:w-5 md:h-5"/></button>
                                             </div>
                                         ) : (
                                             <button 
                                                 onClick={() => addToCart(product)} 
-                                                className="bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
+                                                className="w-full md:w-12 h-8 md:h-12 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
                                             >
-                                                <Plus size={24} strokeWidth={3} />
+                                                <span className="md:hidden text-[10px] font-black uppercase mr-1">Adicionar</span>
+                                                <Plus size={16} className="md:w-6 md:h-6" strokeWidth={3} />
                                             </button>
                                         )}
                                     </div>
