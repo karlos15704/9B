@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, AppSettings } from '../types';
-import { UserCircle2, Lock, ArrowRight, Smartphone, ChefHat, ArrowLeft, Store, Utensils } from 'lucide-react';
+import { UserCircle2, Lock, ArrowRight, Smartphone, ChefHat, ArrowLeft, Store, Utensils, X } from 'lucide-react';
 
 interface LoginScreenProps {
   availableUsers: User[];
@@ -12,6 +12,7 @@ interface LoginScreenProps {
 const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCustomerStart, settings }) => {
   const [isLoginView, setIsLoginView] = useState(false);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(false);
@@ -107,7 +108,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
         {/* MODAL DA GALERIA */}
         {isGalleryOpen && (
             <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex flex-col animate-in fade-in duration-300">
-                <div className="p-4 flex justify-between items-center bg-black/50 border-b border-white/10">
+                <div className="p-4 flex justify-between items-center bg-black/50 border-b border-white/10 z-50">
                     <h2 className="text-white font-black text-xl uppercase tracking-widest flex items-center gap-2">
                         <Utensils className="text-pink-500" /> Galeria {settings.schoolClass}
                     </h2>
@@ -126,16 +127,56 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 max-w-6xl mx-auto">
                             {settings.galleryImages.map((img, idx) => (
-                                <div key={img.id} className="group relative aspect-square bg-gray-800 rounded-2xl overflow-hidden border-4 border-white shadow-2xl transform hover:scale-105 transition-transform duration-300 rotate-1 hover:rotate-0">
+                                <div 
+                                    key={img.id} 
+                                    onClick={() => setSelectedImage(img.url)}
+                                    className="group relative aspect-square bg-gray-800 rounded-2xl overflow-hidden border-4 border-white shadow-2xl transform hover:scale-105 transition-transform duration-300 rotate-1 hover:rotate-0 cursor-pointer"
+                                >
                                     <img src={img.url} className="w-full h-full object-cover" alt="Galeria" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                                        <span className="text-white font-bold text-sm">Foto #{idx + 1}</span>
+                                        <span className="text-white font-bold text-sm">Ver Foto</span>
                                     </div>
                                 </div>
                             ))}
                         </div>
                     )}
                 </div>
+
+                {/* MODAL DE IMAGEM GRANDE (LIGHTBOX TEMA TÔ FRITO) */}
+                {selectedImage && (
+                    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/95 backdrop-blur-xl p-4 animate-in zoom-in duration-300" onClick={() => setSelectedImage(null)}>
+                        <div className="relative max-w-5xl w-full max-h-[90vh] flex items-center justify-center" onClick={e => e.stopPropagation()}>
+                            
+                            {/* MOLDURA TEMA TÔ FRITO */}
+                            <div className="relative bg-orange-500 p-2 md:p-4 rounded-3xl shadow-[0_0_50px_rgba(234,88,12,0.5)] border-4 border-yellow-400 transform rotate-1">
+                                {/* Detalhes da Moldura (Cantos) */}
+                                <div className="absolute -top-3 -left-3 w-8 h-8 bg-yellow-400 rounded-full border-4 border-black z-20"></div>
+                                <div className="absolute -top-3 -right-3 w-8 h-8 bg-yellow-400 rounded-full border-4 border-black z-20"></div>
+                                <div className="absolute -bottom-3 -left-3 w-8 h-8 bg-yellow-400 rounded-full border-4 border-black z-20"></div>
+                                <div className="absolute -bottom-3 -right-3 w-8 h-8 bg-yellow-400 rounded-full border-4 border-black z-20"></div>
+
+                                {/* Container da Imagem */}
+                                <div className="bg-black rounded-2xl overflow-hidden border-4 border-black relative">
+                                    <img src={selectedImage} className="max-h-[80vh] w-auto object-contain" alt="Zoom" />
+                                </div>
+
+                                {/* Logo/Mascote na Moldura */}
+                                <div className="absolute -bottom-8 right-8 w-20 h-20 md:w-32 md:h-32 transform rotate-12 drop-shadow-2xl z-30 pointer-events-none">
+                                    <img src={settings.mascotUrl} className="w-full h-full object-contain" alt="Mascote" />
+                                </div>
+
+                                {/* Botão Fechar */}
+                                <button 
+                                    onClick={() => setSelectedImage(null)}
+                                    className="absolute -top-6 -right-6 bg-red-600 text-white p-3 rounded-full border-4 border-black hover:scale-110 transition-transform shadow-lg z-40"
+                                >
+                                    <X size={24} strokeWidth={3} />
+                                </button>
+                            </div>
+
+                        </div>
+                    </div>
+                )}
             </div>
         )}
 
