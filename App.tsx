@@ -896,8 +896,9 @@ const App: React.FC = () => {
                   <div className="flex min-w-full gap-2 px-4 justify-start md:justify-center">
                       {navItems.map(item => {
                         if (!item.enabled) return null;
-                        if (item.view === 'settings' && currentUser.role !== 'admin' && currentUser.id !== '0') return null;
-                        if (item.view !== 'settings' && !item.roles.includes(currentUser.id) && !item.roles.includes(currentUser.role)) return null;
+                        
+                        // Checa permissão do usuário para ver este item
+                        if (!hasPermission(currentUser, item.view)) return null;
 
                         const isActive = currentView === item.view;
                         return (
