@@ -191,18 +191,23 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const stats = useMemo(() => {
     const activeTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
     
-    const salesIncome = activeTransactions.reduce((acc, t) => acc + t.total, 0);
+    // Filtra transações financeiras (exclui trocas de pontos do faturamento)
+    const financialTransactions = activeTransactions.filter(t => t.paymentMethod !== 'Pontos Fidelidade');
+
+    const salesIncome = financialTransactions.reduce((acc, t) => acc + t.total, 0);
     const contributionsIncome = filteredContributions.reduce((acc, c) => acc + c.amount, 0);
     const totalIncome = salesIncome + contributionsIncome;
 
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
     const balance = totalIncome - totalExpenses;
     
-    const averageTicket = activeTransactions.length > 0 ? salesIncome / activeTransactions.length : 0;
+    const averageTicket = financialTransactions.length > 0 ? salesIncome / financialTransactions.length : 0;
     
-    // By Payment Method
+    // By Payment Method (Inclui Pontos para visualização, mas com valor 0 ou separado)
     const byMethod = activeTransactions.reduce((acc, t) => {
-      acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.total;
+      // Se for pontos, não soma no total financeiro, mas conta
+      const value = t.paymentMethod === 'Pontos Fidelidade' ? 0 : t.total;
+      acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + value;
       return acc;
     }, {} as Record<string, number>);
 
@@ -216,7 +221,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       const seller = t.sellerName || 'N/A';
       if (!acc[seller]) acc[seller] = { count: 0, total: 0 };
       acc[seller].count += 1;
-      acc[seller].total += t.total;
+      // Se for pontos, não soma no total financeiro do vendedor
+      if (t.paymentMethod !== 'Pontos Fidelidade') {
+          acc[seller].total += t.total;
+      }
       return acc;
     }, {} as Record<string, { count: number; total: number }>);
 
@@ -228,11 +236,14 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           productSales[item.name] = { quantity: 0, total: 0 };
         }
         productSales[item.name].quantity += item.quantity;
-        productSales[item.name].total += item.price * item.quantity;
+        // Se for pontos, o total financeiro é 0
+        if (t.paymentMethod !== 'Pontos Fidelidade') {
+            productSales[item.name].total += item.price * item.quantity;
+        }
       });
     });
 
-    const chartData = Object.keys(byMethod).map(method => ({
+    const chartData = Object.keys(byMethod).filter(m => byMethod[m] > 0).map(method => ({
       name: method,
       value: byMethod[method]
     }));

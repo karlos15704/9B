@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Product, CartItem, Transaction, AppSettings, LayoutBlock } from '../types';
+import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
+import { getCustomerByPhone, createCustomer, addPoints, redeemPoints } from '../services/loyaltyService';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -14,11 +15,14 @@ interface CustomerOrderProps {
 // Sons para notificação
 const SOUND_PAYMENT_CONFIRMED = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
 const SOUND_ORDER_READY = "https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3";
+const SOUND_WIN = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/reward.mp3";
 
 const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber, settings }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
-  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders'>('menu');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders' | 'loyalty_login' | 'mini_game'>('menu');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [lastOrderInfo, setLastOrderInfo] = useState<{number: string, name: string} | null>(null);
@@ -29,6 +33,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [readyOrderModal, setReadyOrderModal] = useState<Transaction | null>(null);
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Mini Game State
+  const [gameSpinning, setGameSpinning] = useState(false);
+  const [gameResult, setGameResult] = useState<number | null>(null);
 
   // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
   const displayLayout: LayoutBlock[] = [
@@ -201,23 +209,169 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
+  // --- FIDELIDADE ---
+  const handleLoginLoyalty = async () => {
+      if (!customerPhone.trim() || customerPhone.length < 8) {
+          alert("Digite um telefone válido.");
+          return;
+      }
+      
+      let cust = await getCustomerByPhone(customerPhone);
+      if (!cust) {
+          // Cria novo cliente se não existir
+          cust = await createCustomer(customerPhone, customerName || 'Cliente');
+      }
+      
+      if (cust) {
+          setCustomer(cust);
+          setCustomerName(cust.name || customerName);
+          setView('cart'); // Volta para o carrinho
+      } else {
+          alert("Erro ao acessar sistema de fidelidade.");
+      }
+  };
+
   const handleFinishOrder = async () => {
     if (!customerName.trim()) { alert("Por favor, digite seu nome."); return; }
+    
+    // Se não estiver logado na fidelidade, pede login antes de finalizar (opcional, mas bom para pontuar)
+    if (!customer) {
+        if (confirm("Quer ganhar pontos com essa compra? Clique em OK para se identificar ou Cancelar para continuar sem pontos.")) {
+            setView('loyalty_login');
+            return;
+        }
+    }
+
     setIsSending(true);
     let orderNumber = nextOrderNumber.toString();
     const freshNumber = await fetchNextOrderNumber();
     if (freshNumber) orderNumber = freshNumber;
     const transactionId = generateId();
+    
+    // Calcula pontos ganhos (R$ 1 = 100 pontos)
+    const pointsEarned = Math.floor(total * 100);
+
     const newTransaction: Transaction = {
-        id: transactionId, orderNumber, customerName, timestamp: Date.now(), items: cart, subtotal: total, discount: 0, total, paymentMethod: 'Aguardando', status: 'pending_payment', kitchenStatus: 'pending'
+        id: transactionId, 
+        orderNumber, 
+        customerName, 
+        timestamp: Date.now(), 
+        items: cart, 
+        subtotal: total, 
+        discount: 0, 
+        total, 
+        paymentMethod: 'Aguardando', 
+        status: 'pending_payment', 
+        kitchenStatus: 'pending',
+        customerId: customer?.id,
+        pointsEarned: customer ? pointsEarned : 0
     };
+
     const success = await createTransaction(newTransaction);
-    setIsSending(false);
+    
     if (success) {
-        saveOrderId(transactionId); setLastOrderInfo({ number: orderNumber, name: customerName }); setCart([]); setView('success'); requestNotificationPermission(); loadMyOrders();
+        // Se tiver cliente, adiciona os pontos
+        if (customer) {
+            await addPoints(customer.id, pointsEarned);
+            setCustomer(prev => prev ? ({...prev, points: prev.points + pointsEarned}) : null);
+        }
+
+        setIsSending(false);
+        saveOrderId(transactionId); 
+        setLastOrderInfo({ number: orderNumber, name: customerName }); 
+        setCart([]); 
+        requestNotificationPermission(); 
+        loadMyOrders();
+        
+        // Se tiver cliente, vai para o Mini Game, senão vai para sucesso direto
+        if (customer) {
+            setView('mini_game');
+        } else {
+            setView('success');
+        }
     } else {
+        setIsSending(false);
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
     }
+  };
+
+  const handleRedeemPoints = async (product: Product) => {
+      if (!customer) return;
+      if (!product.pointsPrice) return;
+      
+      if (customer.points < product.pointsPrice) {
+          alert(`Você precisa de ${product.pointsPrice} pontos. Seu saldo: ${customer.points}`);
+          return;
+      }
+
+      if (!confirm(`Trocar ${product.pointsPrice} pontos por ${product.name}?`)) return;
+
+      setIsSending(true);
+      
+      // Deduz pontos
+      const successRedeem = await redeemPoints(customer.id, product.pointsPrice);
+      
+      if (successRedeem) {
+          // Cria transação de resgate
+          let orderNumber = nextOrderNumber.toString();
+          const freshNumber = await fetchNextOrderNumber();
+          if (freshNumber) orderNumber = freshNumber;
+          const transactionId = generateId();
+
+          const newTransaction: Transaction = {
+            id: transactionId, 
+            orderNumber, 
+            customerName, 
+            timestamp: Date.now(), 
+            items: [{...product, quantity: 1}], 
+            subtotal: 0, 
+            discount: 0, 
+            total: 0, 
+            paymentMethod: 'Pontos Fidelidade', // Identifica como troca
+            status: 'completed', // Já nasce pago/completado pois é troca
+            kitchenStatus: 'pending',
+            customerId: customer.id,
+            pointsRedeemed: product.pointsPrice
+          };
+
+          const successTrans = await createTransaction(newTransaction);
+          
+          if (successTrans) {
+              // Atualiza saldo local
+              setCustomer(prev => prev ? ({...prev, points: prev.points - (product.pointsPrice || 0)}) : null);
+              alert(`Resgate realizado com sucesso! Sua senha é #${orderNumber}`);
+              saveOrderId(transactionId);
+              loadMyOrders();
+              setView('orders');
+          } else {
+              alert("Erro ao criar pedido de troca.");
+              // Idealmente faria rollback dos pontos aqui, mas simplificando...
+          }
+      } else {
+          alert("Erro ao deduzir pontos.");
+      }
+      setIsSending(false);
+  };
+
+  const playMiniGame = async () => {
+      if (gameSpinning || !customer) return;
+      setGameSpinning(true);
+      
+      // Simula roleta
+      setTimeout(async () => {
+          const bonusPoints = [10, 50, 100, 200][Math.floor(Math.random() * 4)];
+          setGameResult(bonusPoints);
+          setGameSpinning(false);
+          
+          // Adiciona pontos bônus
+          await addPoints(customer.id, bonusPoints);
+          setCustomer(prev => prev ? ({...prev, points: prev.points + bonusPoints}) : null);
+          
+          // Toca som
+          const audio = new Audio(SOUND_WIN);
+          audio.play().catch(() => {});
+
+      }, 3000);
   };
 
   const renderReadyModal = () => {
@@ -268,6 +422,39 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             </div>
         </div>
 
+        {/* BARRA DE FIDELIDADE (NOVO) */}
+        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 mb-6 shadow-lg text-white flex justify-between items-center relative overflow-hidden">
+            <div className="relative z-10">
+                {customer ? (
+                    <div>
+                        <p className="text-xs font-bold opacity-80 uppercase">Olá, {customer.name}</p>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-3xl font-black">{customer.points}</span>
+                            <span className="text-sm font-bold">pontos</span>
+                        </div>
+                    </div>
+                ) : (
+                    <div>
+                        <p className="font-black text-lg">Ganhe Pontos!</p>
+                        <p className="text-xs opacity-90">R$ 1,00 = 100 pontos</p>
+                    </div>
+                )}
+            </div>
+            <div className="relative z-10">
+                {customer ? (
+                    <button onClick={() => setView('loyalty_login')} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-xs font-bold transition-colors">
+                        Trocar Conta
+                    </button>
+                ) : (
+                    <button onClick={() => setView('loyalty_login')} className="bg-white text-purple-600 px-6 py-2 rounded-xl font-black shadow-lg hover:scale-105 transition-transform">
+                        ENTRAR
+                    </button>
+                )}
+            </div>
+            {/* Decor */}
+            <Star className="absolute -right-4 -bottom-4 text-white/10 w-24 h-24 rotate-12" />
+        </div>
+
         {/* BUSCA E FILTROS */}
         <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-30 py-4 -mx-4 px-4 md:mx-0 md:px-0 mb-6 space-y-4">
              <div className="relative group">
@@ -309,6 +496,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     const inCart = cart.find(i => i.id === product.id);
                     const maxStock = calculateMaxStock(product);
                     const isSoldOut = maxStock === 0;
+                    const canRedeem = customer && product.pointsPrice && customer.points >= product.pointsPrice;
 
                     return (
                         <div key={product.id} className={`group bg-white rounded-2xl md:rounded-3xl p-2 md:p-4 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-orange-100 transition-all duration-300 flex flex-col relative overflow-hidden ${isSoldOut ? 'opacity-60 grayscale' : ''}`}>
@@ -331,6 +519,12 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                             {inCart.quantity}
                                         </div>
                                     )}
+                                    {/* Preço em Pontos */}
+                                    {product.pointsPrice && (
+                                        <div className="absolute bottom-1 left-1 bg-purple-600 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow-md">
+                                            {product.pointsPrice} pts
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex-1 flex flex-col">
@@ -351,13 +545,24 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                                 <button onClick={() => updateQuantity(product.id, 1)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/20 rounded-md md:rounded-lg transition-colors"><Plus size={14} className="md:w-5 md:h-5"/></button>
                                             </div>
                                         ) : (
-                                            <button 
-                                                onClick={() => addToCart(product)} 
-                                                className="w-full md:w-12 h-8 md:h-12 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
-                                            >
-                                                <span className="md:hidden text-[10px] font-black uppercase mr-1">Adicionar</span>
-                                                <Plus size={16} className="md:w-6 md:h-6" strokeWidth={3} />
-                                            </button>
+                                            <div className="flex gap-2 w-full md:w-auto">
+                                                {canRedeem && (
+                                                    <button 
+                                                        onClick={() => handleRedeemPoints(product)}
+                                                        className="flex-1 md:w-12 h-8 md:h-12 bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm"
+                                                        title="Trocar por Pontos"
+                                                    >
+                                                        <Gift size={16} className="md:w-6 md:h-6" />
+                                                    </button>
+                                                )}
+                                                <button 
+                                                    onClick={() => addToCart(product)} 
+                                                    className="flex-1 md:w-12 h-8 md:h-12 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
+                                                >
+                                                    <span className="md:hidden text-[10px] font-black uppercase mr-1">Adicionar</span>
+                                                    <Plus size={16} className="md:w-6 md:h-6" strokeWidth={3} />
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
@@ -374,6 +579,134 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
      // Ignora o layout configurado e usa o fixo com o novo design
      return renderProductGrid();
   };
+
+  if (view === 'loyalty_login') {
+      return (
+          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
+              
+              <div className="relative z-10 w-full max-w-sm bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 shadow-2xl">
+                  <div className="mb-6 flex justify-center">
+                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-4 rounded-full shadow-lg shadow-purple-500/50">
+                          <Trophy size={48} className="text-white" />
+                      </div>
+                  </div>
+                  
+                  <h2 className="text-3xl font-black text-white mb-2">Clube de Fidelidade</h2>
+                  <p className="text-purple-200 mb-8 text-sm">Identifique-se para ganhar pontos e trocar por prêmios incríveis!</p>
+                  
+                  <div className="space-y-4">
+                      <div className="text-left">
+                          <label className="text-xs font-bold text-purple-300 uppercase ml-1">Seu Telefone (WhatsApp)</label>
+                          <input 
+                              type="tel" 
+                              placeholder="(00) 00000-0000" 
+                              className="w-full mt-1 p-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20"
+                              value={customerPhone}
+                              onChange={e => setCustomerPhone(e.target.value)}
+                          />
+                      </div>
+                      
+                      {!customer && (
+                          <div className="text-left animate-in fade-in slide-in-from-top-2">
+                              <label className="text-xs font-bold text-purple-300 uppercase ml-1">Seu Nome (Opcional)</label>
+                              <input 
+                                  type="text" 
+                                  placeholder="Como quer ser chamado?" 
+                                  className="w-full mt-1 p-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20"
+                                  value={customerName}
+                                  onChange={e => setCustomerName(e.target.value)}
+                              />
+                          </div>
+                      )}
+
+                      <button 
+                          onClick={handleLoginLoyalty}
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-900/50 transform active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+                      >
+                          <Star size={20} fill="currentColor" />
+                          ACESSAR CLUBE
+                      </button>
+                      
+                      <button 
+                          onClick={() => setView('menu')}
+                          className="w-full text-purple-300 text-sm font-bold hover:text-white transition-colors py-2"
+                      >
+                          Voltar ao Cardápio
+                      </button>
+                  </div>
+              </div>
+          </div>
+      );
+  }
+
+  if (view === 'mini_game') {
+      return (
+          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+              {/* Confetti Effect (CSS only simulation) */}
+              {gameResult && (
+                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                      {[...Array(20)].map((_, i) => (
+                          <div key={i} className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-ping" style={{ top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, animationDelay: `${Math.random()}s`, animationDuration: '1s' }}></div>
+                      ))}
+                  </div>
+              )}
+
+              <div className="relative z-10 w-full max-w-sm">
+                  <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tight animate-pulse">Roleta da Sorte!</h2>
+                  <p className="text-purple-200 mb-8 text-sm">Gire para ganhar pontos extras!</p>
+
+                  <div className="relative w-64 h-64 mx-auto mb-8">
+                      {/* Roleta Visual */}
+                      <div className={`w-full h-full rounded-full border-8 border-purple-500 bg-slate-800 relative overflow-hidden shadow-2xl shadow-purple-500/20 ${gameSpinning ? 'animate-spin' : ''}`} style={{ transition: 'transform 3s cubic-bezier(0.25, 0.1, 0.25, 1)' }}>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-0"></div>
+                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-45"></div>
+                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-90"></div>
+                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-135"></div>
+                          </div>
+                          {/* Icons nos quadrantes (decorativo) */}
+                          <Star className="absolute top-4 left-1/2 -translate-x-1/2 text-yellow-400" size={24} />
+                          <Gift className="absolute bottom-4 left-1/2 -translate-x-1/2 text-green-400" size={24} />
+                          <Trophy className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={24} />
+                          <Dices className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400" size={24} />
+                      </div>
+                      
+                      {/* Seta Indicadora */}
+                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-12 bg-white clip-path-triangle z-20 drop-shadow-lg"></div>
+                      
+                      {/* Resultado Overlay */}
+                      {!gameSpinning && gameResult && (
+                          <div className="absolute inset-0 flex items-center justify-center z-30 animate-in zoom-in duration-300">
+                              <div className="bg-white/90 backdrop-blur-sm p-6 rounded-full shadow-2xl border-4 border-yellow-400 transform rotate-12">
+                                  <p className="text-xs font-black text-gray-500 uppercase">Você ganhou</p>
+                                  <p className="text-5xl font-black text-purple-600 leading-none">{gameResult}</p>
+                                  <p className="text-sm font-bold text-purple-800 uppercase">Pontos!</p>
+                              </div>
+                          </div>
+                      )}
+                  </div>
+
+                  {!gameResult ? (
+                      <button 
+                          onClick={playMiniGame}
+                          disabled={gameSpinning}
+                          className="w-full bg-gradient-to-b from-yellow-400 to-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-500/40 transform active:scale-95 transition-all text-xl border-b-4 border-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                          {gameSpinning ? 'GIRANDO...' : 'GIRAR AGORA!'}
+                      </button>
+                  ) : (
+                      <button 
+                          onClick={() => setView('success')}
+                          className="w-full bg-white text-purple-600 font-black py-4 rounded-xl shadow-lg hover:bg-purple-50 transition-colors animate-bounce"
+                      >
+                          RESGATAR E FINALIZAR
+                      </button>
+                  )}
+              </div>
+          </div>
+      );
+  }
 
   if (view === 'success') {
       return (

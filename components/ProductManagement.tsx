@@ -18,6 +18,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   // Form States
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [pointsPrice, setPointsPrice] = useState('');
   const [category, setCategory] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [description, setDescription] = useState('');
@@ -46,6 +47,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const resetForm = () => {
     setName('');
     setPrice('');
+    setPointsPrice('');
     setCategory('');
     setImageUrl('');
     setDescription('');
@@ -64,6 +66,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     setEditingProduct(product);
     setName(product.name);
     setPrice(product.price.toString());
+    setPointsPrice(product.pointsPrice ? product.pointsPrice.toString() : '');
     setCategory(product.category);
     setImageUrl(product.imageUrl);
     setDescription(product.description || '');
@@ -102,6 +105,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
     
     // Converte estoque para número se houver entrada e NÃO for combo
     const stockValue = isCombo ? 0 : (stock ? parseInt(stock) : 0);
+    const pointsValue = pointsPrice ? parseInt(pointsPrice) : undefined;
 
     const productData: Product = {
       id: editingProduct ? editingProduct.id : generateId(),
@@ -113,7 +117,8 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
       isAvailable: isAvailable,
       stock: stockValue,
       barcode: barcode,
-      comboItems: isCombo ? comboItems : undefined // Salva itens do combo
+      comboItems: isCombo ? comboItems : undefined, // Salva itens do combo
+      pointsPrice: pointsValue
     };
 
     if (editingProduct) {
@@ -328,6 +333,17 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                       className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 font-bold text-gray-700"
                       placeholder="0.00"
                       required
+                    />
+                 </div>
+
+                 <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Preço em Pontos</label>
+                    <input 
+                      type="number"
+                      value={pointsPrice}
+                      onChange={e => setPointsPrice(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-purple-500 font-bold text-purple-700"
+                      placeholder="Opcional"
                     />
                  </div>
 

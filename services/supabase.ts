@@ -51,6 +51,26 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   CREATE POLICY "Public Access Gallery" ON storage.objects FOR SELECT USING (bucket_id = 'gallery');
   CREATE POLICY "Public Upload Gallery" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'gallery');
 
+  -- 6. Sistema de Fidelidade (Mini Game e Pontos)
+  CREATE TABLE IF NOT EXISTS public.customers (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    phone text UNIQUE NOT NULL,
+    name text,
+    points integer DEFAULT 0,
+    created_at bigint DEFAULT extract(epoch from now()) * 1000
+  );
+
+  -- Adicionar preço em pontos nos produtos
+  ALTER TABLE public.products ADD COLUMN IF NOT EXISTS "pointsPrice" integer;
+
+  -- Adicionar referência de cliente na transação
+  ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "customerId" uuid REFERENCES public.customers(id);
+  ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "pointsEarned" integer DEFAULT 0;
+  ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "pointsRedeemed" integer DEFAULT 0;
+
+  -- Permissões
+  GRANT ALL ON public.customers TO anon, authenticated, service_role;
+
   -- Garante permissões de escrita
   GRANT ALL ON public.settings TO anon, authenticated, service_role;
   GRANT ALL ON public.products TO anon, authenticated, service_role;

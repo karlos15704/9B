@@ -3,7 +3,8 @@ export enum PaymentMethod {
   CREDIT = 'Crédito',
   DEBIT = 'Débito',
   CASH = 'Dinheiro',
-  PIX = 'Pix'
+  PIX = 'Pix',
+  LOYALTY = 'Pontos Fidelidade' // Novo método de pagamento
 }
 
 export interface ComboItem {
@@ -24,11 +25,20 @@ export interface Product {
   barcode?: string;
   // Campo para Combos
   comboItems?: ComboItem[]; // Se existir e tiver itens, é um combo
+  // Fidelidade
+  pointsPrice?: number; // Preço em pontos (opcional)
 }
 
 export interface CartItem extends Product {
   quantity: number;
   notes?: string;
+}
+
+export interface Customer {
+  id: string;
+  phone: string;
+  name?: string;
+  points: number;
 }
 
 export interface User {
@@ -54,6 +64,10 @@ export interface Transaction {
   sellerName?: string;
   status: 'completed' | 'cancelled' | 'pending_payment';
   kitchenStatus: 'pending' | 'done';
+  // Fidelidade
+  customerId?: string;
+  pointsEarned?: number;
+  pointsRedeemed?: number;
 }
 
 // Nova Interface para Despesas (Retiradas/Compras)

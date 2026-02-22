@@ -211,6 +211,11 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
                                         <UserIcon size={14} className="text-gray-400" />
                                         <span className="font-bold text-gray-700">{order.customerName}</span>
                                     </div>
+                                    {order.paymentMethod === 'Pontos Fidelidade' && (
+                                        <div className="mb-2 bg-purple-100 text-purple-700 text-xs font-bold px-2 py-1 rounded-md inline-block">
+                                            TROCA DE PONTOS
+                                        </div>
+                                    )}
                                     <p className="text-xs text-gray-500 line-clamp-1">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p>
                                     <div className="mt-2 text-[10px] text-gray-400 text-right">{new Date(order.timestamp).toLocaleTimeString()}</div>
                                 </button>
