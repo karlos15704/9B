@@ -34,284 +34,84 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Mini Game State (Moved to top)
-  const [gameSpinning, setGameSpinning] = useState(false);
-  const [gameResult, setGameResult] = useState<number | null>(null);
+  // Removed unused game state
+
   const [playedOrders, setPlayedOrders] = useState<string[]>(() => {
       const saved = localStorage.getItem('played_orders');
       return saved ? JSON.parse(saved) : [];
   });
-  
-  // --- MINI GAME: PLATFORMER (MARIO STYLE) ---
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const mascotImgRef = useRef<HTMLImageElement | null>(null);
-  const [gameState, setGameState] = useState<'start' | 'playing' | 'won_level' | 'game_over' | 'completed'>('start');
-  const [gameLevel, setGameLevel] = useState(1);
-  const [gameScore, setGameScore] = useState(0);
-  const [levelScore, setLevelScore] = useState(0);
   const [activeGameOrderId, setActiveGameOrderId] = useState<string | null>(null);
+
+  const finishGame = () => {
+      if (activeGameOrderId) {
+          const newPlayed = [...playedOrders, activeGameOrderId];
+          setPlayedOrders(newPlayed);
+          localStorage.setItem('played_orders', JSON.stringify(newPlayed));
+      }
+      setActiveGameOrderId(null);
+      setView('orders');
+  };
+
   
-  // Game Constants
-  const GRAVITY = 0.6;
-  const JUMP_FORCE = -15; 
-  const SPEED_BASE = 6;
+  // --- MINI GAME: ROULETTE ---
+  // Removed Platformer State
+
+  // ROULETTE GAME STATE
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const [prize, setPrize] = useState<string | null>(null);
+  const [canPlay, setCanPlay] = useState(true);
   
-  // Game Refs (Mutable state for loop)
-  const gameRef = useRef({
-      player: { x: 50, y: 200, width: 60, height: 60, dy: 0, grounded: false, color: '#f97316' },
-      obstacles: [] as { x: number, y: number, width: number, height: number, type: 'block' | 'coin' }[],
-      frame: 0,
-      speed: SPEED_BASE,
-      animationId: 0,
-      levelDistance: 0,
-      maxDistance: 2000,
-      currentLevelScore: 0,
-      currentLevel: 1
-  });
+  const PRIZES = [
+      { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5' },
+      { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264' },
+      { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd' },
+      { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb' },
+      { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d' },
+      { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd' },
+  ];
 
-  const initLevel = (level: number) => {
-      const speed = SPEED_BASE + (level * 1.5);
-      const distance = 2000 + (level * 1000);
-      const startY = window.innerHeight ? window.innerHeight - 150 : 200;
-
-      gameRef.current = {
-          player: { x: 50, y: startY, width: 60, height: 60, dy: 0, grounded: false, color: '#f97316' },
-          obstacles: [],
-          frame: 0,
-          speed: speed,
-          animationId: 0,
-          levelDistance: 0,
-          maxDistance: distance,
-          currentLevelScore: 0,
-          currentLevel: level
-      };
-      setGameState('start');
-      setLevelScore(0);
-      setGameLevel(level);
+  const spinWheel = () => {
+      if (isSpinning || !canPlay) return;
       
-      // Draw initial frame
-      setTimeout(drawFrame, 100);
-  };
-
-  const startGame = () => {
-      setGameState('playing');
-      gameLoop();
-  };
-
-  const jump = () => {
-      if (gameRef.current.player.grounded) {
-          gameRef.current.player.dy = JUMP_FORCE;
-          gameRef.current.player.grounded = false;
-      }
-  };
-
-  const drawFrame = () => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      // Ensure canvas size matches window
-      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-          canvas.width = window.innerWidth;
-          canvas.height = window.innerHeight;
-      }
-
-      const state = gameRef.current;
-      const width = canvas.width;
-      const height = canvas.height;
-      const groundY = height - 50;
-
-      // Clear
-      ctx.clearRect(0, 0, width, height);
-
-      // Background
-      const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, '#0f172a'); 
-      gradient.addColorStop(1, '#334155'); 
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, width, height);
+      setIsSpinning(true);
+      setPrize(null);
       
-      // Ground
-      ctx.fillStyle = '#1e293b'; 
-      ctx.fillRect(0, groundY, width, 50);
-      ctx.fillStyle = '#475569'; 
-      ctx.fillRect(0, groundY, width, 5);
-
-      // Player Physics (only if playing)
-      if (gameState === 'playing') {
-          state.player.dy += GRAVITY;
-          state.player.y += state.player.dy;
-
-          // Ground Collision
-          if (state.player.y + state.player.height > groundY) {
-              state.player.y = groundY - state.player.height;
-              state.player.dy = 0;
-              state.player.grounded = true;
-          }
-      } else {
-           // Static player for start screen
-           state.player.y = groundY - state.player.height;
-      }
-
-      // Draw Player (Mascot) - FLIPPED TO FACE RIGHT
-      if (mascotImgRef.current) {
-          ctx.save();
-          ctx.translate(state.player.x + state.player.width / 2, state.player.y + state.player.height / 2);
-          ctx.scale(-1, 1); 
-          ctx.drawImage(mascotImgRef.current, -state.player.width / 2, -state.player.height / 2, state.player.width, state.player.height);
-          ctx.restore();
-      } else {
-          ctx.fillStyle = state.player.color;
-          ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
-      }
-
-      // Draw Obstacles
-      for (const obs of state.obstacles) {
-          if (obs.type === 'block') {
-              ctx.fillStyle = '#ef4444'; 
-              ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-              ctx.fillStyle = '#fca5a5';
-              ctx.beginPath();
-              ctx.moveTo(obs.x, obs.y + obs.height);
-              ctx.lineTo(obs.x + obs.width/2, obs.y);
-              ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-              ctx.fill();
-          } else {
-              ctx.fillStyle = '#fbbf24'; 
-              ctx.beginPath();
-              ctx.arc(obs.x + 15, obs.y + 15, 15, 0, Math.PI * 2);
-              ctx.fill();
-              ctx.strokeStyle = '#d97706';
-              ctx.lineWidth = 2;
-              ctx.stroke();
-              ctx.fillStyle = '#d97706';
-              ctx.font = 'bold 16px sans-serif';
-              ctx.fillText('$', obs.x + 10, obs.y + 20);
-          }
-      }
+      // Random rotation (at least 5 full spins + random segment)
+      const segmentAngle = 360 / PRIZES.length;
+      const randomSegment = Math.floor(Math.random() * PRIZES.length);
+      const extraRotation = 360 * 5 + (360 - (randomSegment * segmentAngle)); 
+      // Note: The logic for landing on a specific segment depends on the initial offset.
+      // Assuming 0deg is at 3 o'clock or top. Let's assume standard CSS rotation.
+      // We want to land on `randomSegment`.
       
-      // Progress Bar
-      const progress = Math.min(1, state.levelDistance / state.maxDistance);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(0, 0, width * progress, 8);
-  };
+      const newRotation = rotation + extraRotation;
+      setRotation(newRotation);
 
-  const gameLoop = () => {
-      const state = gameRef.current;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      
-      drawFrame();
-
-      // Game Logic
-      const width = canvas.width;
-      const groundY = canvas.height - 50;
-
-      // Spawn Obstacles & Coins
-      state.frame++;
-      state.levelDistance += state.speed;
-
-      if (state.frame % Math.floor(1200 / state.speed) === 0) {
-          const type = Math.random() > 0.6 ? 'coin' : 'block';
-          if (type === 'block') {
-              state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
-          } else {
-              state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
-          }
-      }
-
-      for (let i = state.obstacles.length - 1; i >= 0; i--) {
-          const obs = state.obstacles[i];
-          obs.x -= state.speed;
-
-          // Collision Detection
-          if (
-              state.player.x < obs.x + obs.width &&
-              state.player.x + state.player.width > obs.x &&
-              state.player.y < obs.y + obs.height &&
-              state.player.y + state.player.height > obs.y
-          ) {
-              if (obs.type === 'block') {
-                  setGameState('game_over');
-                  cancelAnimationFrame(state.animationId);
-                  return;
-              } else if (obs.type === 'coin') {
-                  state.currentLevelScore += 10;
-                  setLevelScore(state.currentLevelScore);
-                  state.obstacles.splice(i, 1);
-              }
-          }
-
-          if (obs.x + obs.width < 0) {
-              state.obstacles.splice(i, 1);
-          }
-      }
-
-      if (state.levelDistance >= state.maxDistance) {
-          setGameState('won_level');
-          cancelAnimationFrame(state.animationId);
-          return;
-      }
-
-      state.animationId = requestAnimationFrame(gameLoop);
-  };
-
-  const handleLevelComplete = async () => {
-      const state = gameRef.current;
-      const totalLevelPoints = state.currentLevelScore + (state.currentLevel * 50);
-      const newTotalScore = gameScore + totalLevelPoints;
-      setGameScore(newTotalScore);
-      
-      if (state.currentLevel < 3) {
-          initLevel(state.currentLevel + 1);
-      } else {
-          setGameState('completed');
+      setTimeout(() => {
+          setIsSpinning(false);
+          const wonPrize = PRIZES[randomSegment];
+          setPrize(wonPrize.label);
+          setCanPlay(false);
           
-          // Mark as played
-          if (activeGameOrderId) {
-              const newPlayed = [...playedOrders, activeGameOrderId];
-              setPlayedOrders(newPlayed);
-              localStorage.setItem('played_orders', JSON.stringify(newPlayed));
+          if (wonPrize.type === 'points' && customer) {
+              addPoints(customer.id, wonPrize.value);
+              setCustomer(prev => prev ? ({...prev, points: prev.points + wonPrize.value}) : null);
+          } else if (wonPrize.type === 'item') {
+              // Logic for item prize (e.g. voucher or add to cart)
+              // For now, just show the prize in modal
           }
-
-          if (customer) {
-               await addPoints(customer.id, newTotalScore);
-               setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
-          }
-      }
+      }, 5000); // 5 seconds spin
   };
 
-  const handleRetryLevel = () => {
-      initLevel(gameLevel);
-      startGame();
+  const resetGame = () => {
+      setPrize(null);
+      setCanPlay(true);
+      // Keep rotation as is, just add to it next time
   };
 
-  useEffect(() => {
-      if (view === 'mini_game') {
-          const img = new Image();
-          img.src = settings.mascotUrl;
-          img.onload = () => { mascotImgRef.current = img; };
-          
-          // Force resize and init
-          const handleResize = () => {
-              if (canvasRef.current) {
-                  canvasRef.current.width = window.innerWidth;
-                  canvasRef.current.height = window.innerHeight;
-                  drawFrame();
-              }
-          };
-          
-          window.addEventListener('resize', handleResize);
-          handleResize();
-          initLevel(1);
-          
-          return () => {
-              window.removeEventListener('resize', handleResize);
-              cancelAnimationFrame(gameRef.current.animationId);
-          };
-      }
-  }, [view]);
+
+
 
   // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
   const displayLayout: LayoutBlock[] = [
@@ -642,26 +442,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       setIsSending(false);
   };
 
-  const playMiniGame = async () => {
-      if (gameSpinning || !customer) return;
-      setGameSpinning(true);
-      
-      // Simula roleta
-      setTimeout(async () => {
-          const bonusPoints = [10, 50, 100, 200][Math.floor(Math.random() * 4)];
-          setGameResult(bonusPoints);
-          setGameSpinning(false);
-          
-          // Adiciona pontos bônus
-          await addPoints(customer.id, bonusPoints);
-          setCustomer(prev => prev ? ({...prev, points: prev.points + bonusPoints}) : null);
-          
-          // Toca som
-          const audio = new Audio(SOUND_WIN);
-          audio.play().catch(() => {});
+  // Removed playMiniGame
 
-      }, 3000);
-  };
 
   const renderReadyModal = () => {
     if (!readyOrderModal) return null;
@@ -950,73 +732,127 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   if (view === 'mini_game') {
       return (
-          <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
-              {/* Close Button */}
-              <button 
-                  onClick={() => setView('orders')} 
-                  className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-colors"
-              >
-                  <X size={24} />
-              </button>
+          <div className="h-full bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
+              {/* Background Effects */}
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-slate-900 to-black opacity-80"></div>
+              <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
 
-              {/* HUD */}
-              <div className="absolute top-4 left-4 right-16 flex justify-between items-center z-10 text-white pointer-events-none">
-                  <div className="flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
-                      <Trophy className="text-yellow-400" />
-                      <span className="font-black text-xl">Nível {gameLevel}</span>
+              {/* Header */}
+              <div className="z-10 text-center mb-8 animate-in slide-in-from-top duration-700">
+                  <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 drop-shadow-lg uppercase tracking-tighter">
+                      Roleta da Sorte
+                  </h2>
+                  <p className="text-purple-200 font-bold text-lg mt-2">Gire e ganhe prêmios incríveis!</p>
+              </div>
+
+              {/* Wheel Container */}
+              <div className="relative z-10 mb-8">
+                  {/* Pointer */}
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 z-20 w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-xl"></div>
+
+                  {/* Wheel */}
+                  <div 
+                      className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[5000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
+                      style={{ transform: `rotate(${rotation}deg)` }}
+                  >
+                      {PRIZES.map((p, i) => {
+                          const angle = 360 / PRIZES.length;
+                          const rotate = angle * i;
+                          return (
+                              <div 
+                                  key={i}
+                                  className="absolute top-0 left-1/2 w-1/2 h-1/2 origin-bottom-left flex items-center justify-center"
+                                  style={{ 
+                                      transform: `rotate(${rotate}deg) skewY(-${90 - angle}deg)`,
+                                      backgroundColor: p.color,
+                                      boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
+                                  }}
+                              >
+                                  <div 
+                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-32"
+                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(80px)` }}
+                                  >
+                                      <span className="text-slate-900 font-black text-xs md:text-sm uppercase leading-tight block drop-shadow-sm">
+                                          {p.label}
+                                      </span>
+                                  </div>
+                              </div>
+                          );
+                      })}
                   </div>
-                  <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-1 text-yellow-400 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
-                          <Star size={16} fill="currentColor" />
-                          <span className="font-bold">{levelScore}</span>
+                  
+                  {/* Center Cap */}
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full shadow-lg border-4 border-white flex items-center justify-center z-10">
+                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                          <Trophy size={24} className="text-yellow-600" />
                       </div>
                   </div>
               </div>
 
-              <canvas 
-                  ref={canvasRef} 
-                  className="w-full h-full object-cover cursor-pointer"
-                  onClick={jump}
-                  onTouchStart={jump}
-              />
-              
-              {gameState === 'start' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-20 animate-in fade-in">
-                      <img src={settings.mascotUrl} className="w-32 h-32 object-contain mb-4 animate-bounce" alt="Mascote" />
-                      <h3 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">Fuga da Fritadeira!</h3>
-                      <p className="text-gray-300 mb-8 text-lg max-w-md text-center">Ajude o mascote a fugir e coletar moedas! Toque na tela para pular.</p>
-                      <button onClick={startGame} className="bg-green-500 hover:bg-green-600 text-white font-black py-4 px-12 rounded-2xl shadow-lg shadow-green-500/30 transform hover:scale-105 transition-all text-xl">JOGAR AGORA</button>
-                      <button onClick={() => setView('orders')} className="mt-4 text-gray-400 hover:text-white font-bold">Não quero jogar agora</button>
-                  </div>
-              )}
+              {/* Controls */}
+              <div className="z-10 flex flex-col items-center gap-4">
+                  <button 
+                      onClick={spinWheel}
+                      disabled={isSpinning || !canPlay}
+                      className="bg-gradient-to-b from-yellow-400 to-orange-500 text-white font-black text-2xl py-4 px-12 rounded-full shadow-[0_10px_0_rgb(194,65,12)] active:shadow-none active:translate-y-[10px] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0 disabled:active:shadow-[0_10px_0_rgb(194,65,12)] uppercase tracking-widest border-4 border-yellow-300"
+                  >
+                      {isSpinning ? 'Girando...' : 'GIRAR AGORA!'}
+                  </button>
+                  
+                  <button onClick={finishGame} className="text-gray-400 hover:text-white font-bold underline text-sm">
+                      Voltar para meus pedidos
+                  </button>
+              </div>
 
-              {gameState === 'game_over' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-20 animate-in zoom-in">
-                      <h3 className="text-5xl font-black text-red-500 mb-2 uppercase">VISH, FRITOU!</h3>
-                      <p className="text-gray-300 mb-8 text-xl">Não desista! Tente novamente.</p>
-                      <button onClick={handleRetryLevel} className="bg-white text-slate-900 font-black py-4 px-10 rounded-2xl shadow-lg transform hover:scale-105 transition-all text-lg">TENTAR DE NOVO</button>
-                      <button onClick={() => setView('orders')} className="mt-6 text-gray-500 hover:text-white font-bold">Sair do Jogo</button>
-                  </div>
-              )}
+              {/* Prize Modal */}
+              {prize && (
+                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+                      <div className="bg-white p-8 rounded-3xl max-w-sm w-full mx-4 text-center relative overflow-hidden animate-in zoom-in duration-300 border-4 border-yellow-400 shadow-2xl">
+                          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-yellow-300 to-transparent opacity-50"></div>
+                          <Trophy size={64} className="text-yellow-500 mx-auto mb-4 relative z-10 animate-bounce" />
+                          
+                          <h3 className="text-3xl font-black text-slate-800 mb-2 uppercase relative z-10">Parabéns!</h3>
+                          <p className="text-gray-500 font-bold mb-6 relative z-10">Você ganhou:</p>
+                          
+                          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-8 relative z-10 transform rotate-1">
+                              <span className="text-4xl font-black text-orange-600 uppercase leading-none block">
+                                  {prize}
+                              </span>
+                              {prize === '1 Refrigerante' && (
+                                  <p className="text-sm font-bold text-green-600 mt-2">Retire no balcão!</p>
+                              )}
+                          </div>
 
-              {gameState === 'won_level' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-900/95 backdrop-blur-md z-20 animate-in zoom-in">
-                      <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce" />
-                      <h3 className="text-4xl font-black text-white mb-2 uppercase">Nível Concluído!</h3>
-                      <p className="text-green-200 mb-8 font-bold text-xl">Você ganhou +{levelScore + (gameLevel * 50)} pontos!</p>
-                      <button onClick={handleLevelComplete} className="bg-yellow-400 text-yellow-900 font-black py-4 px-12 rounded-2xl shadow-lg shadow-yellow-400/30 transform hover:scale-105 transition-all flex items-center gap-2 text-xl">
-                          {gameLevel < 3 ? 'PRÓXIMO NÍVEL' : 'RESGATAR PRÊMIO'} <ArrowRight size={24} />
-                      </button>
-                  </div>
-              )}
-
-              {gameState === 'completed' && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-900/95 backdrop-blur-md z-20 animate-in zoom-in">
-                      <div className="bg-white/10 p-8 rounded-3xl backdrop-blur-xl border border-white/20 text-center max-w-md w-full mx-4">
-                          <h3 className="text-4xl font-black text-white mb-2">PARABÉNS!</h3>
-                          <p className="text-purple-200 mb-6 text-lg">Você completou o desafio e ganhou um total de:</p>
-                          <div className="text-6xl font-black text-yellow-400 mb-8 drop-shadow-lg">{gameScore} pts</div>
-                          <button onClick={() => setView('success')} className="w-full bg-white text-purple-900 font-black py-4 rounded-xl shadow-lg hover:bg-gray-100 transition-all text-xl">FINALIZAR PEDIDO</button>
+                          <div className="flex flex-col gap-3 relative z-10">
+                              <button 
+                                  onClick={resetGame}
+                                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide"
+                              >
+                                  Jogar Novamente
+                              </button>
+                              <button 
+                                  onClick={finishGame}
+                                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-3 rounded-xl transition-all"
+                              >
+                                  Sair
+                              </button>
+                          </div>
+                      </div>
+                      {/* Confetti Effect (Simple CSS dots) */}
+                      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                          {[...Array(20)].map((_, i) => (
+                              <div 
+                                  key={i}
+                                  className="absolute w-3 h-3 rounded-full animate-ping"
+                                  style={{
+                                      top: `${Math.random() * 100}%`,
+                                      left: `${Math.random() * 100}%`,
+                                      backgroundColor: ['#fcd34d', '#f87171', '#60a5fa', '#4ade80'][Math.floor(Math.random() * 4)],
+                                      animationDelay: `${Math.random() * 2}s`,
+                                      animationDuration: '1s'
+                                  }}
+                              ></div>
+                          ))}
                       </div>
                   </div>
               )}
