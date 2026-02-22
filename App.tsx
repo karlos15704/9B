@@ -15,6 +15,7 @@ import PublicDisplay from './components/PublicDisplay';
 import CustomerOrder from './components/CustomerOrder';
 import FinancialManagement from './components/FinancialManagement';
 import StudentContributions from './components/StudentContributions';
+import LoyaltyManagement from './components/LoyaltyManagement';
 import { 
   supabase, 
   fetchTransactions, 
@@ -72,7 +73,7 @@ const App: React.FC = () => {
   const [transitionState, setTransitionState] = useState<'idle' | 'logging-in' | 'logging-out'>('idle');
 
   // View State
-  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'settings' | 'customer' | 'financial' | 'contributions'>('pos');
+  const [currentView, setCurrentView] = useState<'pos' | 'reports' | 'kitchen' | 'users' | 'display' | 'products' | 'settings' | 'customer' | 'financial' | 'contributions' | 'loyalty'>('pos');
   
   // Mobile UI States
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
@@ -95,7 +96,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   // State for Order Success Modal
-  const [lastCompletedOrder, setLastCompletedOrder] = useState<{transaction: Transaction} | null>(null);
+  const [lastCompletedOrder, setLastCompletedOrder] = useState<{transaction: Transaction, hasPlayedGame?: boolean} | null>(null);
 
   // Logout Modal State
   const [showLogoutModal, setShowLogoutModal] = useState(false);
@@ -672,6 +673,7 @@ const App: React.FC = () => {
     { view: 'products', icon: PackageSearch, title: 'Cardápio', enabled: appSettings.modules?.products ?? true },
     { view: 'financial', icon: Wallet, title: 'Financeiro', enabled: appSettings.modules?.financial ?? true },
     { view: 'contributions', icon: HandCoins, title: 'Contribuições', enabled: appSettings.modules?.contributions ?? true },
+    { view: 'loyalty', icon: Trophy, title: 'Fidelidade', enabled: true },
     { view: 'reports', icon: BarChart3, title: 'Relatórios', enabled: appSettings.modules?.reports ?? true },
     { view: 'users', icon: UsersIcon, title: 'Equipe', enabled: appSettings.modules?.users ?? true },
     { view: 'settings', icon: Settings, title: 'Ajustes', enabled: appSettings.modules?.settings ?? true }, 
@@ -906,6 +908,7 @@ const App: React.FC = () => {
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
                             {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
                             {currentView === 'contributions' && <StudentContributions />}
+                            {currentView === 'loyalty' && <LoyaltyManagement currentUser={currentUser} products={products} />}
                         </div>
                     )}
                 </div>
