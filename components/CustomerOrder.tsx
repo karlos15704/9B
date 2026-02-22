@@ -48,7 +48,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   
   // Game Constants
   const GRAVITY = 0.6;
-  const JUMP_FORCE = -15; // Higher jump for full screen
+  const JUMP_FORCE = -15; 
   const SPEED_BASE = 6;
   
   // Game Refs (Mutable state for loop)
@@ -59,7 +59,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       speed: SPEED_BASE,
       animationId: 0,
       levelDistance: 0,
-      maxDistance: 2000, // Distance to win level
+      maxDistance: 2000,
       currentLevelScore: 0,
       currentLevel: 1
   });
@@ -67,8 +67,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const initLevel = (level: number) => {
       const speed = SPEED_BASE + (level * 1.5);
       const distance = 2000 + (level * 1000);
-      
-      // Reset player position based on screen height if possible, otherwise default
       const startY = window.innerHeight ? window.innerHeight - 150 : 200;
 
       gameRef.current = {
@@ -113,17 +111,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       // Clear
       ctx.clearRect(0, 0, width, height);
 
-      // Background (Sky)
+      // Background
       const gradient = ctx.createLinearGradient(0, 0, 0, height);
-      gradient.addColorStop(0, '#0f172a'); // Slate 900
-      gradient.addColorStop(1, '#334155'); // Slate 700
+      gradient.addColorStop(0, '#0f172a'); 
+      gradient.addColorStop(1, '#334155'); 
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
       
       // Ground
-      ctx.fillStyle = '#1e293b'; // Slate 800
+      ctx.fillStyle = '#1e293b'; 
       ctx.fillRect(0, groundY, width, 50);
-      ctx.fillStyle = '#475569'; // Slate 600 (Top border)
+      ctx.fillStyle = '#475569'; 
       ctx.fillRect(0, groundY, width, 5);
 
       // Player Physics
@@ -137,9 +135,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           state.player.grounded = true;
       }
 
-      // Draw Player (Mascot)
+      // Draw Player (Mascot) - FLIPPED TO FACE RIGHT
       if (mascotImgRef.current) {
-          ctx.drawImage(mascotImgRef.current, state.player.x, state.player.y, state.player.width, state.player.height);
+          ctx.save();
+          ctx.translate(state.player.x + state.player.width / 2, state.player.y + state.player.height / 2);
+          ctx.scale(-1, 1); 
+          ctx.drawImage(mascotImgRef.current, -state.player.width / 2, -state.player.height / 2, state.player.width, state.player.height);
+          ctx.restore();
       } else {
           ctx.fillStyle = state.player.color;
           ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
@@ -149,28 +151,22 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       state.frame++;
       state.levelDistance += state.speed;
 
-      // Spawn Logic
       if (state.frame % Math.floor(1200 / state.speed) === 0) {
           const type = Math.random() > 0.6 ? 'coin' : 'block';
           if (type === 'block') {
-              // Obstacle (Fryer/Fire)
               state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
           } else {
-              // Coin
               state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
           }
       }
 
-      // Update Obstacles
       for (let i = state.obstacles.length - 1; i >= 0; i--) {
           const obs = state.obstacles[i];
           obs.x -= state.speed;
 
-          // Draw
           if (obs.type === 'block') {
-              ctx.fillStyle = '#ef4444'; // Red
+              ctx.fillStyle = '#ef4444'; 
               ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-              // Fire detail
               ctx.fillStyle = '#fca5a5';
               ctx.beginPath();
               ctx.moveTo(obs.x, obs.y + obs.height);
@@ -178,7 +174,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
               ctx.fill();
           } else {
-              ctx.fillStyle = '#fbbf24'; // Gold
+              ctx.fillStyle = '#fbbf24'; 
               ctx.beginPath();
               ctx.arc(obs.x + 15, obs.y + 15, 15, 0, Math.PI * 2);
               ctx.fill();
@@ -190,7 +186,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               ctx.fillText('$', obs.x + 10, obs.y + 20);
           }
 
-          // Collision
           if (
               state.player.x < obs.x + obs.width &&
               state.player.x + state.player.width > obs.x &&
@@ -198,31 +193,25 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               state.player.y + state.player.height > obs.y
           ) {
               if (obs.type === 'block') {
-                  // Game Over
                   setGameState('game_over');
                   cancelAnimationFrame(state.animationId);
                   return;
               } else if (obs.type === 'coin') {
-                  // Collect Coin
                   state.currentLevelScore += 10;
-                  setLevelScore(state.currentLevelScore); // Update UI
+                  setLevelScore(state.currentLevelScore);
                   state.obstacles.splice(i, 1);
-                  // Sound effect could go here
               }
           }
 
-          // Remove off-screen
           if (obs.x + obs.width < 0) {
               state.obstacles.splice(i, 1);
           }
       }
 
-      // Progress Bar
       const progress = Math.min(1, state.levelDistance / state.maxDistance);
       ctx.fillStyle = '#22c55e';
       ctx.fillRect(0, 0, width * progress, 8);
 
-      // Win Condition
       if (state.levelDistance >= state.maxDistance) {
           setGameState('won_level');
           cancelAnimationFrame(state.animationId);
@@ -234,7 +223,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const handleLevelComplete = async () => {
       const state = gameRef.current;
-      const totalLevelPoints = state.currentLevelScore + (state.currentLevel * 50); // Bonus for completing
+      const totalLevelPoints = state.currentLevelScore + (state.currentLevel * 50);
       const newTotalScore = gameScore + totalLevelPoints;
       setGameScore(newTotalScore);
       
@@ -242,10 +231,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           initLevel(state.currentLevel + 1);
       } else {
           setGameState('completed');
-          // Points are added to transaction in App.tsx upon payment, 
-          // but for the game bonus, we might want to add them now or attach to transaction.
-          // Since we can't easily attach to the already created transaction without an update call,
-          // we'll just add them to the customer account immediately as a "gift".
           if (customer) {
                await addPoints(customer.id, newTotalScore);
                setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
@@ -258,25 +243,29 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       startGame();
   };
 
-  // Initialize game when view changes
   useEffect(() => {
       if (view === 'mini_game') {
-          // Load Mascot Image
           const img = new Image();
           img.src = settings.mascotUrl;
-          img.onload = () => {
-              mascotImgRef.current = img;
+          img.onload = () => { mascotImgRef.current = img; };
+
+          const handleResize = () => {
+              if (canvasRef.current) {
+                  canvasRef.current.width = window.innerWidth;
+                  canvasRef.current.height = window.innerHeight;
+              }
           };
-
-          // Adjust canvas size to window
-          if (canvasRef.current) {
-              canvasRef.current.width = window.innerWidth;
-              canvasRef.current.height = window.innerHeight;
-          }
-
+          
+          window.addEventListener('resize', handleResize);
+          handleResize(); // Initial size
+          
           initLevel(1);
+          
+          return () => {
+              window.removeEventListener('resize', handleResize);
+              cancelAnimationFrame(gameRef.current.animationId);
+          };
       }
-      return () => cancelAnimationFrame(gameRef.current.animationId);
   }, [view]);
 
   // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
@@ -524,11 +513,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         loadMyOrders();
         
         // Se tiver cliente, vai para o Mini Game, senão vai para sucesso direto
-        if (customer) {
-            setView('mini_game');
-        } else {
+        // if (customer) {
+        //     setView('mini_game');
+        // } else {
             setView('success');
-        }
+        // }
     } else {
         setIsSending(false);
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
@@ -882,9 +871,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   if (view === 'mini_game') {
       return (
-          <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
+          <div className="fixed inset-0 z-[100] bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
+              {/* Close Button */}
+              <button 
+                  onClick={() => setView('orders')} 
+                  className="absolute top-4 right-4 z-50 bg-white/10 hover:bg-white/20 text-white p-2 rounded-full backdrop-blur-md transition-colors"
+              >
+                  <X size={24} />
+              </button>
+
               {/* HUD */}
-              <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 text-white pointer-events-none">
+              <div className="absolute top-4 left-4 right-16 flex justify-between items-center z-10 text-white pointer-events-none">
                   <div className="flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
                       <Trophy className="text-yellow-400" />
                       <span className="font-black text-xl">Nível {gameLevel}</span>
@@ -893,10 +890,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                       <div className="flex items-center gap-1 text-yellow-400 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
                           <Star size={16} fill="currentColor" />
                           <span className="font-bold">{levelScore}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-purple-400 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
-                          <span className="text-xs uppercase font-bold mr-1">Total:</span>
-                          <span className="font-bold">{gameScore}</span>
                       </div>
                   </div>
               </div>
@@ -914,6 +907,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                       <h3 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">Fuga da Fritadeira!</h3>
                       <p className="text-gray-300 mb-8 text-lg max-w-md text-center">Ajude o mascote a fugir e coletar moedas! Toque na tela para pular.</p>
                       <button onClick={startGame} className="bg-green-500 hover:bg-green-600 text-white font-black py-4 px-12 rounded-2xl shadow-lg shadow-green-500/30 transform hover:scale-105 transition-all text-xl">JOGAR AGORA</button>
+                      <button onClick={() => setView('orders')} className="mt-4 text-gray-400 hover:text-white font-bold">Não quero jogar agora</button>
                   </div>
               )}
 
@@ -922,6 +916,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                       <h3 className="text-5xl font-black text-red-500 mb-2 uppercase">VISH, FRITOU!</h3>
                       <p className="text-gray-300 mb-8 text-xl">Não desista! Tente novamente.</p>
                       <button onClick={handleRetryLevel} className="bg-white text-slate-900 font-black py-4 px-10 rounded-2xl shadow-lg transform hover:scale-105 transition-all text-lg">TENTAR DE NOVO</button>
+                      <button onClick={() => setView('orders')} className="mt-6 text-gray-500 hover:text-white font-bold">Sair do Jogo</button>
                   </div>
               )}
 
@@ -993,6 +988,15 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     <div key={order.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
                         <div className="flex justify-between items-start mb-3"><div><span className="text-xs font-bold text-gray-400 uppercase">Senha</span><p className="text-3xl font-black text-gray-800 leading-none">#{order.orderNumber}</p></div><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
                         <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800') : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}><span className="font-bold text-sm uppercase">{order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'PRONTO! RETIRE' : 'Em Preparo') : order.status === 'cancelled' ? 'Cancelado' : 'Aguardando Pagto'}</span></div>
+                        
+                        {/* BOTÃO JOGAR SE PAGO */}
+                        {order.status === 'completed' && customer && (
+                            <button onClick={() => setView('mini_game')} className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse">
+                                <Trophy size={20} className="text-yellow-300" />
+                                JOGAR E GANHAR BÔNUS!
+                            </button>
+                        )}
+
                         <div className="border-t border-gray-100 pt-3"><p className="text-sm text-gray-600 line-clamp-2">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p><p className="text-right font-black text-gray-900 mt-2">{formatCurrency(order.total)}</p></div>
                     </div>
                 ))}
