@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
+import { CartItem, PaymentMethod, Transaction, User, AppSettings, Customer } from '../types';
 import { formatCurrency } from '../utils';
-import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw } from 'lucide-react';
+import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw, Gift } from 'lucide-react';
 import { fetchPendingTransactions, updateTransactionStatus } from '../services/supabase';
+import { getCustomerByPhone } from '../services/loyaltyService';
 
 interface CartSidebarProps {
   cart: CartItem[];
@@ -10,7 +11,7 @@ interface CartSidebarProps {
   onRemoveItem: (productId: string) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onClearCart: () => void;
-  onCheckout: (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string) => void;
+  onCheckout: (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string, customerId?: string) => void;
   onClose?: () => void;
   onUpdateNote?: (productId: string, note: string) => void;
   onLoadPendingOrder: (transaction: Transaction) => void;
@@ -25,6 +26,12 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   
   // Pix Modal State
   const [showPixModal, setShowPixModal] = useState(false);
+  // Loyalty Modal State
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
+  const [loyaltyPhone, setLoyaltyPhone] = useState('');
+  const [loyaltyCustomer, setLoyaltyCustomer] = useState<Customer | null>(null);
+  const [isCheckingLoyalty, setIsCheckingLoyalty] = useState(false);
+
   // ... other states
   const [showCashModal, setShowCashModal] = useState(false);
   const [cashReceivedStr, setCashReceivedStr] = useState<string>('');
@@ -98,6 +105,9 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
     setSelectedMethod(null);
     setShowPixModal(false);
     setShowCashModal(false);
+    setShowLoyaltyModal(false);
+    setLoyaltyPhone('');
+    setLoyaltyCustomer(null);
     setCashReceivedStr('');
     setIsDiscountUnlocked(false);
     setShowPasswordInput(false);
@@ -116,6 +126,9 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
     if (selectedMethod === PaymentMethod.CASH) {
        onCheckout(discount, selectedMethod, cashChange, cashReceived, customerName);
+    } else if (selectedMethod === PaymentMethod.LOYALTY) {
+       // Passa o ID do cliente para o checkout processar a dedução
+       onCheckout(discount, selectedMethod, undefined, undefined, customerName, loyaltyCustomer?.id);
     } else {
        onCheckout(discount, selectedMethod, undefined, undefined, customerName);
     }
@@ -144,10 +157,30 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
       setShowPixModal(true);
     } else if (method === PaymentMethod.CASH) {
       setShowCashModal(true);
+    } else if (method === PaymentMethod.LOYALTY) {
+      setShowLoyaltyModal(true);
     } else {
       onCheckout(discount, method, undefined, undefined, customerName);
       resetState();
     }
+  };
+  
+  const checkLoyaltyPoints = async () => {
+      if (!loyaltyPhone || loyaltyPhone.length < 8) {
+          alert("Digite um telefone válido.");
+          return;
+      }
+      setIsCheckingLoyalty(true);
+      const customer = await getCustomerByPhone(loyaltyPhone);
+      setIsCheckingLoyalty(false);
+      
+      if (customer) {
+          setLoyaltyCustomer(customer);
+          setCustomerName(customer.name || '');
+      } else {
+          alert("Cliente não encontrado.");
+          setLoyaltyCustomer(null);
+      }
   };
 
   // Calculator Logic
@@ -334,6 +367,78 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
         </div>
       )}
 
+      {/* LOYALTY MODAL */}
+      {showLoyaltyModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 relative animate-in zoom-in-95">
+              <button onClick={() => { setShowLoyaltyModal(false); setSelectedMethod(null); }} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+              
+              <h3 className="text-xl font-black text-purple-600 mb-4 flex items-center gap-2">
+                  <Gift size={24} /> Pagamento com Pontos
+              </h3>
+
+              {!loyaltyCustomer ? (
+                  <div className="space-y-4">
+                      <p className="text-gray-600 text-sm">Digite o telefone do cliente para verificar o saldo.</p>
+                      <div className="flex gap-2">
+                          <input 
+                              type="tel" 
+                              value={loyaltyPhone}
+                              onChange={e => setLoyaltyPhone(e.target.value)}
+                              placeholder="(00) 00000-0000"
+                              className="flex-1 border-2 border-purple-100 rounded-xl px-4 py-3 font-bold text-lg focus:border-purple-500 outline-none"
+                          />
+                          <button 
+                              onClick={checkLoyaltyPoints}
+                              disabled={isCheckingLoyalty}
+                              className="bg-purple-600 text-white p-3 rounded-xl font-bold disabled:opacity-50"
+                          >
+                              {isCheckingLoyalty ? <RefreshCw className="animate-spin" /> : 'Verificar'}
+                          </button>
+                      </div>
+                  </div>
+              ) : (
+                  <div className="space-y-4">
+                      <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                          <p className="text-sm text-purple-800 font-bold uppercase">Cliente Identificado</p>
+                          <p className="text-lg font-black text-gray-800">{loyaltyCustomer.name}</p>
+                          <div className="mt-2 flex justify-between items-center">
+                              <span className="text-gray-500 text-sm">Saldo Disponível:</span>
+                              <span className="text-2xl font-black text-purple-600">{loyaltyCustomer.points} pts</span>
+                          </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                          <div className="flex justify-between items-center mb-1">
+                              <span className="text-gray-600 font-bold">Total da Compra:</span>
+                              <span className="text-lg font-black text-gray-800">{formatCurrency(total)}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-sm">
+                              <span className="text-gray-500">Pontos Necessários (x100):</span>
+                              <span className="font-bold text-orange-600">{Math.ceil(total * 100)} pts</span>
+                          </div>
+                      </div>
+
+                      {loyaltyCustomer.points >= Math.ceil(total * 100) ? (
+                          <button 
+                              onClick={handleCheckout}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-green-200 transition-all flex items-center justify-center gap-2"
+                          >
+                              <CheckCircle2 size={24} /> CONFIRMAR PAGAMENTO
+                          </button>
+                      ) : (
+                          <div className="text-center p-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm border border-red-100">
+                              Saldo insuficiente para esta compra.
+                          </div>
+                      )}
+                      
+                      <button onClick={() => setLoyaltyCustomer(null)} className="w-full text-gray-400 text-xs hover:text-gray-600 underline">Trocar Cliente</button>
+                  </div>
+              )}
+           </div>
+        </div>
+      )}
+
       {/* Main Sidebar Content */}
       <div className="flex flex-col h-full overflow-hidden">
         <div className="p-4 bg-orange-50 border-b border-orange-100 flex justify-between items-center shadow-sm flex-shrink-0">
@@ -427,10 +532,11 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
            {/* BOTÕES DE PAGAMENTO COM TAMANHO DINÂMICO */}
            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button onClick={() => handlePaymentSelect(PaymentMethod.CREDIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95" style={dynamicBtnStyle}><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Crédito</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.DEBIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95" style={dynamicBtnStyle}><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Débito</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.PIX)} className="flex flex-col items-center justify-center rounded-xl border border-teal-100 bg-teal-50 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all active:scale-95" style={dynamicBtnStyle}><QrCode size={20} className="mb-1" /><span className="text-xs font-bold">Pix</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.CASH)} className="flex flex-col items-center justify-center rounded-xl border border-green-100 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95" style={dynamicBtnStyle}><Banknote size={20} className="mb-1" /><span className="text-xs font-bold">Dinheiro</span></button>
+              <button onClick={() => handlePaymentSelect(PaymentMethod.CREDIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Crédito</span></button>
+              <button onClick={() => handlePaymentSelect(PaymentMethod.DEBIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Débito</span></button>
+              <button onClick={() => handlePaymentSelect(PaymentMethod.PIX)} className="flex flex-col items-center justify-center rounded-xl border border-teal-100 bg-teal-50 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all active:scale-95 py-3"><QrCode size={20} className="mb-1" /><span className="text-xs font-bold">Pix</span></button>
+              <button onClick={() => handlePaymentSelect(PaymentMethod.CASH)} className="flex flex-col items-center justify-center rounded-xl border border-green-100 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 py-3"><Banknote size={20} className="mb-1" /><span className="text-xs font-bold">Dinheiro</span></button>
+              <button onClick={() => handlePaymentSelect(PaymentMethod.LOYALTY)} className="col-span-2 flex flex-row items-center justify-center gap-2 rounded-xl border border-purple-100 bg-purple-50 text-purple-700 hover:bg-purple-100 hover:border-purple-300 transition-all active:scale-95 py-3"><Gift size={20} /><span className="text-xs font-bold uppercase">Pagar com Pontos</span></button>
            </div>
         </div>
       </div>

@@ -453,11 +453,27 @@ const App: React.FC = () => {
     setIsMobileCartOpen(true);
   };
 
-  const handleCheckout = async (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string) => {
+  const handleCheckout = async (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string, customerId?: string) => {
     try {
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const total = Math.max(0, subtotal - discount);
       
+      // LOYALTY REDEMPTION CHECK
+      let pointsRedeemed = 0;
+      if (method === PaymentMethod.LOYALTY) {
+          if (!customerId) {
+              alert("Erro: Cliente não identificado para pagamento com pontos.");
+              return;
+          }
+          const pointsNeeded = Math.ceil(total * 100);
+          const success = await redeemPoints(customerId, pointsNeeded);
+          if (!success) {
+              alert("Erro ao processar pagamento com pontos. Verifique o saldo.");
+              return;
+          }
+          pointsRedeemed = pointsNeeded;
+      }
+
       const productsCopy = [...products]; 
       const deductions = new Map<string, number>();
 
@@ -500,6 +516,7 @@ const App: React.FC = () => {
       localStorage.setItem('app_products', JSON.stringify(productsCopy));
 
       let transactionToSave: Transaction;
+      const pointsEarned = method !== PaymentMethod.LOYALTY ? Math.floor(total * 100) : 0;
 
       if (currentPendingOrderId) {
          const original = transactions.find(t => t.id === currentPendingOrderId) || { orderNumber: (nextOrderNumber || 1).toString(), timestamp: Date.now() };
@@ -518,12 +535,15 @@ const App: React.FC = () => {
             change,
             sellerName: currentUser?.name || 'Caixa',
             status: 'completed',
-            kitchenStatus: 'pending'
+            kitchenStatus: 'pending',
+            customerId: customerId || original.customerId,
+            pointsEarned: pointsEarned,
+            pointsRedeemed: pointsRedeemed
          };
 
          if (isConnected) await confirmTransactionPayment(transactionToSave);
          
-         // AWARD LOYALTY POINTS ON PAYMENT CONFIRMATION
+         // AWARD LOYALTY POINTS
          if (transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
              await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
          }
@@ -548,7 +568,10 @@ const App: React.FC = () => {
            change,
            sellerName: currentUser?.name || 'Caixa',
            status: 'completed',
-           kitchenStatus: 'pending'
+           kitchenStatus: 'pending',
+           customerId: customerId,
+           pointsEarned: pointsEarned,
+           pointsRedeemed: pointsRedeemed
          };
    
          const updatedTransactions = [...transactions, transactionToSave];
@@ -559,7 +582,7 @@ const App: React.FC = () => {
            const success = await createTransaction(transactionToSave);
            if (!success) setIsConnected(false); 
            
-           // AWARD LOYALTY POINTS FOR DIRECT POS SALES (IF CUSTOMER IDENTIFIED - NOT IMPLEMENTED IN POS YET BUT GOOD TO HAVE)
+           // AWARD LOYALTY POINTS
            if (success && transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
                await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
            }

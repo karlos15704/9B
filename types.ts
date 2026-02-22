@@ -32,6 +32,7 @@ export interface Product {
 export interface CartItem extends Product {
   quantity: number;
   notes?: string;
+  isPointRedemption?: boolean; // Indica se o item está sendo pago com pontos
 }
 
 export interface Customer {
@@ -68,6 +69,7 @@ export interface Transaction {
   customerId?: string;
   pointsEarned?: number;
   pointsRedeemed?: number;
+  hasPlayedMiniGame?: boolean; // Indica se o cliente já jogou o mini-game nesta compra
 }
 
 // Nova Interface para Despesas (Retiradas/Compras)

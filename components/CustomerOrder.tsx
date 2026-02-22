@@ -37,6 +37,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // Mini Game State (Moved to top)
   const [gameSpinning, setGameSpinning] = useState(false);
   const [gameResult, setGameResult] = useState<number | null>(null);
+  const [playedOrders, setPlayedOrders] = useState<string[]>(() => {
+      const saved = localStorage.getItem('played_orders');
+      return saved ? JSON.parse(saved) : [];
+  });
   
   // --- MINI GAME: PLATFORMER (MARIO STYLE) ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,6 +49,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [gameLevel, setGameLevel] = useState(1);
   const [gameScore, setGameScore] = useState(0);
   const [levelScore, setLevelScore] = useState(0);
+  const [activeGameOrderId, setActiveGameOrderId] = useState<string | null>(null);
   
   // Game Constants
   const GRAVITY = 0.6;
@@ -83,6 +88,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       setGameState('start');
       setLevelScore(0);
       setGameLevel(level);
+      
+      // Draw initial frame
+      setTimeout(drawFrame, 100);
   };
 
   const startGame = () => {
@@ -97,11 +105,17 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       }
   };
 
-  const gameLoop = () => {
+  const drawFrame = () => {
       const canvas = canvasRef.current;
       if (!canvas) return;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      // Ensure canvas size matches window
+      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+      }
 
       const state = gameRef.current;
       const width = canvas.width;
@@ -124,15 +138,20 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       ctx.fillStyle = '#475569'; 
       ctx.fillRect(0, groundY, width, 5);
 
-      // Player Physics
-      state.player.dy += GRAVITY;
-      state.player.y += state.player.dy;
+      // Player Physics (only if playing)
+      if (gameState === 'playing') {
+          state.player.dy += GRAVITY;
+          state.player.y += state.player.dy;
 
-      // Ground Collision
-      if (state.player.y + state.player.height > groundY) {
-          state.player.y = groundY - state.player.height;
-          state.player.dy = 0;
-          state.player.grounded = true;
+          // Ground Collision
+          if (state.player.y + state.player.height > groundY) {
+              state.player.y = groundY - state.player.height;
+              state.player.dy = 0;
+              state.player.grounded = true;
+          }
+      } else {
+           // Static player for start screen
+           state.player.y = groundY - state.player.height;
       }
 
       // Draw Player (Mascot) - FLIPPED TO FACE RIGHT
@@ -147,23 +166,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
       }
 
-      // Spawn Obstacles & Coins
-      state.frame++;
-      state.levelDistance += state.speed;
-
-      if (state.frame % Math.floor(1200 / state.speed) === 0) {
-          const type = Math.random() > 0.6 ? 'coin' : 'block';
-          if (type === 'block') {
-              state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
-          } else {
-              state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
-          }
-      }
-
-      for (let i = state.obstacles.length - 1; i >= 0; i--) {
-          const obs = state.obstacles[i];
-          obs.x -= state.speed;
-
+      // Draw Obstacles
+      for (const obs of state.obstacles) {
           if (obs.type === 'block') {
               ctx.fillStyle = '#ef4444'; 
               ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
@@ -185,7 +189,43 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               ctx.font = 'bold 16px sans-serif';
               ctx.fillText('$', obs.x + 10, obs.y + 20);
           }
+      }
+      
+      // Progress Bar
+      const progress = Math.min(1, state.levelDistance / state.maxDistance);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, 0, width * progress, 8);
+  };
 
+  const gameLoop = () => {
+      const state = gameRef.current;
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      drawFrame();
+
+      // Game Logic
+      const width = canvas.width;
+      const groundY = canvas.height - 50;
+
+      // Spawn Obstacles & Coins
+      state.frame++;
+      state.levelDistance += state.speed;
+
+      if (state.frame % Math.floor(1200 / state.speed) === 0) {
+          const type = Math.random() > 0.6 ? 'coin' : 'block';
+          if (type === 'block') {
+              state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
+          } else {
+              state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
+          }
+      }
+
+      for (let i = state.obstacles.length - 1; i >= 0; i--) {
+          const obs = state.obstacles[i];
+          obs.x -= state.speed;
+
+          // Collision Detection
           if (
               state.player.x < obs.x + obs.width &&
               state.player.x + state.player.width > obs.x &&
@@ -208,10 +248,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           }
       }
 
-      const progress = Math.min(1, state.levelDistance / state.maxDistance);
-      ctx.fillStyle = '#22c55e';
-      ctx.fillRect(0, 0, width * progress, 8);
-
       if (state.levelDistance >= state.maxDistance) {
           setGameState('won_level');
           cancelAnimationFrame(state.animationId);
@@ -231,6 +267,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           initLevel(state.currentLevel + 1);
       } else {
           setGameState('completed');
+          
+          // Mark as played
+          if (activeGameOrderId) {
+              const newPlayed = [...playedOrders, activeGameOrderId];
+              setPlayedOrders(newPlayed);
+              localStorage.setItem('played_orders', JSON.stringify(newPlayed));
+          }
+
           if (customer) {
                await addPoints(customer.id, newTotalScore);
                setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
@@ -248,17 +292,18 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           const img = new Image();
           img.src = settings.mascotUrl;
           img.onload = () => { mascotImgRef.current = img; };
-
+          
+          // Force resize and init
           const handleResize = () => {
               if (canvasRef.current) {
                   canvasRef.current.width = window.innerWidth;
                   canvasRef.current.height = window.innerHeight;
+                  drawFrame();
               }
           };
           
           window.addEventListener('resize', handleResize);
-          handleResize(); // Initial size
-          
+          handleResize();
           initLevel(1);
           
           return () => {
@@ -358,8 +403,23 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     return () => { if (subscription) subscription.unsubscribe(); };
   }, []);
 
-  const categories = useMemo(() => ['Todos', ...Array.from(new Set(products.map(p => p.category)))], [products]);
-  const filteredProducts = useMemo(() => products.filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()) && (selectedCategory === 'Todos' || p.category === selectedCategory)), [products, searchTerm, selectedCategory]);
+  const categories = useMemo(() => {
+      const cats = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
+      // Adiciona categoria Prêmios se houver produtos com preço em pontos
+      if (products.some(p => p.pointsPrice && p.pointsPrice > 0)) {
+          cats.push('Prêmios');
+      }
+      return cats;
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+      return products.filter(p => {
+          const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
+          if (selectedCategory === 'Todos') return matchesSearch;
+          if (selectedCategory === 'Prêmios') return matchesSearch && (p.pointsPrice || 0) > 0;
+          return matchesSearch && p.category === selectedCategory;
+      });
+  }, [products, searchTerm, selectedCategory]);
 
   // --- LÓGICA DE CÁLCULO DE ESTOQUE (INCLUINDO COMBOS) ---
   const calculateMaxStock = (product: Product): number => {
@@ -767,30 +827,49 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                         
                                         {isSoldOut ? (
                                             <button disabled className="w-full md:w-auto bg-gray-100 text-gray-400 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-wider cursor-not-allowed">Esgotado</button>
-                                        ) : inCart ? (
-                                            <div className="w-full md:w-auto flex items-center justify-between bg-gray-900 text-white rounded-lg md:rounded-xl p-1 shadow-lg">
-                                                <button onClick={() => updateQuantity(product.id, -1)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/20 rounded-md md:rounded-lg transition-colors"><Minus size={14} className="md:w-5 md:h-5"/></button>
-                                                <span className="font-black w-6 md:w-8 text-center text-sm md:text-base">{inCart.quantity}</span>
-                                                <button onClick={() => updateQuantity(product.id, 1)} className="w-8 h-8 md:w-10 md:h-10 flex items-center justify-center hover:bg-white/20 rounded-md md:rounded-lg transition-colors"><Plus size={14} className="md:w-5 md:h-5"/></button>
-                                            </div>
                                         ) : (
-                                            <div className="flex gap-2 w-full md:w-auto">
-                                                {canRedeem && (
+                                            <div className="flex flex-col gap-2 w-full md:w-auto">
+                                                {/* Botão de Adicionar ao Carrinho (Dinheiro) */}
+                                                {!inCart ? (
                                                     <button 
-                                                        onClick={() => handleRedeemPoints(product)}
-                                                        className="flex-1 md:w-12 h-8 md:h-12 bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm"
-                                                        title="Trocar por Pontos"
+                                                        onClick={() => addToCart(product)} 
+                                                        className="w-full md:w-auto h-8 md:h-10 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90 px-3"
                                                     >
-                                                        <Gift size={16} className="md:w-6 md:h-6" />
+                                                        <span className="text-[10px] md:text-xs font-black uppercase mr-1">Comprar</span>
+                                                        <Plus size={14} className="md:w-4 md:h-4" strokeWidth={3} />
+                                                    </button>
+                                                ) : (
+                                                    <div className="w-full md:w-auto flex items-center justify-between bg-gray-900 text-white rounded-lg md:rounded-xl p-1 shadow-lg h-8 md:h-10">
+                                                        <button onClick={() => updateQuantity(product.id, -1)} className="w-8 h-full flex items-center justify-center hover:bg-white/20 rounded-md transition-colors"><Minus size={14}/></button>
+                                                        <span className="font-black w-6 text-center text-xs md:text-sm">{inCart.quantity}</span>
+                                                        <button onClick={() => updateQuantity(product.id, 1)} className="w-8 h-full flex items-center justify-center hover:bg-white/20 rounded-md transition-colors"><Plus size={14}/></button>
+                                                    </div>
+                                                )}
+
+                                                {/* Botão de Trocar por Pontos (Se disponível) */}
+                                                {product.pointsPrice && product.pointsPrice > 0 && (
+                                                    <button 
+                                                        onClick={() => {
+                                                            if (!customer) {
+                                                                if(confirm("Faça login para usar seus pontos! Deseja entrar agora?")) setView('loyalty_login');
+                                                            } else {
+                                                                handleRedeemPoints(product);
+                                                            }
+                                                        }}
+                                                        disabled={customer ? customer.points < (product.pointsPrice || 0) : false}
+                                                        className={`w-full md:w-auto h-8 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center gap-1 transition-all duration-300 shadow-sm px-3
+                                                            ${customer && customer.points < (product.pointsPrice || 0) 
+                                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                                                : 'bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white'
+                                                            }`}
+                                                        title={customer ? `Saldo: ${customer.points}` : "Faça login para trocar"}
+                                                    >
+                                                        <Gift size={14} className="md:w-4 md:h-4" />
+                                                        <span className="text-[10px] md:text-xs font-black uppercase">
+                                                            {product.pointsPrice} pts
+                                                        </span>
                                                     </button>
                                                 )}
-                                                <button 
-                                                    onClick={() => addToCart(product)} 
-                                                    className="flex-1 md:w-12 h-8 md:h-12 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90"
-                                                >
-                                                    <span className="md:hidden text-[10px] font-black uppercase mr-1">Adicionar</span>
-                                                    <Plus size={16} className="md:w-6 md:h-6" strokeWidth={3} />
-                                                </button>
                                             </div>
                                         )}
                                     </div>
@@ -989,9 +1068,15 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         <div className="flex justify-between items-start mb-3"><div><span className="text-xs font-bold text-gray-400 uppercase">Senha</span><p className="text-3xl font-black text-gray-800 leading-none">#{order.orderNumber}</p></div><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
                         <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800') : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}><span className="font-bold text-sm uppercase">{order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'PRONTO! RETIRE' : 'Em Preparo') : order.status === 'cancelled' ? 'Cancelado' : 'Aguardando Pagto'}</span></div>
                         
-                        {/* BOTÃO JOGAR SE PAGO */}
-                        {order.status === 'completed' && customer && (
-                            <button onClick={() => setView('mini_game')} className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse">
+                        {/* BOTÃO JOGAR SE PAGO E AINDA NÃO JOGOU */}
+                        {order.status === 'completed' && customer && !playedOrders.includes(order.id) && (
+                            <button 
+                                onClick={() => {
+                                    setActiveGameOrderId(order.id);
+                                    setView('mini_game');
+                                }} 
+                                className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse hover:scale-105 transition-transform"
+                            >
                                 <Trophy size={20} className="text-yellow-300" />
                                 JOGAR E GANHAR BÔNUS!
                             </button>
