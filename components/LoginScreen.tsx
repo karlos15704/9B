@@ -32,20 +32,20 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
   // --- TELA DE BOAS-VINDAS (CLIENTE) - ESTILO GAME START ---
   if (!isLoginView) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-hidden bg-blue-600 font-sans">
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-blue-600 font-sans custom-scrollbar">
         
         {/* BACKGROUND ANIMADO (Pixel Art / Game) */}
-        <div className="absolute inset-0 opacity-10 pointer-events-none" style={{ 
+        <div className="fixed inset-0 opacity-10 pointer-events-none" style={{ 
             backgroundImage: 'linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000), linear-gradient(45deg, #000 25%, transparent 25%, transparent 75%, #000 75%, #000)',
             backgroundSize: '60px 60px',
             backgroundPosition: '0 0, 30px 30px'
         }}></div>
         
         {/* Círculos flutuantes */}
-        <div className="absolute top-10 left-10 w-32 h-32 bg-yellow-400 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce delay-700"></div>
-        <div className="absolute bottom-20 right-20 w-48 h-48 bg-pink-500 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce"></div>
+        <div className="fixed top-10 left-10 w-32 h-32 bg-yellow-400 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce delay-700 pointer-events-none"></div>
+        <div className="fixed bottom-20 right-20 w-48 h-48 bg-pink-500 rounded-full mix-blend-hard-light filter blur-xl opacity-60 animate-bounce pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col items-center text-center w-full max-w-4xl px-4">
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center py-12 px-4 w-full max-w-4xl mx-auto text-center">
             
             {/* TURMA EM DESTAQUE (Topo) */}
             <div className="mb-8 animate-in slide-in-from-top duration-700">
@@ -55,12 +55,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
             </div>
 
             {/* LOGO E TÍTULO */}
-            <div className="relative mb-12 group cursor-pointer" onClick={onCustomerStart}>
+            <div className="relative mb-8 md:mb-12 group cursor-pointer" onClick={onCustomerStart}>
                 <div className="absolute inset-0 bg-white rounded-full scale-110 blur-md opacity-40 group-hover:opacity-60 transition-opacity animate-pulse"></div>
                 <img 
                     src={settings.mascotUrl} 
                     alt="Mascote" 
-                    className="w-48 h-48 md:w-64 md:h-64 object-contain relative z-10 drop-shadow-2xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300"
+                    className="w-40 h-40 md:w-64 md:h-64 object-contain relative z-10 drop-shadow-2xl transform group-hover:scale-110 group-hover:-rotate-6 transition-transform duration-300"
                 />
                 <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-black px-4 py-1 rounded border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] whitespace-nowrap z-20">
                     <span className="font-black text-xs uppercase">Estou com fome!</span>
@@ -85,7 +85,7 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ availableUsers, onLogin, onCu
             </button>
 
             {/* BOTÕES SECUNDÁRIOS */}
-            <div className="flex flex-col md:flex-row gap-4 items-center">
+            <div className="flex flex-col md:flex-row gap-4 items-center pb-8">
                 <button 
                     onClick={() => setIsGalleryOpen(true)}
                     className="text-white font-bold text-sm uppercase tracking-widest flex items-center gap-2 bg-pink-500 px-6 py-3 rounded-full hover:bg-pink-600 transition-all border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none"
