@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer } from '../types';
+import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer, PaymentMethod } from '../types';
 import { formatCurrency, generateId } from '../utils';
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
@@ -60,6 +60,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [isSpinning, setIsSpinning] = useState(false);
   const [rotation, setRotation] = useState(0);
   const [prize, setPrize] = useState<string | null>(null);
+  const [wonPrizeObject, setWonPrizeObject] = useState<any>(null);
   const [canPlay, setCanPlay] = useState(true);
   
   const PRIZES = [
@@ -76,6 +77,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       
       setIsSpinning(true);
       setPrize(null);
+      setWonPrizeObject(null);
       
       // Random rotation (at least 5 full spins + random segment)
       const segmentAngle = 360 / PRIZES.length;
@@ -92,28 +94,76 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           setIsSpinning(false);
           const wonPrize = PRIZES[randomSegment];
           setPrize(wonPrize.label);
+          setWonPrizeObject(wonPrize);
           setCanPlay(false);
-          
-          if (wonPrize.type === 'points' && customer) {
-              addPoints(customer.id, wonPrize.value);
-              setCustomer(prev => prev ? ({...prev, points: prev.points + wonPrize.value}) : null);
-          } else if (wonPrize.type === 'item') {
-              // Logic for item prize (e.g. voucher or add to cart)
-              // For now, just show the prize in modal
-          }
       }, 5000); // 5 seconds spin
   };
 
-  const resetGame = () => {
-      setPrize(null);
-      setCanPlay(true);
-      // Keep rotation as is, just add to it next time
+  const handleRedeemPrize = async () => {
+      if (!wonPrizeObject || !customer) {
+          finishGame();
+          return;
+      }
+
+      if (wonPrizeObject.type === 'points') {
+          await addPoints(customer.id, wonPrizeObject.value);
+          setCustomer(prev => prev ? ({...prev, points: prev.points + wonPrizeObject.value}) : null);
+          alert(`Parabéns! Você recebeu ${wonPrizeObject.value} pontos!`);
+      } else if (wonPrizeObject.type === 'item') {
+          // Create transaction for the item
+          const transactionId = generateId();
+          let orderNumber = nextOrderNumber.toString();
+          const freshNumber = await fetchNextOrderNumber();
+          if (freshNumber) orderNumber = freshNumber;
+
+          const newTransaction: Transaction = {
+              id: transactionId,
+              orderNumber,
+              customerName: customer.name || 'Cliente',
+              timestamp: Date.now(),
+              items: [{
+                  id: 'prize-soda',
+                  name: wonPrizeObject.label, // "1 Refrigerante"
+                  price: 0,
+                  quantity: 1,
+                  category: 'Prêmios',
+                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png' // Placeholder
+              }],
+              subtotal: 0,
+              discount: 0,
+              total: 0,
+              paymentMethod: PaymentMethod.PRIZE,
+              status: 'completed',
+              kitchenStatus: 'pending',
+              customerId: customer.id,
+              pointsEarned: 0
+          };
+          
+          const success = await createTransaction(newTransaction);
+          if (success) {
+              alert(`Prêmio resgatado! Sua senha é #${orderNumber}. Retire no balcão.`);
+          } else {
+              alert("Erro ao resgatar prêmio. Chame um atendente.");
+          }
+      }
+
+      finishGame();
   };
 
 
 
 
-  // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
+
+
+  useEffect(() => {
+      if (view === 'mini_game') {
+          setCanPlay(true);
+          setPrize(null);
+          setWonPrizeObject(null);
+          setIsSpinning(false);
+      }
+  }, [view]);
+
   const displayLayout: LayoutBlock[] = [
       { 
           id: 'h1', 
@@ -738,11 +788,19 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
 
               {/* Header */}
-              <div className="z-10 text-center mb-8 animate-in slide-in-from-top duration-700">
+              <div className="z-10 text-center mb-8 animate-in slide-in-from-top duration-700 relative">
                   <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 drop-shadow-lg uppercase tracking-tighter">
                       Roleta da Sorte
                   </h2>
                   <p className="text-purple-200 font-bold text-lg mt-2">Gire e ganhe prêmios incríveis!</p>
+                  
+                  {/* Points Display */}
+                  {customer && (
+                      <div className="absolute top-0 right-0 md:-right-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex flex-col items-center animate-pulse">
+                          <span className="text-xs font-bold text-purple-200 uppercase">Seus Pontos</span>
+                          <span className="text-2xl font-black text-yellow-400">{customer.points}</span>
+                      </div>
+                  )}
               </div>
 
               {/* Wheel Container */}
@@ -824,18 +882,21 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                           </div>
 
                           <div className="flex flex-col gap-3 relative z-10">
-                              <button 
-                                  onClick={resetGame}
-                                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide"
-                              >
-                                  Jogar Novamente
-                              </button>
-                              <button 
-                                  onClick={finishGame}
-                                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-3 rounded-xl transition-all"
-                              >
-                                  Sair
-                              </button>
+                              {wonPrizeObject?.type !== 'none' ? (
+                                  <button 
+                                      onClick={handleRedeemPrize}
+                                      className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide animate-bounce"
+                                  >
+                                      RESGATAR PRÊMIO
+                                  </button>
+                              ) : (
+                                  <button 
+                                      onClick={finishGame}
+                                      className="w-full bg-gray-500 hover:bg-gray-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide"
+                                  >
+                                      Voltar
+                                  </button>
+                              )}
                           </div>
                       </div>
                       {/* Confetti Effect (Simple CSS dots) */}

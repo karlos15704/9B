@@ -4,7 +4,8 @@ export enum PaymentMethod {
   DEBIT = 'Débito',
   CASH = 'Dinheiro',
   PIX = 'Pix',
-  LOYALTY = 'Pontos Fidelidade' // Novo método de pagamento
+  LOYALTY = 'Pontos Fidelidade', // Novo método de pagamento
+  PRIZE = 'Prêmio Roleta'
 }
 
 export interface ComboItem {
