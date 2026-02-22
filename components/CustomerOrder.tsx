@@ -64,12 +64,12 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [canPlay, setCanPlay] = useState(true);
   
   const PRIZES = [
-      { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5' },
-      { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264' },
-      { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd' },
-      { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb' },
-      { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d' },
-      { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd' },
+      { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
+      { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
+      { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
+      { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
+      { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
+      { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
   ];
 
   const spinWheel = () => {
@@ -79,13 +79,33 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       setPrize(null);
       setWonPrizeObject(null);
       
+      // Weighted Random Selection
+      const totalWeight = PRIZES.reduce((sum, p) => sum + p.weight, 0);
+      let randomValue = Math.random() * totalWeight;
+      let randomSegment = 0;
+      
+      for (let i = 0; i < PRIZES.length; i++) {
+          if (randomValue < PRIZES[i].weight) {
+              randomSegment = i;
+              break;
+          }
+          randomValue -= PRIZES[i].weight;
+      }
+
       // Random rotation (at least 5 full spins + random segment)
       const segmentAngle = 360 / PRIZES.length;
-      const randomSegment = Math.floor(Math.random() * PRIZES.length);
+      // Add random offset within the segment to make it look more natural
+      const randomOffset = Math.random() * (segmentAngle - 2) + 1; 
+      
+      // Calculate rotation to land on the selected segment
+      // The wheel rotates clockwise. To land on segment i, we need to rotate such that segment i is at the pointer (top).
+      // If 0 deg is at 3 o'clock (standard CSS), and items are distributed counter-clockwise or clockwise?
+      // Assuming standard distribution: index 0 starts at 0deg.
+      // To bring index i to the top (270deg or -90deg), we need to rotate.
+      // Let's stick to the previous logic which seemed to work:
+      // const extraRotation = 360 * 5 + (360 - (randomSegment * segmentAngle)); 
+      
       const extraRotation = 360 * 5 + (360 - (randomSegment * segmentAngle)); 
-      // Note: The logic for landing on a specific segment depends on the initial offset.
-      // Assuming 0deg is at 3 o'clock or top. Let's assume standard CSS rotation.
-      // We want to land on `randomSegment`.
       
       const newRotation = rotation + extraRotation;
       setRotation(newRotation);
