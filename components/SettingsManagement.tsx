@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { AppSettings, AppModules } from '../types';
-import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud } from 'lucide-react';
+import { AppSettings, AppModules, RoulettePrize } from '../types';
+import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud, Dices, Plus, Trash2 } from 'lucide-react';
 import { uploadGalleryImage } from '../services/supabase';
 
 interface SettingsManagementProps {
@@ -112,7 +112,114 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                   </div>
               </div>
 
-              {/* IMAGENS */}
+              {/* CONFIGURAÇÃO DA ROLETA */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
+                      <Dices className="text-purple-600"/> Configuração da Roleta
+                  </h3>
+                  
+                  <div className="space-y-4">
+                      <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-500 uppercase mb-2 px-2">
+                          <div className="col-span-3">Nome do Prêmio</div>
+                          <div className="col-span-2">Tipo</div>
+                          <div className="col-span-2">Valor/Pontos</div>
+                          <div className="col-span-2">Peso (%)</div>
+                          <div className="col-span-2">Cor</div>
+                          <div className="col-span-1"></div>
+                      </div>
+
+                      {(formData.roulettePrizes || []).map((prize, index) => (
+                          <div key={index} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
+                              <div className="col-span-3">
+                                  <input 
+                                      type="text" 
+                                      value={prize.label} 
+                                      onChange={e => {
+                                          const newPrizes = [...(formData.roulettePrizes || [])];
+                                          newPrizes[index].label = e.target.value;
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="w-full text-sm font-bold bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
+                                      placeholder="Ex: 50 Pontos"
+                                  />
+                              </div>
+                              <div className="col-span-2">
+                                  <select 
+                                      value={prize.type}
+                                      onChange={e => {
+                                          const newPrizes = [...(formData.roulettePrizes || [])];
+                                          newPrizes[index].type = e.target.value as any;
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="w-full text-xs bg-white border border-gray-200 rounded p-1"
+                                  >
+                                      <option value="points">Pontos</option>
+                                      <option value="item">Item</option>
+                                      <option value="none">Nada</option>
+                                  </select>
+                              </div>
+                              <div className="col-span-2">
+                                  <input 
+                                      type="number" 
+                                      value={prize.value} 
+                                      onChange={e => {
+                                          const newPrizes = [...(formData.roulettePrizes || [])];
+                                          newPrizes[index].value = parseInt(e.target.value) || 0;
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="w-full text-sm bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
+                                  />
+                              </div>
+                              <div className="col-span-2">
+                                  <input 
+                                      type="number" 
+                                      value={prize.weight} 
+                                      onChange={e => {
+                                          const newPrizes = [...(formData.roulettePrizes || [])];
+                                          newPrizes[index].weight = parseInt(e.target.value) || 0;
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="w-full text-sm bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
+                                  />
+                              </div>
+                              <div className="col-span-2 flex items-center gap-2">
+                                  <input 
+                                      type="color" 
+                                      value={prize.color} 
+                                      onChange={e => {
+                                          const newPrizes = [...(formData.roulettePrizes || [])];
+                                          newPrizes[index].color = e.target.value;
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="h-6 w-6 rounded cursor-pointer border-none bg-transparent"
+                                  />
+                              </div>
+                              <div className="col-span-1 flex justify-end">
+                                  <button 
+                                      onClick={() => {
+                                          const newPrizes = (formData.roulettePrizes || []).filter((_, i) => i !== index);
+                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
+                                      }}
+                                      className="text-red-400 hover:text-red-600"
+                                  >
+                                      <Trash2 size={16} />
+                                  </button>
+                              </div>
+                          </div>
+                      ))}
+
+                      <button 
+                          onClick={() => {
+                              const newPrize: RoulettePrize = { label: 'Novo Prêmio', value: 0, type: 'points', color: '#cccccc', weight: 10 };
+                              setFormData(prev => ({ ...prev, roulettePrizes: [...(prev.roulettePrizes || []), newPrize] }));
+                          }}
+                          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-purple-400 hover:text-purple-500 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
+                      >
+                          <Plus size={16} /> ADICIONAR PRÊMIO
+                      </button>
+                  </div>
+              </div>
+
               <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
                   <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
                       <ImageIcon className="text-blue-500"/> Imagens e Logos

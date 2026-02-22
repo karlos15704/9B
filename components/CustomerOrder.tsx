@@ -63,14 +63,19 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [wonPrizeObject, setWonPrizeObject] = useState<any>(null);
   const [canPlay, setCanPlay] = useState(true);
   
-  const PRIZES = [
-      { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
-      { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
-      { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
-      { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
-      { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
-      { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
-  ];
+  const PRIZES = useMemo(() => {
+      if (settings.roulettePrizes && settings.roulettePrizes.length > 0) {
+          return settings.roulettePrizes;
+      }
+      return [
+          { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
+          { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
+          { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
+          { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
+          { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
+          { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
+      ];
+  }, [settings.roulettePrizes]);
 
   const spinWheel = () => {
       if (isSpinning || !canPlay) return;
@@ -823,46 +828,65 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                   )}
               </div>
 
-              {/* Wheel Container */}
-              <div className="relative z-10 mb-8">
-                  {/* Pointer */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 z-20 w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-xl"></div>
-
-                  {/* Wheel */}
-                  <div 
-                      className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[5000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
-                      style={{ transform: `rotate(${rotation}deg)` }}
-                  >
-                      {PRIZES.map((p, i) => {
-                          const angle = 360 / PRIZES.length;
-                          const rotate = angle * i;
-                          return (
-                              <div 
-                                  key={i}
-                                  className="absolute top-0 left-1/2 w-1/2 h-1/2 origin-bottom-left flex items-center justify-center"
-                                  style={{ 
-                                      transform: `rotate(${rotate}deg) skewY(-${90 - angle}deg)`,
-                                      backgroundColor: p.color,
-                                      boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
-                                  }}
-                              >
-                                  <div 
-                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-32"
-                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(80px)` }}
-                                  >
-                                      <span className="text-slate-900 font-black text-xs md:text-sm uppercase leading-tight block drop-shadow-sm">
-                                          {p.label}
-                                      </span>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                  </div>
+              {/* Wheel & Legend Container */}
+              <div className="relative z-10 mb-8 flex flex-col md:flex-row items-center gap-8 md:gap-16">
                   
-                  {/* Center Cap */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full shadow-lg border-4 border-white flex items-center justify-center z-10">
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                          <Trophy size={24} className="text-yellow-600" />
+                  {/* Wheel Wrapper */}
+                  <div className="relative">
+                      {/* Pointer */}
+                      <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 z-20 w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-xl"></div>
+
+                      {/* Wheel */}
+                      <div 
+                          className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[5000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
+                          style={{ transform: `rotate(${rotation}deg)` }}
+                      >
+                          {PRIZES.map((p, i) => {
+                              const angle = 360 / PRIZES.length;
+                              const rotate = angle * i;
+                              return (
+                                  <div 
+                                      key={i}
+                                      className="absolute top-0 left-1/2 w-1/2 h-1/2 origin-bottom-left flex items-center justify-center"
+                                      style={{ 
+                                          transform: `rotate(${rotate}deg) skewY(-${90 - angle}deg)`,
+                                          backgroundColor: p.color,
+                                          boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
+                                      }}
+                                  >
+                                      <div 
+                                          className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-32"
+                                          style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(80px)` }}
+                                      >
+                                          <span className="text-slate-900 font-black text-xs md:text-sm uppercase leading-tight block drop-shadow-sm">
+                                              {p.label}
+                                          </span>
+                                      </div>
+                                  </div>
+                              );
+                          })}
+                      </div>
+                      
+                      {/* Center Cap */}
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full shadow-lg border-4 border-white flex items-center justify-center z-10">
+                          <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
+                              <Trophy size={24} className="text-yellow-600" />
+                          </div>
+                      </div>
+                  </div>
+
+                  {/* Legend (Visible Prizes) */}
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-xs w-full animate-in slide-in-from-right duration-700 hidden md:block">
+                      <h3 className="text-white font-black uppercase mb-4 text-center border-b border-white/10 pb-2">Prêmios em Jogo</h3>
+                      <div className="space-y-3">
+                          {PRIZES.map((p, i) => (
+                              <div key={i} className="flex items-center gap-3">
+                                  <div className="w-4 h-4 rounded-full shadow-sm" style={{ backgroundColor: p.color }}></div>
+                                  <span className="text-white font-bold text-sm flex-1">{p.label}</span>
+                                  {p.type === 'points' && <span className="text-yellow-400 text-xs font-black">PTS</span>}
+                                  {p.type === 'item' && <Gift size={12} className="text-green-400" />}
+                              </div>
+                          ))}
                       </div>
                   </div>
               </div>

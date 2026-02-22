@@ -159,4 +159,13 @@ export interface AppSettings {
   customerHeroUrl?: string; 
   customerWelcomeTitle?: string; 
   marqueeText?: string; 
+  roulettePrizes?: RoulettePrize[];
+}
+
+export interface RoulettePrize {
+  label: string;
+  value: number;
+  type: 'points' | 'item' | 'none';
+  color: string;
+  weight: number;
 }
