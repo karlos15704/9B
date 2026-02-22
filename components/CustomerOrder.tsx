@@ -34,9 +34,208 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Mini Game State
+  // Mini Game State (Moved to top)
   const [gameSpinning, setGameSpinning] = useState(false);
   const [gameResult, setGameResult] = useState<number | null>(null);
+  
+  // --- MINI GAME: PLATFORMER (MARIO STYLE) ---
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [gameState, setGameState] = useState<'start' | 'playing' | 'won_level' | 'game_over' | 'completed'>('start');
+  const [gameLevel, setGameLevel] = useState(1);
+  const [gameScore, setGameScore] = useState(0);
+  const [levelScore, setLevelScore] = useState(0);
+  
+  // Game Constants
+  const GRAVITY = 0.6;
+  const JUMP_FORCE = -10;
+  const SPEED_BASE = 5;
+  
+  // Game Refs (Mutable state for loop)
+  const gameRef = useRef({
+      player: { x: 50, y: 200, width: 30, height: 30, dy: 0, grounded: false, color: '#f97316' },
+      obstacles: [] as { x: number, y: number, width: number, height: number, type: 'block' | 'coin' }[],
+      frame: 0,
+      speed: SPEED_BASE,
+      animationId: 0,
+      levelDistance: 0,
+      maxDistance: 1000, // Distance to win level
+      currentLevelScore: 0,
+      currentLevel: 1
+  });
+
+  const initLevel = (level: number) => {
+      const speed = SPEED_BASE + (level * 1.5);
+      const distance = 1000 + (level * 500);
+      
+      gameRef.current = {
+          player: { x: 50, y: 200, width: 30, height: 30, dy: 0, grounded: false, color: '#f97316' },
+          obstacles: [],
+          frame: 0,
+          speed: speed,
+          animationId: 0,
+          levelDistance: 0,
+          maxDistance: distance,
+          currentLevelScore: 0,
+          currentLevel: level
+      };
+      setGameState('start');
+      setLevelScore(0);
+      setGameLevel(level);
+  };
+
+  const startGame = () => {
+      setGameState('playing');
+      gameLoop();
+  };
+
+  const jump = () => {
+      if (gameRef.current.player.grounded) {
+          gameRef.current.player.dy = JUMP_FORCE;
+          gameRef.current.player.grounded = false;
+      }
+  };
+
+  const gameLoop = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const state = gameRef.current;
+      const width = canvas.width;
+      const height = canvas.height;
+      const groundY = height - 50;
+
+      // Clear
+      ctx.clearRect(0, 0, width, height);
+
+      // Background
+      ctx.fillStyle = '#1e293b'; // Slate 800
+      ctx.fillRect(0, 0, width, height);
+      
+      // Ground
+      ctx.fillStyle = '#334155'; // Slate 700
+      ctx.fillRect(0, groundY, width, 50);
+
+      // Player Physics
+      state.player.dy += GRAVITY;
+      state.player.y += state.player.dy;
+
+      // Ground Collision
+      if (state.player.y + state.player.height > groundY) {
+          state.player.y = groundY - state.player.height;
+          state.player.dy = 0;
+          state.player.grounded = true;
+      }
+
+      // Draw Player
+      ctx.fillStyle = state.player.color;
+      ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
+      // Eyes
+      ctx.fillStyle = 'white';
+      ctx.fillRect(state.player.x + 20, state.player.y + 5, 5, 5);
+
+      // Spawn Obstacles & Coins
+      state.frame++;
+      state.levelDistance += state.speed;
+
+      // Spawn Logic
+      if (state.frame % Math.floor(1000 / state.speed) === 0) {
+          const type = Math.random() > 0.7 ? 'coin' : 'block';
+          if (type === 'block') {
+              state.obstacles.push({ x: width, y: groundY - 40, width: 30, height: 40, type: 'block' });
+          } else {
+              state.obstacles.push({ x: width, y: groundY - 80 - (Math.random() * 50), width: 20, height: 20, type: 'coin' });
+          }
+      }
+
+      // Update Obstacles
+      for (let i = state.obstacles.length - 1; i >= 0; i--) {
+          const obs = state.obstacles[i];
+          obs.x -= state.speed;
+
+          // Draw
+          if (obs.type === 'block') {
+              ctx.fillStyle = '#ef4444'; // Red
+              ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+          } else {
+              ctx.fillStyle = '#fbbf24'; // Gold
+              ctx.beginPath();
+              ctx.arc(obs.x + 10, obs.y + 10, 10, 0, Math.PI * 2);
+              ctx.fill();
+          }
+
+          // Collision
+          if (
+              state.player.x < obs.x + obs.width &&
+              state.player.x + state.player.width > obs.x &&
+              state.player.y < obs.y + obs.height &&
+              state.player.y + state.player.height > obs.y
+          ) {
+              if (obs.type === 'block') {
+                  // Game Over
+                  setGameState('game_over');
+                  cancelAnimationFrame(state.animationId);
+                  return;
+              } else if (obs.type === 'coin') {
+                  // Collect Coin
+                  state.currentLevelScore += 10;
+                  setLevelScore(state.currentLevelScore); // Update UI
+                  state.obstacles.splice(i, 1);
+                  // Sound effect could go here
+              }
+          }
+
+          // Remove off-screen
+          if (obs.x + obs.width < 0) {
+              state.obstacles.splice(i, 1);
+          }
+      }
+
+      // Progress Bar
+      const progress = Math.min(1, state.levelDistance / state.maxDistance);
+      ctx.fillStyle = '#4ade80';
+      ctx.fillRect(0, 0, width * progress, 5);
+
+      // Win Condition
+      if (state.levelDistance >= state.maxDistance) {
+          setGameState('won_level');
+          cancelAnimationFrame(state.animationId);
+          return;
+      }
+
+      state.animationId = requestAnimationFrame(gameLoop);
+  };
+
+  const handleLevelComplete = async () => {
+      const state = gameRef.current;
+      const totalLevelPoints = state.currentLevelScore + (state.currentLevel * 50); // Bonus for completing
+      const newTotalScore = gameScore + totalLevelPoints;
+      setGameScore(newTotalScore);
+      
+      if (state.currentLevel < 3) {
+          initLevel(state.currentLevel + 1);
+      } else {
+          setGameState('completed');
+          if (customer) {
+               await addPoints(customer.id, newTotalScore);
+               setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
+          }
+      }
+  };
+
+  const handleRetryLevel = () => {
+      initLevel(gameLevel);
+      startGame();
+  };
+
+  // Initialize game when view changes
+  useEffect(() => {
+      if (view === 'mini_game') {
+          initLevel(1);
+      }
+      return () => cancelAnimationFrame(gameRef.current.animationId);
+  }, [view]);
 
   // Layout Fixo: Ignora layouts antigos salvos para garantir que a imagem nova apareça
   const displayLayout: LayoutBlock[] = [
@@ -642,66 +841,70 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   if (view === 'mini_game') {
       return (
-          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-              {/* Confetti Effect (CSS only simulation) */}
-              {gameResult && (
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                      {[...Array(20)].map((_, i) => (
-                          <div key={i} className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-ping" style={{ top: `${Math.random()*100}%`, left: `${Math.random()*100}%`, animationDelay: `${Math.random()}s`, animationDuration: '1s' }}></div>
-                      ))}
-                  </div>
-              )}
-
-              <div className="relative z-10 w-full max-w-sm">
-                  <h2 className="text-3xl font-black text-white mb-2 uppercase tracking-tight animate-pulse">Roleta da Sorte!</h2>
-                  <p className="text-purple-200 mb-8 text-sm">Gire para ganhar pontos extras!</p>
-
-                  <div className="relative w-64 h-64 mx-auto mb-8">
-                      {/* Roleta Visual */}
-                      <div className={`w-full h-full rounded-full border-8 border-purple-500 bg-slate-800 relative overflow-hidden shadow-2xl shadow-purple-500/20 ${gameSpinning ? 'animate-spin' : ''}`} style={{ transition: 'transform 3s cubic-bezier(0.25, 0.1, 0.25, 1)' }}>
-                          <div className="absolute inset-0 flex items-center justify-center">
-                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-0"></div>
-                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-45"></div>
-                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-90"></div>
-                              <div className="w-full h-0.5 bg-purple-500/30 absolute rotate-135"></div>
-                          </div>
-                          {/* Icons nos quadrantes (decorativo) */}
-                          <Star className="absolute top-4 left-1/2 -translate-x-1/2 text-yellow-400" size={24} />
-                          <Gift className="absolute bottom-4 left-1/2 -translate-x-1/2 text-green-400" size={24} />
-                          <Trophy className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400" size={24} />
-                          <Dices className="absolute right-4 top-1/2 -translate-y-1/2 text-red-400" size={24} />
+          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
+              <div className="relative z-10 w-full max-w-2xl bg-slate-800 p-4 rounded-3xl border border-slate-700 shadow-2xl">
+                  <div className="flex justify-between items-center mb-4 text-white">
+                      <div className="flex items-center gap-2">
+                          <Trophy className="text-yellow-400" />
+                          <span className="font-black text-xl">Nível {gameLevel}</span>
                       </div>
+                      <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-1 text-yellow-400">
+                              <Star size={16} fill="currentColor" />
+                              <span className="font-bold">{levelScore}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-purple-400">
+                              <span className="text-xs uppercase font-bold">Total:</span>
+                              <span className="font-bold">{gameScore}</span>
+                          </div>
+                      </div>
+                  </div>
+
+                  <div className="relative bg-slate-900 rounded-xl overflow-hidden border-4 border-slate-700 mb-4 shadow-inner" style={{ height: '300px' }}>
+                      <canvas 
+                          ref={canvasRef} 
+                          width={600} 
+                          height={300} 
+                          className="w-full h-full object-contain cursor-pointer"
+                          onClick={jump}
+                          onTouchStart={jump}
+                      />
                       
-                      {/* Seta Indicadora */}
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-12 bg-white clip-path-triangle z-20 drop-shadow-lg"></div>
-                      
-                      {/* Resultado Overlay */}
-                      {!gameSpinning && gameResult && (
-                          <div className="absolute inset-0 flex items-center justify-center z-30 animate-in zoom-in duration-300">
-                              <div className="bg-white/90 backdrop-blur-sm p-6 rounded-full shadow-2xl border-4 border-yellow-400 transform rotate-12">
-                                  <p className="text-xs font-black text-gray-500 uppercase">Você ganhou</p>
-                                  <p className="text-5xl font-black text-purple-600 leading-none">{gameResult}</p>
-                                  <p className="text-sm font-bold text-purple-800 uppercase">Pontos!</p>
-                              </div>
+                      {gameState === 'start' && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
+                              <h3 className="text-3xl font-black text-white mb-2 uppercase">Nível {gameLevel}</h3>
+                              <p className="text-gray-300 mb-6 text-sm">Toque na tela para pular os obstáculos!</p>
+                              <button onClick={startGame} className="bg-green-500 hover:bg-green-600 text-white font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all">COMEÇAR</button>
+                          </div>
+                      )}
+
+                      {gameState === 'game_over' && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+                              <h3 className="text-3xl font-black text-red-500 mb-2 uppercase">Bateu!</h3>
+                              <p className="text-gray-300 mb-6">Não desista! Tente novamente.</p>
+                              <button onClick={handleRetryLevel} className="bg-white text-slate-900 font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all">TENTAR DE NOVO</button>
+                          </div>
+                      )}
+
+                      {gameState === 'won_level' && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-900/90 backdrop-blur-md">
+                              <h3 className="text-3xl font-black text-white mb-2 uppercase">Nível Concluído!</h3>
+                              <p className="text-green-200 mb-6 font-bold">Você ganhou +{levelScore + (gameLevel * 50)} pontos!</p>
+                              <button onClick={handleLevelComplete} className="bg-yellow-400 text-yellow-900 font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all flex items-center gap-2">
+                                  {gameLevel < 3 ? 'PRÓXIMO NÍVEL' : 'RESGATAR PRÊMIO'} <ArrowRight size={20} />
+                              </button>
                           </div>
                       )}
                   </div>
 
-                  {!gameResult ? (
-                      <button 
-                          onClick={playMiniGame}
-                          disabled={gameSpinning}
-                          className="w-full bg-gradient-to-b from-yellow-400 to-orange-500 text-white font-black py-4 rounded-xl shadow-lg shadow-orange-500/40 transform active:scale-95 transition-all text-xl border-b-4 border-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                          {gameSpinning ? 'GIRANDO...' : 'GIRAR AGORA!'}
-                      </button>
+                  {gameState === 'completed' ? (
+                      <div className="text-center animate-in zoom-in">
+                          <h3 className="text-2xl font-black text-white mb-2">PARABÉNS!</h3>
+                          <p className="text-gray-400 mb-4">Você completou o desafio e ganhou um total de <strong className="text-yellow-400">{gameScore} pontos</strong>!</p>
+                          <button onClick={() => setView('success')} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">FINALIZAR PEDIDO</button>
+                      </div>
                   ) : (
-                      <button 
-                          onClick={() => setView('success')}
-                          className="w-full bg-white text-purple-600 font-black py-4 rounded-xl shadow-lg hover:bg-purple-50 transition-colors animate-bounce"
-                      >
-                          RESGATAR E FINALIZAR
-                      </button>
+                      <p className="text-xs text-gray-500">Toque na tela ou clique para pular.</p>
                   )}
               </div>
           </div>

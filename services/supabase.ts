@@ -45,6 +45,13 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   ON CONFLICT (id) DO NOTHING;
 
   -- Políticas de Segurança para o Storage (Permitir Upload e Leitura pública)
+  -- Remove políticas antigas para evitar erro de duplicidade
+  DROP POLICY IF EXISTS "Public Access Receipts" ON storage.objects;
+  DROP POLICY IF EXISTS "Public Upload Receipts" ON storage.objects;
+  DROP POLICY IF EXISTS "Public Access Gallery" ON storage.objects;
+  DROP POLICY IF EXISTS "Public Upload Gallery" ON storage.objects;
+
+  -- Cria novas políticas
   CREATE POLICY "Public Access Receipts" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
   CREATE POLICY "Public Upload Receipts" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'receipts');
   
