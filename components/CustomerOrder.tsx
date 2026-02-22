@@ -45,11 +45,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [gameLevel, setGameLevel] = useState(1);
   const [gameScore, setGameScore] = useState(0);
   const [levelScore, setLevelScore] = useState(0);
-  const [playedOrderIds, setPlayedOrderIds] = useState<string[]>(() => {
-      const saved = localStorage.getItem('played_games');
-      return saved ? JSON.parse(saved) : [];
-  });
-  const [currentGameOrderId, setCurrentGameOrderId] = useState<string | null>(null);
   
   // Game Constants
   const GRAVITY = 0.6;
@@ -108,127 +103,122 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      try {
-          const state = gameRef.current;
-          const width = canvas.width;
-          const height = canvas.height;
-          const groundY = height - 50;
+      const state = gameRef.current;
+      const width = canvas.width;
+      const height = canvas.height;
+      const groundY = height - 50;
 
-          // Clear
-          ctx.clearRect(0, 0, width, height);
+      // Clear
+      ctx.clearRect(0, 0, width, height);
 
-          // Background
-          const gradient = ctx.createLinearGradient(0, 0, 0, height);
-          gradient.addColorStop(0, '#0f172a'); 
-          gradient.addColorStop(1, '#334155'); 
-          ctx.fillStyle = gradient;
-          ctx.fillRect(0, 0, width, height);
-          
-          // Ground
-          ctx.fillStyle = '#1e293b'; 
-          ctx.fillRect(0, groundY, width, 50);
-          ctx.fillStyle = '#475569'; 
-          ctx.fillRect(0, groundY, width, 5);
+      // Background
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#0f172a'); 
+      gradient.addColorStop(1, '#334155'); 
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+      
+      // Ground
+      ctx.fillStyle = '#1e293b'; 
+      ctx.fillRect(0, groundY, width, 50);
+      ctx.fillStyle = '#475569'; 
+      ctx.fillRect(0, groundY, width, 5);
 
-          // Player Physics
-          state.player.dy += GRAVITY;
-          state.player.y += state.player.dy;
+      // Player Physics
+      state.player.dy += GRAVITY;
+      state.player.y += state.player.dy;
 
-          // Ground Collision
-          if (state.player.y + state.player.height > groundY) {
-              state.player.y = groundY - state.player.height;
-              state.player.dy = 0;
-              state.player.grounded = true;
-          }
+      // Ground Collision
+      if (state.player.y + state.player.height > groundY) {
+          state.player.y = groundY - state.player.height;
+          state.player.dy = 0;
+          state.player.grounded = true;
+      }
 
-          // Draw Player (Mascot) - FLIPPED TO FACE RIGHT
-          if (mascotImgRef.current && mascotImgRef.current.complete && mascotImgRef.current.naturalWidth > 0) {
-              ctx.save();
-              ctx.translate(state.player.x + state.player.width / 2, state.player.y + state.player.height / 2);
-              ctx.scale(-1, 1); 
-              ctx.drawImage(mascotImgRef.current, -state.player.width / 2, -state.player.height / 2, state.player.width, state.player.height);
-              ctx.restore();
+      // Draw Player (Mascot) - FLIPPED TO FACE RIGHT
+      if (mascotImgRef.current) {
+          ctx.save();
+          ctx.translate(state.player.x + state.player.width / 2, state.player.y + state.player.height / 2);
+          ctx.scale(-1, 1); 
+          ctx.drawImage(mascotImgRef.current, -state.player.width / 2, -state.player.height / 2, state.player.width, state.player.height);
+          ctx.restore();
+      } else {
+          ctx.fillStyle = state.player.color;
+          ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
+      }
+
+      // Spawn Obstacles & Coins
+      state.frame++;
+      state.levelDistance += state.speed;
+
+      if (state.frame % Math.floor(1200 / state.speed) === 0) {
+          const type = Math.random() > 0.6 ? 'coin' : 'block';
+          if (type === 'block') {
+              state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
           } else {
-              ctx.fillStyle = state.player.color;
-              ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
+              state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
+          }
+      }
+
+      for (let i = state.obstacles.length - 1; i >= 0; i--) {
+          const obs = state.obstacles[i];
+          obs.x -= state.speed;
+
+          if (obs.type === 'block') {
+              ctx.fillStyle = '#ef4444'; 
+              ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+              ctx.fillStyle = '#fca5a5';
+              ctx.beginPath();
+              ctx.moveTo(obs.x, obs.y + obs.height);
+              ctx.lineTo(obs.x + obs.width/2, obs.y);
+              ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+              ctx.fill();
+          } else {
+              ctx.fillStyle = '#fbbf24'; 
+              ctx.beginPath();
+              ctx.arc(obs.x + 15, obs.y + 15, 15, 0, Math.PI * 2);
+              ctx.fill();
+              ctx.strokeStyle = '#d97706';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.fillStyle = '#d97706';
+              ctx.font = 'bold 16px sans-serif';
+              ctx.fillText('$', obs.x + 10, obs.y + 20);
           }
 
-          // Spawn Obstacles & Coins
-          state.frame++;
-          state.levelDistance += state.speed;
-
-          if (state.frame % Math.floor(1200 / state.speed) === 0) {
-              const type = Math.random() > 0.6 ? 'coin' : 'block';
-              if (type === 'block') {
-                  state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
-              } else {
-                  state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
-              }
-          }
-
-          for (let i = state.obstacles.length - 1; i >= 0; i--) {
-              const obs = state.obstacles[i];
-              obs.x -= state.speed;
-
+          if (
+              state.player.x < obs.x + obs.width &&
+              state.player.x + state.player.width > obs.x &&
+              state.player.y < obs.y + obs.height &&
+              state.player.y + state.player.height > obs.y
+          ) {
               if (obs.type === 'block') {
-                  ctx.fillStyle = '#ef4444'; 
-                  ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-                  ctx.fillStyle = '#fca5a5';
-                  ctx.beginPath();
-                  ctx.moveTo(obs.x, obs.y + obs.height);
-                  ctx.lineTo(obs.x + obs.width/2, obs.y);
-                  ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
-                  ctx.fill();
-              } else {
-                  ctx.fillStyle = '#fbbf24'; 
-                  ctx.beginPath();
-                  ctx.arc(obs.x + 15, obs.y + 15, 15, 0, Math.PI * 2);
-                  ctx.fill();
-                  ctx.strokeStyle = '#d97706';
-                  ctx.lineWidth = 2;
-                  ctx.stroke();
-                  ctx.fillStyle = '#d97706';
-                  ctx.font = 'bold 16px sans-serif';
-                  ctx.fillText('$', obs.x + 10, obs.y + 20);
-              }
-
-              if (
-                  state.player.x < obs.x + obs.width &&
-                  state.player.x + state.player.width > obs.x &&
-                  state.player.y < obs.y + obs.height &&
-                  state.player.y + state.player.height > obs.y
-              ) {
-                  if (obs.type === 'block') {
-                      setGameState('game_over');
-                      cancelAnimationFrame(state.animationId);
-                      return;
-                  } else if (obs.type === 'coin') {
-                      state.currentLevelScore += 10;
-                      setLevelScore(state.currentLevelScore);
-                      state.obstacles.splice(i, 1);
-                  }
-              }
-
-              if (obs.x + obs.width < 0) {
+                  setGameState('game_over');
+                  cancelAnimationFrame(state.animationId);
+                  return;
+              } else if (obs.type === 'coin') {
+                  state.currentLevelScore += 10;
+                  setLevelScore(state.currentLevelScore);
                   state.obstacles.splice(i, 1);
               }
           }
 
-          const progress = Math.min(1, state.levelDistance / state.maxDistance);
-          ctx.fillStyle = '#22c55e';
-          ctx.fillRect(0, 0, width * progress, 8);
-
-          if (state.levelDistance >= state.maxDistance) {
-              setGameState('won_level');
-              cancelAnimationFrame(state.animationId);
-              return;
+          if (obs.x + obs.width < 0) {
+              state.obstacles.splice(i, 1);
           }
-
-          state.animationId = requestAnimationFrame(gameLoop);
-      } catch (e) {
-          console.error("Game Loop Error:", e);
-          cancelAnimationFrame(gameRef.current.animationId);
       }
+
+      const progress = Math.min(1, state.levelDistance / state.maxDistance);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, 0, width * progress, 8);
+
+      if (state.levelDistance >= state.maxDistance) {
+          setGameState('won_level');
+          cancelAnimationFrame(state.animationId);
+          return;
+      }
+
+      state.animationId = requestAnimationFrame(gameLoop);
   };
 
   const handleLevelComplete = async () => {
@@ -245,12 +235,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                await addPoints(customer.id, newTotalScore);
                setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
           }
-          // Mark order as played
-          if (currentGameOrderId) {
-              const newPlayed = [...playedOrderIds, currentGameOrderId];
-              setPlayedOrderIds(newPlayed);
-              localStorage.setItem('played_games', JSON.stringify(newPlayed));
-          }
       }
   };
 
@@ -259,28 +243,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       startGame();
   };
 
-  const handleExitGame = () => {
-      // If exiting early, maybe don't mark as played? Or do? 
-      // User said "cada compra o cliente possa jogar apenas 1 vez".
-      // Usually implies if they finish or give up.
-      // Let's mark as played only if they complete? Or if they start?
-      // Let's mark as played if they complete OR if they explicitly quit after game over.
-      // If they just close the window, they might want to try again.
-      // But if they click "Sair do Jogo", that's a forfeit.
-      if (currentGameOrderId && gameState !== 'start') {
-          const newPlayed = [...playedOrderIds, currentGameOrderId];
-          setPlayedOrderIds(newPlayed);
-          localStorage.setItem('played_games', JSON.stringify(newPlayed));
-      }
-      setView('orders');
-  };
-
   useEffect(() => {
       if (view === 'mini_game') {
           const img = new Image();
           img.src = settings.mascotUrl;
           img.onload = () => { mascotImgRef.current = img; };
-          img.onerror = () => { console.warn("Mascot image failed to load"); };
 
           const handleResize = () => {
               if (canvasRef.current) {
@@ -290,7 +257,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           };
           
           window.addEventListener('resize', handleResize);
-          handleResize(); 
+          handleResize(); // Initial size
           
           initLevel(1);
           
@@ -1023,23 +990,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800') : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}><span className="font-bold text-sm uppercase">{order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'PRONTO! RETIRE' : 'Em Preparo') : order.status === 'cancelled' ? 'Cancelado' : 'Aguardando Pagto'}</span></div>
                         
                         {/* BOTÃO JOGAR SE PAGO */}
-                        {order.status === 'completed' && customer && !playedOrderIds.includes(order.id) && (
-                            <button 
-                                onClick={() => {
-                                    setCurrentGameOrderId(order.id);
-                                    setView('mini_game');
-                                }} 
-                                className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse"
-                            >
+                        {order.status === 'completed' && customer && (
+                            <button onClick={() => setView('mini_game')} className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse">
                                 <Trophy size={20} className="text-yellow-300" />
                                 JOGAR E GANHAR BÔNUS!
                             </button>
-                        )}
-                        {order.status === 'completed' && customer && playedOrderIds.includes(order.id) && (
-                            <div className="w-full mb-3 bg-gray-100 text-gray-400 font-bold py-3 rounded-xl flex items-center justify-center gap-2">
-                                <CheckCircle2 size={18} />
-                                Bônus Resgatado
-                            </div>
                         )}
 
                         <div className="border-t border-gray-100 pt-3"><p className="text-sm text-gray-600 line-clamp-2">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p><p className="text-right font-black text-gray-900 mt-2">{formatCurrency(order.total)}</p></div>
