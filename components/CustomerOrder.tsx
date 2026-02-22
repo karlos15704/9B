@@ -40,6 +40,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   
   // --- MINI GAME: PLATFORMER (MARIO STYLE) ---
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mascotImgRef = useRef<HTMLImageElement | null>(null);
   const [gameState, setGameState] = useState<'start' | 'playing' | 'won_level' | 'game_over' | 'completed'>('start');
   const [gameLevel, setGameLevel] = useState(1);
   const [gameScore, setGameScore] = useState(0);
@@ -47,28 +48,31 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   
   // Game Constants
   const GRAVITY = 0.6;
-  const JUMP_FORCE = -10;
-  const SPEED_BASE = 5;
+  const JUMP_FORCE = -15; // Higher jump for full screen
+  const SPEED_BASE = 6;
   
   // Game Refs (Mutable state for loop)
   const gameRef = useRef({
-      player: { x: 50, y: 200, width: 30, height: 30, dy: 0, grounded: false, color: '#f97316' },
+      player: { x: 50, y: 200, width: 60, height: 60, dy: 0, grounded: false, color: '#f97316' },
       obstacles: [] as { x: number, y: number, width: number, height: number, type: 'block' | 'coin' }[],
       frame: 0,
       speed: SPEED_BASE,
       animationId: 0,
       levelDistance: 0,
-      maxDistance: 1000, // Distance to win level
+      maxDistance: 2000, // Distance to win level
       currentLevelScore: 0,
       currentLevel: 1
   });
 
   const initLevel = (level: number) => {
       const speed = SPEED_BASE + (level * 1.5);
-      const distance = 1000 + (level * 500);
+      const distance = 2000 + (level * 1000);
       
+      // Reset player position based on screen height if possible, otherwise default
+      const startY = window.innerHeight ? window.innerHeight - 150 : 200;
+
       gameRef.current = {
-          player: { x: 50, y: 200, width: 30, height: 30, dy: 0, grounded: false, color: '#f97316' },
+          player: { x: 50, y: startY, width: 60, height: 60, dy: 0, grounded: false, color: '#f97316' },
           obstacles: [],
           frame: 0,
           speed: speed,
@@ -109,13 +113,18 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       // Clear
       ctx.clearRect(0, 0, width, height);
 
-      // Background
-      ctx.fillStyle = '#1e293b'; // Slate 800
+      // Background (Sky)
+      const gradient = ctx.createLinearGradient(0, 0, 0, height);
+      gradient.addColorStop(0, '#0f172a'); // Slate 900
+      gradient.addColorStop(1, '#334155'); // Slate 700
+      ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, width, height);
       
       // Ground
-      ctx.fillStyle = '#334155'; // Slate 700
+      ctx.fillStyle = '#1e293b'; // Slate 800
       ctx.fillRect(0, groundY, width, 50);
+      ctx.fillStyle = '#475569'; // Slate 600 (Top border)
+      ctx.fillRect(0, groundY, width, 5);
 
       // Player Physics
       state.player.dy += GRAVITY;
@@ -128,24 +137,27 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           state.player.grounded = true;
       }
 
-      // Draw Player
-      ctx.fillStyle = state.player.color;
-      ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
-      // Eyes
-      ctx.fillStyle = 'white';
-      ctx.fillRect(state.player.x + 20, state.player.y + 5, 5, 5);
+      // Draw Player (Mascot)
+      if (mascotImgRef.current) {
+          ctx.drawImage(mascotImgRef.current, state.player.x, state.player.y, state.player.width, state.player.height);
+      } else {
+          ctx.fillStyle = state.player.color;
+          ctx.fillRect(state.player.x, state.player.y, state.player.width, state.player.height);
+      }
 
       // Spawn Obstacles & Coins
       state.frame++;
       state.levelDistance += state.speed;
 
       // Spawn Logic
-      if (state.frame % Math.floor(1000 / state.speed) === 0) {
-          const type = Math.random() > 0.7 ? 'coin' : 'block';
+      if (state.frame % Math.floor(1200 / state.speed) === 0) {
+          const type = Math.random() > 0.6 ? 'coin' : 'block';
           if (type === 'block') {
-              state.obstacles.push({ x: width, y: groundY - 40, width: 30, height: 40, type: 'block' });
+              // Obstacle (Fryer/Fire)
+              state.obstacles.push({ x: width, y: groundY - 60, width: 40, height: 60, type: 'block' });
           } else {
-              state.obstacles.push({ x: width, y: groundY - 80 - (Math.random() * 50), width: 20, height: 20, type: 'coin' });
+              // Coin
+              state.obstacles.push({ x: width, y: groundY - 100 - (Math.random() * 80), width: 30, height: 30, type: 'coin' });
           }
       }
 
@@ -158,11 +170,24 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           if (obs.type === 'block') {
               ctx.fillStyle = '#ef4444'; // Red
               ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+              // Fire detail
+              ctx.fillStyle = '#fca5a5';
+              ctx.beginPath();
+              ctx.moveTo(obs.x, obs.y + obs.height);
+              ctx.lineTo(obs.x + obs.width/2, obs.y);
+              ctx.lineTo(obs.x + obs.width, obs.y + obs.height);
+              ctx.fill();
           } else {
               ctx.fillStyle = '#fbbf24'; // Gold
               ctx.beginPath();
-              ctx.arc(obs.x + 10, obs.y + 10, 10, 0, Math.PI * 2);
+              ctx.arc(obs.x + 15, obs.y + 15, 15, 0, Math.PI * 2);
               ctx.fill();
+              ctx.strokeStyle = '#d97706';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+              ctx.fillStyle = '#d97706';
+              ctx.font = 'bold 16px sans-serif';
+              ctx.fillText('$', obs.x + 10, obs.y + 20);
           }
 
           // Collision
@@ -194,8 +219,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
       // Progress Bar
       const progress = Math.min(1, state.levelDistance / state.maxDistance);
-      ctx.fillStyle = '#4ade80';
-      ctx.fillRect(0, 0, width * progress, 5);
+      ctx.fillStyle = '#22c55e';
+      ctx.fillRect(0, 0, width * progress, 8);
 
       // Win Condition
       if (state.levelDistance >= state.maxDistance) {
@@ -217,6 +242,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           initLevel(state.currentLevel + 1);
       } else {
           setGameState('completed');
+          // Points are added to transaction in App.tsx upon payment, 
+          // but for the game bonus, we might want to add them now or attach to transaction.
+          // Since we can't easily attach to the already created transaction without an update call,
+          // we'll just add them to the customer account immediately as a "gift".
           if (customer) {
                await addPoints(customer.id, newTotalScore);
                setCustomer(prev => prev ? ({...prev, points: prev.points + newTotalScore}) : null);
@@ -232,6 +261,19 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // Initialize game when view changes
   useEffect(() => {
       if (view === 'mini_game') {
+          // Load Mascot Image
+          const img = new Image();
+          img.src = settings.mascotUrl;
+          img.onload = () => {
+              mascotImgRef.current = img;
+          };
+
+          // Adjust canvas size to window
+          if (canvasRef.current) {
+              canvasRef.current.width = window.innerWidth;
+              canvasRef.current.height = window.innerHeight;
+          }
+
           initLevel(1);
       }
       return () => cancelAnimationFrame(gameRef.current.animationId);
@@ -469,11 +511,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     const success = await createTransaction(newTransaction);
     
     if (success) {
-        // Se tiver cliente, adiciona os pontos
-        if (customer) {
-            await addPoints(customer.id, pointsEarned);
-            setCustomer(prev => prev ? ({...prev, points: prev.points + pointsEarned}) : null);
-        }
+        // Points will be added upon payment confirmation in App.tsx
+        // if (customer) {
+        //    setCustomer(prev => prev ? ({...prev, points: prev.points + pointsEarned}) : null);
+        // }
 
         setIsSending(false);
         saveOrderId(transactionId); 
@@ -841,72 +882,70 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   if (view === 'mini_game') {
       return (
-          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-4 text-center relative overflow-hidden">
-              <div className="relative z-10 w-full max-w-2xl bg-slate-800 p-4 rounded-3xl border border-slate-700 shadow-2xl">
-                  <div className="flex justify-between items-center mb-4 text-white">
-                      <div className="flex items-center gap-2">
-                          <Trophy className="text-yellow-400" />
-                          <span className="font-black text-xl">Nível {gameLevel}</span>
+          <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
+              {/* HUD */}
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-10 text-white pointer-events-none">
+                  <div className="flex items-center gap-2 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
+                      <Trophy className="text-yellow-400" />
+                      <span className="font-black text-xl">Nível {gameLevel}</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-1 text-yellow-400 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
+                          <Star size={16} fill="currentColor" />
+                          <span className="font-bold">{levelScore}</span>
                       </div>
-                      <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-1 text-yellow-400">
-                              <Star size={16} fill="currentColor" />
-                              <span className="font-bold">{levelScore}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-purple-400">
-                              <span className="text-xs uppercase font-bold">Total:</span>
-                              <span className="font-bold">{gameScore}</span>
-                          </div>
+                      <div className="flex items-center gap-1 text-purple-400 bg-black/50 px-4 py-2 rounded-full backdrop-blur-sm">
+                          <span className="text-xs uppercase font-bold mr-1">Total:</span>
+                          <span className="font-bold">{gameScore}</span>
                       </div>
                   </div>
-
-                  <div className="relative bg-slate-900 rounded-xl overflow-hidden border-4 border-slate-700 mb-4 shadow-inner" style={{ height: '300px' }}>
-                      <canvas 
-                          ref={canvasRef} 
-                          width={600} 
-                          height={300} 
-                          className="w-full h-full object-contain cursor-pointer"
-                          onClick={jump}
-                          onTouchStart={jump}
-                      />
-                      
-                      {gameState === 'start' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 backdrop-blur-sm">
-                              <h3 className="text-3xl font-black text-white mb-2 uppercase">Nível {gameLevel}</h3>
-                              <p className="text-gray-300 mb-6 text-sm">Toque na tela para pular os obstáculos!</p>
-                              <button onClick={startGame} className="bg-green-500 hover:bg-green-600 text-white font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all">COMEÇAR</button>
-                          </div>
-                      )}
-
-                      {gameState === 'game_over' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
-                              <h3 className="text-3xl font-black text-red-500 mb-2 uppercase">Bateu!</h3>
-                              <p className="text-gray-300 mb-6">Não desista! Tente novamente.</p>
-                              <button onClick={handleRetryLevel} className="bg-white text-slate-900 font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all">TENTAR DE NOVO</button>
-                          </div>
-                      )}
-
-                      {gameState === 'won_level' && (
-                          <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-900/90 backdrop-blur-md">
-                              <h3 className="text-3xl font-black text-white mb-2 uppercase">Nível Concluído!</h3>
-                              <p className="text-green-200 mb-6 font-bold">Você ganhou +{levelScore + (gameLevel * 50)} pontos!</p>
-                              <button onClick={handleLevelComplete} className="bg-yellow-400 text-yellow-900 font-black py-3 px-8 rounded-xl shadow-lg transform hover:scale-105 transition-all flex items-center gap-2">
-                                  {gameLevel < 3 ? 'PRÓXIMO NÍVEL' : 'RESGATAR PRÊMIO'} <ArrowRight size={20} />
-                              </button>
-                          </div>
-                      )}
-                  </div>
-
-                  {gameState === 'completed' ? (
-                      <div className="text-center animate-in zoom-in">
-                          <h3 className="text-2xl font-black text-white mb-2">PARABÉNS!</h3>
-                          <p className="text-gray-400 mb-4">Você completou o desafio e ganhou um total de <strong className="text-yellow-400">{gameScore} pontos</strong>!</p>
-                          <button onClick={() => setView('success')} className="w-full bg-purple-600 hover:bg-purple-700 text-white font-black py-4 rounded-xl shadow-lg transition-all">FINALIZAR PEDIDO</button>
-                      </div>
-                  ) : (
-                      <p className="text-xs text-gray-500">Toque na tela ou clique para pular.</p>
-                  )}
               </div>
+
+              <canvas 
+                  ref={canvasRef} 
+                  className="w-full h-full object-cover cursor-pointer"
+                  onClick={jump}
+                  onTouchStart={jump}
+              />
+              
+              {gameState === 'start' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md z-20 animate-in fade-in">
+                      <img src={settings.mascotUrl} className="w-32 h-32 object-contain mb-4 animate-bounce" alt="Mascote" />
+                      <h3 className="text-4xl font-black text-white mb-2 uppercase tracking-tight">Fuga da Fritadeira!</h3>
+                      <p className="text-gray-300 mb-8 text-lg max-w-md text-center">Ajude o mascote a fugir e coletar moedas! Toque na tela para pular.</p>
+                      <button onClick={startGame} className="bg-green-500 hover:bg-green-600 text-white font-black py-4 px-12 rounded-2xl shadow-lg shadow-green-500/30 transform hover:scale-105 transition-all text-xl">JOGAR AGORA</button>
+                  </div>
+              )}
+
+              {gameState === 'game_over' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-20 animate-in zoom-in">
+                      <h3 className="text-5xl font-black text-red-500 mb-2 uppercase">VISH, FRITOU!</h3>
+                      <p className="text-gray-300 mb-8 text-xl">Não desista! Tente novamente.</p>
+                      <button onClick={handleRetryLevel} className="bg-white text-slate-900 font-black py-4 px-10 rounded-2xl shadow-lg transform hover:scale-105 transition-all text-lg">TENTAR DE NOVO</button>
+                  </div>
+              )}
+
+              {gameState === 'won_level' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-green-900/95 backdrop-blur-md z-20 animate-in zoom-in">
+                      <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce" />
+                      <h3 className="text-4xl font-black text-white mb-2 uppercase">Nível Concluído!</h3>
+                      <p className="text-green-200 mb-8 font-bold text-xl">Você ganhou +{levelScore + (gameLevel * 50)} pontos!</p>
+                      <button onClick={handleLevelComplete} className="bg-yellow-400 text-yellow-900 font-black py-4 px-12 rounded-2xl shadow-lg shadow-yellow-400/30 transform hover:scale-105 transition-all flex items-center gap-2 text-xl">
+                          {gameLevel < 3 ? 'PRÓXIMO NÍVEL' : 'RESGATAR PRÊMIO'} <ArrowRight size={24} />
+                      </button>
+                  </div>
+              )}
+
+              {gameState === 'completed' && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-purple-900/95 backdrop-blur-md z-20 animate-in zoom-in">
+                      <div className="bg-white/10 p-8 rounded-3xl backdrop-blur-xl border border-white/20 text-center max-w-md w-full mx-4">
+                          <h3 className="text-4xl font-black text-white mb-2">PARABÉNS!</h3>
+                          <p className="text-purple-200 mb-6 text-lg">Você completou o desafio e ganhou um total de:</p>
+                          <div className="text-6xl font-black text-yellow-400 mb-8 drop-shadow-lg">{gameScore} pts</div>
+                          <button onClick={() => setView('success')} className="w-full bg-white text-purple-900 font-black py-4 rounded-xl shadow-lg hover:bg-gray-100 transition-all text-xl">FINALIZAR PEDIDO</button>
+                      </div>
+                  </div>
+              )}
           </div>
       );
   }

@@ -35,6 +35,7 @@ import {
   fetchSettings,
   saveSettings
 } from './services/supabase';
+import { addPoints } from './services/loyaltyService';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -521,6 +522,12 @@ const App: React.FC = () => {
          };
 
          if (isConnected) await confirmTransactionPayment(transactionToSave);
+         
+         // AWARD LOYALTY POINTS ON PAYMENT CONFIRMATION
+         if (transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
+             await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
+         }
+
          setTransactions(prev => [...prev.filter(t => t.id !== currentPendingOrderId), transactionToSave]);
 
       } else {
@@ -551,6 +558,11 @@ const App: React.FC = () => {
          if (isConnected) {
            const success = await createTransaction(transactionToSave);
            if (!success) setIsConnected(false); 
+           
+           // AWARD LOYALTY POINTS FOR DIRECT POS SALES (IF CUSTOMER IDENTIFIED - NOT IMPLEMENTED IN POS YET BUT GOOD TO HAVE)
+           if (success && transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
+               await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
+           }
          }
          
          setNextOrderNumber(prev => (prev || 1) + 1);
