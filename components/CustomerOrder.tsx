@@ -876,7 +876,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                   </div>
 
                   {/* Legend (Visible Prizes) */}
-                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-xs w-full animate-in slide-in-from-right duration-700 hidden md:block">
+                  <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-6 max-w-xs w-full animate-in slide-in-from-right duration-700">
                       <h3 className="text-white font-black uppercase mb-4 text-center border-b border-white/10 pb-2">Prêmios em Jogo</h3>
                       <div className="space-y-3">
                           {PRIZES.map((p, i) => (
