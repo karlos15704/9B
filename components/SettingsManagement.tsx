@@ -27,6 +27,22 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
       }));
   };
 
+  useEffect(() => {
+      if (!formData.roulettePrizes || formData.roulettePrizes.length === 0) {
+          setFormData(prev => ({
+              ...prev,
+              roulettePrizes: [
+                  { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
+                  { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
+                  { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
+                  { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
+                  { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
+                  { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
+              ]
+          }));
+      }
+  }, []);
+
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
@@ -195,28 +211,12 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                                   />
                               </div>
                               <div className="col-span-1 flex justify-end">
-                                  <button 
-                                      onClick={() => {
-                                          const newPrizes = (formData.roulettePrizes || []).filter((_, i) => i !== index);
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="text-red-400 hover:text-red-600"
-                                  >
-                                      <Trash2 size={16} />
-                                  </button>
+                                  {/* Botão de excluir removido conforme solicitação */}
                               </div>
                           </div>
                       ))}
 
-                      <button 
-                          onClick={() => {
-                              const newPrize: RoulettePrize = { label: 'Novo Prêmio', value: 0, type: 'points', color: '#cccccc', weight: 10 };
-                              setFormData(prev => ({ ...prev, roulettePrizes: [...(prev.roulettePrizes || []), newPrize] }));
-                          }}
-                          className="w-full py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-400 hover:border-purple-400 hover:text-purple-500 font-bold text-sm flex items-center justify-center gap-2 transition-colors"
-                      >
-                          <Plus size={16} /> ADICIONAR PRÊMIO
-                      </button>
+                      {/* Botão de adicionar removido conforme solicitação */}
                   </div>
               </div>
 

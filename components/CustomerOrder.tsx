@@ -850,7 +850,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
                   {/* Wheel */}
                   <div 
-                      className="w-80 h-80 md:w-96 md:h-96 rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[5000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
+                      className="w-[340px] h-[340px] md:w-[500px] md:h-[500px] rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[8000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
                       style={{ transform: `rotate(${rotation}deg)` }}
                   >
                       {PRIZES.map((p, i) => {
@@ -867,10 +867,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                   }}
                               >
                                   <div 
-                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-40 flex items-center justify-center"
-                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(110px)` }}
+                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-48 flex flex-col items-center justify-center gap-1"
+                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(110px) md:translate(160px)` }}
                                   >
-                                      <span className="text-white font-black text-xs md:text-sm uppercase leading-tight block drop-shadow-md px-1 break-words w-full" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
+                                      {p.type === 'item' && <Gift size={24} className="text-white drop-shadow-md mb-1" />}
+                                      {p.type === 'points' && <Star size={20} className="text-yellow-300 drop-shadow-md mb-1" />}
+                                      
+                                      <span className="text-white font-black text-sm md:text-xl uppercase leading-none block drop-shadow-md px-1 break-words w-full" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}>
                                           {p.label}
                                       </span>
                                   </div>
