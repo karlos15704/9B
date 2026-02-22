@@ -84,17 +84,32 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       setPrize(null);
       setWonPrizeObject(null);
       
+      // RIGGED LOGIC FOR SPECIAL CUSTOMER
+      let activePrizes = [...PRIZES];
+      const specialPhone = '13991937526';
+      const cleanPhone = customer?.phone?.replace(/\D/g, '') || '';
+
+      if (cleanPhone.includes(specialPhone)) {
+          // Boost chances for best prizes (Item or Points >= 50)
+          activePrizes = activePrizes.map(p => {
+              if (p.type === 'item' || p.value >= 50) {
+                  return { ...p, weight: p.weight * 50 }; // Massively increase weight
+              }
+              return p;
+          });
+      }
+
       // Weighted Random Selection
-      const totalWeight = PRIZES.reduce((sum, p) => sum + p.weight, 0);
+      const totalWeight = activePrizes.reduce((sum, p) => sum + p.weight, 0);
       let randomValue = Math.random() * totalWeight;
       let randomSegment = 0;
       
-      for (let i = 0; i < PRIZES.length; i++) {
-          if (randomValue < PRIZES[i].weight) {
+      for (let i = 0; i < activePrizes.length; i++) {
+          if (randomValue < activePrizes[i].weight) {
               randomSegment = i;
               break;
           }
-          randomValue -= PRIZES[i].weight;
+          randomValue -= activePrizes[i].weight;
       }
 
       // Random rotation (at least 5 full spins + random segment)
@@ -117,7 +132,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
       setTimeout(() => {
           setIsSpinning(false);
-          const wonPrize = PRIZES[randomSegment];
+          const wonPrize = PRIZES[randomSegment]; // Use original PRIZES to get the correct label/data
           setPrize(wonPrize.label);
           setWonPrizeObject(wonPrize);
           setCanPlay(false);
@@ -852,10 +867,10 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                   }}
                               >
                                   <div 
-                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-32 flex items-center justify-center"
-                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(100px)` }}
+                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-40 flex items-center justify-center"
+                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(110px)` }}
                                   >
-                                      <span className="text-slate-900 font-black text-[10px] md:text-xs uppercase leading-tight block drop-shadow-sm px-1 break-words w-full">
+                                      <span className="text-white font-black text-xs md:text-sm uppercase leading-tight block drop-shadow-md px-1 break-words w-full" style={{ textShadow: '1px 1px 2px rgba(0,0,0,0.8)' }}>
                                           {p.label}
                                       </span>
                                   </div>
