@@ -450,7 +450,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       if (cust) {
           setCustomer(cust);
           setCustomerName(cust.name || customerName);
-          setView('cart'); // Volta para o carrinho
+          setView('menu'); // Vai para o menu
       } else {
           alert("Erro ao acessar sistema de fidelidade.");
       }
@@ -909,37 +909,55 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   if (view === 'loyalty_login') {
       return (
           <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-              <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
+              {/* Background Image with Overlay */}
+              <div 
+                  className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm scale-110"
+                  style={{ 
+                      backgroundImage: `url(${settings.customerHeroUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1000&auto=format&fit=crop'})` 
+                  }}
+              ></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/90 to-slate-900"></div>
               
-              <div className="relative z-10 w-full max-w-sm bg-white/10 backdrop-blur-md p-8 rounded-3xl border border-white/20 shadow-2xl">
+              <div className="relative z-10 w-full max-w-md bg-white/10 backdrop-blur-xl p-8 md:p-10 rounded-3xl border border-white/20 shadow-2xl animate-in zoom-in duration-500">
                   <div className="mb-6 flex justify-center">
-                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-4 rounded-full shadow-lg shadow-purple-500/50">
-                          <Trophy size={48} className="text-white" />
+                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-1 rounded-full shadow-lg shadow-purple-500/50">
+                          <div className="bg-slate-900 rounded-full p-4 w-24 h-24 flex items-center justify-center overflow-hidden border-4 border-white/10">
+                              {settings.mascotUrl ? (
+                                  <img src={settings.mascotUrl} alt="Mascote" className="w-full h-full object-contain" />
+                              ) : (
+                                  <Trophy size={40} className="text-purple-400" />
+                              )}
+                          </div>
                       </div>
                   </div>
                   
-                  <h2 className="text-3xl font-black text-white mb-2">Clube de Fidelidade</h2>
-                  <p className="text-purple-200 mb-8 text-sm">Identifique-se para ganhar pontos e trocar por prêmios incríveis!</p>
+                  <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Clube {settings.appName}</h2>
+                  <p className="text-purple-200 mb-8 text-sm md:text-base font-medium">Identifique-se para ganhar pontos e trocar por prêmios incríveis!</p>
                   
                   <div className="space-y-4">
                       <div className="text-left">
-                          <label className="text-xs font-bold text-purple-300 uppercase ml-1">Seu Telefone (WhatsApp)</label>
-                          <input 
-                              type="tel" 
-                              placeholder="(00) 00000-0000" 
-                              className="w-full mt-1 p-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20"
-                              value={customerPhone}
-                              onChange={e => setCustomerPhone(e.target.value)}
-                          />
+                          <label className="text-xs font-bold text-purple-300 uppercase ml-1 mb-1 block">Seu Telefone (WhatsApp)</label>
+                          <div className="relative">
+                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400">
+                                  <User size={20} />
+                              </div>
+                              <input 
+                                  type="tel" 
+                                  placeholder="(00) 00000-0000" 
+                                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20 shadow-inner"
+                                  value={customerPhone}
+                                  onChange={e => setCustomerPhone(e.target.value)}
+                              />
+                          </div>
                       </div>
                       
                       {!customer && (
                           <div className="text-left animate-in fade-in slide-in-from-top-2">
-                              <label className="text-xs font-bold text-purple-300 uppercase ml-1">Seu Nome (Opcional)</label>
+                              <label className="text-xs font-bold text-purple-300 uppercase ml-1 mb-1 block">Seu Nome (Opcional)</label>
                               <input 
                                   type="text" 
                                   placeholder="Como quer ser chamado?" 
-                                  className="w-full mt-1 p-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20"
+                                  className="w-full px-4 py-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20 shadow-inner"
                                   value={customerName}
                                   onChange={e => setCustomerName(e.target.value)}
                               />
@@ -948,19 +966,28 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
                       <button 
                           onClick={handleLoginLoyalty}
-                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-900/50 transform active:scale-95 transition-all flex items-center justify-center gap-2 mt-4"
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-900/50 transform active:scale-95 transition-all flex items-center justify-center gap-2 mt-6 text-lg"
                       >
-                          <Star size={20} fill="currentColor" />
+                          <Star size={24} fill="currentColor" className="text-yellow-300" />
                           ACESSAR CLUBE
                       </button>
                       
-                      <button 
-                          onClick={() => setView('menu')}
-                          className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl border border-white/10 transition-all text-sm uppercase tracking-wide mt-2"
-                      >
-                          NÃO QUERO ME IDENTIFICAR
-                      </button>
+                      <div className="pt-4 border-t border-white/10 mt-6">
+                          <p className="text-white/40 text-xs mb-3 font-medium">Apenas quer fazer um pedido rápido?</p>
+                          <button 
+                              onClick={() => setView('menu')}
+                              className="w-full bg-white/5 hover:bg-white/10 text-white/80 hover:text-white font-bold py-3 rounded-xl border border-white/10 transition-all text-sm uppercase tracking-wide flex items-center justify-center gap-2 group"
+                          >
+                              <span>NÃO QUERO ME IDENTIFICAR</span>
+                              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform rotate-180" />
+                          </button>
+                      </div>
                   </div>
+              </div>
+              
+              {/* Footer Branding */}
+              <div className="absolute bottom-4 text-white/20 text-xs font-medium">
+                  {settings.appName} • Fidelidade
               </div>
           </div>
       );
