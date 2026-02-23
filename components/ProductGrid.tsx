@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers } from 'lucide-react';
+import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers, Heart, CheckCircle2 } from 'lucide-react';
 
 interface ProductGridProps {
   products: Product[];
@@ -14,6 +14,8 @@ interface ProductGridProps {
 const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, onRemoveFromCart, settings }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  const [customDonation, setCustomDonation] = useState('');
 
   const primaryColor = settings?.primaryColor || '#ea580c';
 
@@ -82,9 +84,75 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
     return -1;
   };
 
+  const handleAddDonation = (amount: number) => {
+      const donationProduct: Product = {
+          id: `donation-${Date.now()}`,
+          name: 'Doação Formatura 2026',
+          price: amount,
+          category: 'Doação',
+          description: 'Contribuição para a formatura',
+          imageUrl: 'https://cdn-icons-png.flaticon.com/512/2904/2904973.png', // Icone de coração ou similar
+          isAvailable: true
+      };
+      onAddToCart(donationProduct);
+      setShowDonationModal(false);
+      setCustomDonation('');
+  };
+
   return (
     <div className="h-full w-full flex flex-col bg-gray-50/50">
       
+      {/* MODAL DE DOAÇÃO */}
+      {showDonationModal && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
+                  <button onClick={() => setShowDonationModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                  
+                  <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500">
+                          <Heart size={32} fill="currentColor" />
+                      </div>
+                      <h3 className="text-xl font-black text-gray-800">Apoie a Formatura 2026!</h3>
+                      <p className="text-gray-500 text-sm mt-1">Sua contribuição ajuda a realizar nosso sonho.</p>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 mb-4">
+                      {[2, 5, 10].map(val => (
+                          <button 
+                              key={val}
+                              onClick={() => handleAddDonation(val)}
+                              className="py-3 rounded-xl border-2 border-pink-100 bg-pink-50 text-pink-600 font-black hover:bg-pink-100 hover:border-pink-300 transition-all active:scale-95"
+                          >
+                              {formatCurrency(val)}
+                          </button>
+                      ))}
+                  </div>
+
+                  <div className="relative mb-4">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R$</span>
+                      <input 
+                          type="number" 
+                          placeholder="Outro valor" 
+                          value={customDonation}
+                          onChange={e => setCustomDonation(e.target.value)}
+                          className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-gray-200 focus:border-pink-500 focus:outline-none font-bold text-gray-800"
+                      />
+                  </div>
+
+                  <button 
+                      onClick={() => {
+                          const val = parseFloat(customDonation);
+                          if (val > 0) handleAddDonation(val);
+                      }}
+                      disabled={!customDonation || parseFloat(customDonation) <= 0}
+                      className="w-full bg-pink-600 text-white font-bold py-3 rounded-xl hover:bg-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-lg shadow-pink-200 flex items-center justify-center gap-2"
+                  >
+                      <CheckCircle2 size={20} /> CONFIRMAR DOAÇÃO
+                  </button>
+              </div>
+          </div>
+      )}
+
       {/* BARRA DE FERRAMENTAS FIXA NO TOPO DO GRID */}
       <div className="flex-none p-4 space-y-3 bg-white border-b border-gray-200 shadow-sm z-10 sticky top-0">
         <div className="relative">
@@ -150,6 +218,35 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4 content-start">
+            
+            {/* CARD DE DOAÇÃO */}
+            {(!searchTerm || searchTerm.toLowerCase().includes('doa') || searchTerm.toLowerCase().includes('formatura')) && (
+                <div 
+                  onClick={() => setShowDonationModal(true)}
+                  className="bg-gradient-to-br from-pink-50 to-white rounded-2xl shadow-sm border border-pink-200 transition-all duration-200 cursor-pointer group relative overflow-hidden flex flex-col h-full hover:shadow-lg hover:-translate-y-1 active:scale-95"
+                >
+                  <div className="relative h-32 md:h-40 w-full bg-pink-50 p-2 flex items-center justify-center">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-pink-500 shadow-md group-hover:scale-110 transition-transform">
+                        <Heart size={32} fill="currentColor" />
+                    </div>
+                    <div className="absolute top-2 right-2 bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">
+                        2026
+                    </div>
+                  </div>
+                  <div className="p-3 border-t border-pink-100 flex-1 flex flex-col justify-between">
+                    <h3 className="font-bold text-gray-800 text-xs md:text-sm leading-tight">
+                      Doação Formatura
+                    </h3>
+                    <div className="mt-2">
+                        <p className="text-[10px] text-gray-500 leading-tight mb-1">Ajude nossa turma!</p>
+                        <p className="font-black text-sm md:text-base text-pink-600">
+                            Contribua ❤️
+                        </p>
+                    </div>
+                  </div>
+                </div>
+            )}
+
             {filteredProducts.map((product) => {
               const cartItem = cart.find(item => item.id === product.id);
               const quantity = cartItem ? cartItem.quantity : 0;

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer, PaymentMethod } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices, LogOut } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices, LogOut, Heart } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
 import { getCustomerByPhone, createCustomer, addPoints, redeemPoints, savePrize, redeemPrize } from '../services/loyaltyService';
 
@@ -22,11 +22,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customer, setCustomer] = useState<Customer | null>(null);
-  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders' | 'loyalty_login' | 'mini_game'>('menu');
+  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders' | 'loyalty_login' | 'mini_game' | 'my_prizes'>('menu');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [lastOrderInfo, setLastOrderInfo] = useState<{number: string, name: string} | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [showDonationModal, setShowDonationModal] = useState(false);
+  const [customDonation, setCustomDonation] = useState('');
   
   const [myOrders, setMyOrders] = useState<Transaction[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -50,6 +52,22 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       }
       setActiveGameOrderId(null);
       setView('orders');
+  };
+
+  const handleAddDonation = (amount: number) => {
+      const donationProduct: Product = {
+          id: `donation-${Date.now()}`,
+          name: 'Doação Formatura 2026',
+          price: amount,
+          category: 'Doação',
+          description: 'Contribuição para a formatura',
+          imageUrl: 'https://cdn-icons-png.flaticon.com/512/2904/2904973.png',
+          isAvailable: true
+      };
+      addToCart(donationProduct);
+      setShowDonationModal(false);
+      setCustomDonation('');
+      setView('cart'); // Go to cart to show it was added
   };
 
   
@@ -687,6 +705,57 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const renderProductGrid = () => (
     <div className="p-4 md:p-6 pb-32">
         
+        {/* MODAL DE DOAÇÃO */}
+        {showDonationModal && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
+                    <button onClick={() => setShowDonationModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                    
+                    <div className="text-center mb-6">
+                        <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500 shadow-inner">
+                            <Heart size={40} fill="currentColor" className="animate-pulse" />
+                        </div>
+                        <h3 className="text-2xl font-black text-gray-800 leading-tight">Apoie a Formatura 2026!</h3>
+                        <p className="text-gray-500 font-medium mt-2">Sua contribuição é muito importante para nós.</p>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 mb-4">
+                        {[2, 5, 10].map(val => (
+                            <button 
+                                key={val}
+                                onClick={() => handleAddDonation(val)}
+                                className="py-4 rounded-2xl border-2 border-pink-100 bg-pink-50 text-pink-600 font-black text-lg hover:bg-pink-100 hover:border-pink-300 transition-all active:scale-95 shadow-sm"
+                            >
+                                {formatCurrency(val)}
+                            </button>
+                        ))}
+                    </div>
+
+                    <div className="relative mb-6">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R$</span>
+                        <input 
+                            type="number" 
+                            placeholder="Outro valor..." 
+                            value={customDonation}
+                            onChange={e => setCustomDonation(e.target.value)}
+                            className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-pink-500 focus:outline-none font-bold text-gray-800 text-lg bg-gray-50 focus:bg-white transition-colors"
+                        />
+                    </div>
+
+                    <button 
+                        onClick={() => {
+                            const val = parseFloat(customDonation);
+                            if (val > 0) handleAddDonation(val);
+                        }}
+                        disabled={!customDonation || parseFloat(customDonation) <= 0}
+                        className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black py-4 rounded-2xl hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
+                    >
+                        <CheckCircle2 size={24} /> CONFIRMAR DOAÇÃO
+                    </button>
+                </div>
+            </div>
+        )}
+
         {/* HERO SECTION INTEGRADA */}
         <div className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden mb-8 shadow-xl group bg-gray-900">
             
@@ -760,6 +829,27 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             </div>
             {/* Decor */}
             <Star className="absolute -right-4 -bottom-4 text-white/10 w-24 h-24 rotate-12" />
+        </div>
+
+        {/* BANNER DE DOAÇÃO */}
+        <div 
+            onClick={() => setShowDonationModal(true)}
+            className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-4 mb-6 shadow-lg shadow-pink-200 text-white flex items-center justify-between relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-95 transition-all"
+        >
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-1">
+                    <Heart className="fill-white animate-pulse" size={20} />
+                    <span className="font-black text-xs uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">Formatura 2026</span>
+                </div>
+                <h3 className="font-black text-xl md:text-2xl leading-tight mb-1">Faça uma doação!</h3>
+                <p className="text-white/90 text-xs md:text-sm font-medium max-w-[200px]">Ajude nossa turma a realizar este sonho.</p>
+            </div>
+            <div className="relative z-10 bg-white text-pink-600 px-4 py-2 rounded-xl font-black shadow-md text-sm whitespace-nowrap">
+                CONTRIBUIR
+            </div>
+            {/* Decor */}
+            <Heart className="absolute -right-6 -bottom-6 text-white/10 w-32 h-32 rotate-12" />
+            <Heart className="absolute left-1/3 -top-8 text-white/10 w-20 h-20 -rotate-12" />
         </div>
 
         {/* BUSCA E FILTROS */}
