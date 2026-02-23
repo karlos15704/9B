@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer, PaymentMethod } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices, LogOut } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
-import { getCustomerByPhone, createCustomer, addPoints, redeemPoints } from '../services/loyaltyService';
+import { getCustomerByPhone, createCustomer, addPoints, redeemPoints, savePrize, redeemPrize } from '../services/loyaltyService';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -139,22 +139,67 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       }, 5000); // 5 seconds spin
   };
 
-  const handleRedeemPrize = async () => {
-      if (!wonPrizeObject || !customer) {
-          finishGame();
-          return;
+  // --- AUTH & PERSISTENCE ---
+  useEffect(() => {
+      const savedPhone = localStorage.getItem('customer_phone');
+      if (savedPhone) {
+          handleLogin(savedPhone);
+      } else {
+          setView('loyalty_login');
       }
+  }, []);
+
+  const handleLogin = async (phone: string) => {
+      setIsLoadingOrders(true);
+      const found = await getCustomerByPhone(phone);
+      if (found) {
+          setCustomer(found);
+          localStorage.setItem('customer_phone', found.phone);
+          setView('menu');
+      } else {
+          // If not found, maybe create? For now, just set phone and let them create in UI
+          setCustomerPhone(phone);
+          setView('loyalty_login');
+      }
+      setIsLoadingOrders(false);
+  };
+
+  const handleLogout = () => {
+      localStorage.removeItem('customer_phone');
+      setCustomer(null);
+      setView('loyalty_login');
+  };
+
+  const handleSavePrize = async () => {
+      if (!wonPrizeObject || !customer) return;
+      
+      const success = await savePrize(customer.id, wonPrizeObject.label);
+      if (success) {
+          alert("Prêmio salvo com sucesso! Você pode resgatá-lo depois em 'Meus Prêmios'.");
+          // Update local customer state to include new prize
+          const updated = await getCustomerByPhone(customer.phone);
+          if (updated) setCustomer(updated);
+      } else {
+          alert("Erro ao salvar prêmio.");
+      }
+      finishGame();
+  };
+
+  const handleRedeemPrizeNow = async () => {
+      if (!wonPrizeObject || !customer) return;
 
       if (wonPrizeObject.type === 'points') {
           await addPoints(customer.id, wonPrizeObject.value);
-          setCustomer(prev => prev ? ({...prev, points: prev.points + wonPrizeObject.value}) : null);
+          // Update local state
+          const updated = await getCustomerByPhone(customer.phone);
+          if (updated) setCustomer(updated);
           alert(`Parabéns! Você recebeu ${wonPrizeObject.value} pontos!`);
       } else if (wonPrizeObject.type === 'item') {
           // Create transaction for the item
           const transactionId = generateId();
-          let orderNumber = nextOrderNumber.toString();
+          let orderNumber = (nextOrderNumber || 1).toString();
           const freshNumber = await fetchNextOrderNumber();
-          if (freshNumber) orderNumber = freshNumber;
+          if (freshNumber) orderNumber = freshNumber.toString();
 
           const newTransaction: Transaction = {
               id: transactionId,
@@ -162,12 +207,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               customerName: customer.name || 'Cliente',
               timestamp: Date.now(),
               items: [{
-                  id: 'prize-soda',
-                  name: wonPrizeObject.label, // "1 Refrigerante"
+                  id: 'prize-' + Date.now(),
+                  name: wonPrizeObject.label, 
                   price: 0,
                   quantity: 1,
                   category: 'Prêmios',
-                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png' // Placeholder
+                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png',
+                  isAvailable: true
               }],
               subtotal: 0,
               discount: 0,
@@ -186,7 +232,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               alert("Erro ao resgatar prêmio. Chame um atendente.");
           }
       }
-
       finishGame();
   };
 
@@ -535,6 +580,94 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   // Removed playMiniGame
 
 
+  const handleRedeemSavedPrize = async (prizeId: string, prizeName: string) => {
+      if (!customer) return;
+      
+      if (!confirm(`Deseja resgatar o prêmio "${prizeName}" agora?`)) return;
+
+      const transactionId = generateId();
+      let orderNumber = (nextOrderNumber || 1).toString();
+      const freshNumber = await fetchNextOrderNumber();
+      if (freshNumber) orderNumber = freshNumber.toString();
+
+      const newTransaction: Transaction = {
+          id: transactionId,
+          orderNumber,
+          customerName: customer.name || 'Cliente',
+          timestamp: Date.now(),
+          items: [{
+              id: 'prize-' + Date.now(),
+              name: prizeName, 
+              price: 0,
+              quantity: 1,
+              category: 'Prêmios',
+              imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png',
+              isAvailable: true
+          }],
+          subtotal: 0,
+          discount: 0,
+          total: 0,
+          paymentMethod: PaymentMethod.PRIZE,
+          status: 'completed',
+          kitchenStatus: 'pending',
+          customerId: customer.id,
+          pointsEarned: 0
+      };
+      
+      const successTrans = await createTransaction(newTransaction);
+      if (successTrans) {
+          const successRedeem = await redeemPrize(customer.id, prizeId);
+          if (successRedeem) {
+              // Update local state
+              const updated = await getCustomerByPhone(customer.phone);
+              if (updated) setCustomer(updated);
+              alert(`Prêmio resgatado! Sua senha é #${orderNumber}. Retire no balcão.`);
+          } else {
+              alert("Erro ao atualizar status do prêmio.");
+          }
+      } else {
+          alert("Erro ao criar pedido de resgate.");
+      }
+  };
+
+  if (view === 'my_prizes') {
+      const pendingPrizes = customer?.prizes?.filter(p => !p.redeemed) || [];
+      
+      return (
+          <div className="h-full bg-slate-50 flex flex-col relative overflow-hidden">
+              <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm flex-shrink-0">
+                  <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={24} /></button>
+                  <h2 className="font-bold text-lg text-gray-800">Meus Prêmios</h2>
+                  <div className="w-10"></div>
+              </div>
+              
+              <div className="p-4 space-y-4 flex-1 overflow-y-auto">
+                  {pendingPrizes.length === 0 ? (
+                      <div className="text-center py-10 text-gray-400 flex flex-col items-center">
+                          <Gift size={48} className="mb-4 opacity-50"/>
+                          <p>Você não tem prêmios guardados.</p>
+                      </div>
+                  ) : (
+                      pendingPrizes.map(p => (
+                          <div key={p.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
+                              <div>
+                                  <h3 className="font-bold text-gray-800">{p.name}</h3>
+                                  <p className="text-xs text-gray-500">Ganho em {new Date(p.dateWon).toLocaleDateString()}</p>
+                              </div>
+                              <button 
+                                  onClick={() => handleRedeemSavedPrize(p.id, p.name)}
+                                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-600 transition-colors shadow-sm"
+                              >
+                                  RESGATAR
+                              </button>
+                          </div>
+                      ))
+                  )}
+              </div>
+          </div>
+      );
+  }
+
   const renderReadyModal = () => {
     if (!readyOrderModal) return null;
     return (
@@ -585,7 +718,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
         {/* BARRA DE FIDELIDADE (NOVO) */}
         <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 mb-6 shadow-lg text-white flex justify-between items-center relative overflow-hidden">
-            <div className="relative z-10">
+            <div className="relative z-10 flex items-center gap-4">
                 {customer ? (
                     <div>
                         <p className="text-xs font-bold opacity-80 uppercase">Olá, {customer.name}</p>
@@ -601,11 +734,24 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     </div>
                 )}
             </div>
-            <div className="relative z-10">
+            <div className="relative z-10 flex gap-2">
                 {customer ? (
-                    <button onClick={() => setView('loyalty_login')} className="bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-xs font-bold transition-colors">
-                        Trocar Conta
-                    </button>
+                    <>
+                        <button 
+                            onClick={() => setView('my_prizes')} 
+                            className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                        >
+                            <Gift size={16} />
+                            <span className="hidden md:inline">Meus Prêmios</span>
+                        </button>
+                        <button 
+                            onClick={handleLogout} 
+                            className="bg-red-500/80 hover:bg-red-600/90 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
+                        >
+                            <LogOut size={16} />
+                            <span className="hidden md:inline">Sair</span>
+                        </button>
+                    </>
                 ) : (
                     <button onClick={() => setView('loyalty_login')} className="bg-white text-purple-600 px-6 py-2 rounded-xl font-black shadow-lg hover:scale-105 transition-transform">
                         ENTRAR
@@ -919,19 +1065,35 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                               <span className="text-4xl font-black text-orange-600 uppercase leading-none block">
                                   {prize}
                               </span>
-                              {prize === '1 Refrigerante' && (
-                                  <p className="text-sm font-bold text-green-600 mt-2">Retire no balcão!</p>
-                              )}
                           </div>
 
                           <div className="flex flex-col gap-3 relative z-10">
                               {wonPrizeObject?.type !== 'none' ? (
-                                  <button 
-                                      onClick={handleRedeemPrize}
-                                      className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide animate-bounce"
-                                  >
-                                      RESGATAR PRÊMIO
-                                  </button>
+                                  <>
+                                      {wonPrizeObject.type === 'item' ? (
+                                          <>
+                                              <button 
+                                                  onClick={handleRedeemPrizeNow}
+                                                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-lg transition-all uppercase tracking-wide flex items-center justify-center gap-2"
+                                              >
+                                                  <CheckCircle2 size={20} /> RESGATAR AGORA
+                                              </button>
+                                              <button 
+                                                  onClick={handleSavePrize}
+                                                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg transition-all uppercase tracking-wide flex items-center justify-center gap-2"
+                                              >
+                                                  <Gift size={20} /> GUARDAR PARA DEPOIS
+                                              </button>
+                                          </>
+                                      ) : (
+                                          <button 
+                                              onClick={handleRedeemPrizeNow}
+                                              className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide animate-bounce"
+                                          >
+                                              RESGATAR PRÊMIO
+                                          </button>
+                                      )}
+                                  </>
                               ) : (
                                   <button 
                                       onClick={finishGame}

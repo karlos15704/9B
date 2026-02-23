@@ -36,11 +36,20 @@ export interface CartItem extends Product {
   isPointRedemption?: boolean; // Indica se o item está sendo pago com pontos
 }
 
+export interface CustomerPrize {
+  id: string;
+  name: string;
+  dateWon: number;
+  redeemed: boolean;
+  redeemedDate?: number;
+}
+
 export interface Customer {
   id: string;
   phone: string;
   name?: string;
   points: number;
+  prizes?: CustomerPrize[];
 }
 
 export interface User {

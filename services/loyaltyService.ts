@@ -85,3 +85,59 @@ export const redeemPoints = async (customerId: string, pointsToRedeem: number): 
 
     return !updateError;
 };
+
+export const savePrize = async (customerId: string, prizeName: string): Promise<boolean> => {
+    if (!supabase) return false;
+
+    // Fetch current prizes
+    const { data: customer, error: fetchError } = await supabase
+        .from('customers')
+        .select('prizes')
+        .eq('id', customerId)
+        .single();
+
+    if (fetchError || !customer) return false;
+
+    const currentPrizes = (customer.prizes as any[]) || [];
+    const newPrize = {
+        id: crypto.randomUUID(),
+        name: prizeName,
+        dateWon: Date.now(),
+        redeemed: false
+    };
+
+    const { error: updateError } = await supabase
+        .from('customers')
+        .update({ prizes: [...currentPrizes, newPrize] })
+        .eq('id', customerId);
+
+    return !updateError;
+};
+
+export const redeemPrize = async (customerId: string, prizeId: string): Promise<boolean> => {
+    if (!supabase) return false;
+
+    // Fetch current prizes
+    const { data: customer, error: fetchError } = await supabase
+        .from('customers')
+        .select('prizes')
+        .eq('id', customerId)
+        .single();
+
+    if (fetchError || !customer) return false;
+
+    const currentPrizes = (customer.prizes as any[]) || [];
+    const updatedPrizes = currentPrizes.map(p => {
+        if (p.id === prizeId) {
+            return { ...p, redeemed: true, redeemedDate: Date.now() };
+        }
+        return p;
+    });
+
+    const { error: updateError } = await supabase
+        .from('customers')
+        .update({ prizes: updatedPrizes })
+        .eq('id', customerId);
+
+    return !updateError;
+};

@@ -75,6 +75,9 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "pointsEarned" integer DEFAULT 0;
   ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "pointsRedeemed" integer DEFAULT 0;
 
+  -- 7. Sistema de Prêmios (Resgatar Depois)
+  ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS "prizes" jsonb DEFAULT '[]'::jsonb;
+  
   -- Permissões
   GRANT ALL ON public.customers TO anon, authenticated, service_role;
 
