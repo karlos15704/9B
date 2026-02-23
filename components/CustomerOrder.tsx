@@ -41,6 +41,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [customDonation, setCustomDonation] = useState('');
   const [donationMessage, setDonationMessage] = useState<string | null>(null);
+  const [isPureDonationOrder, setIsPureDonationOrder] = useState(false);
   
   const [myOrders, setMyOrders] = useState<Transaction[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -527,6 +528,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     if (success) {
         // CHECK FOR DONATION
         const hasDonation = cart.some(item => item.category === 'Doação');
+        const isPureDonation = cart.every(item => item.category === 'Doação');
+        setIsPureDonationOrder(isPureDonation);
+
         if (hasDonation) {
             const randomMsg = THANK_YOU_MESSAGES[Math.floor(Math.random() * THANK_YOU_MESSAGES.length)];
             setDonationMessage(randomMsg);
@@ -1298,23 +1302,50 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 </div>
             )}
 
-            <div className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-200 animate-in zoom-in duration-500">
-                <CheckCircle2 size={64} className="text-green-600 animate-in spin-in-90 duration-700" />
+            <div className={`w-28 h-28 ${isPureDonationOrder ? 'bg-pink-100 shadow-pink-200' : 'bg-green-100 shadow-green-200'} rounded-full flex items-center justify-center mb-6 shadow-xl animate-in zoom-in duration-500`}>
+                {isPureDonationOrder ? (
+                    <Heart size={64} className="text-pink-600 animate-pulse fill-current" />
+                ) : (
+                    <CheckCircle2 size={64} className="text-green-600 animate-in spin-in-90 duration-700" />
+                )}
             </div>
-            <h1 className="text-4xl font-black text-gray-800 mb-2">Pedido Recebido!</h1>
-            <div className="my-6 bg-red-100 border-l-4 border-red-500 p-4 rounded-r-lg max-w-md w-full animate-pulse">
-                <div className="flex items-center gap-3 mb-1"><Banknote size={28} className="text-red-600" /><h3 className="font-black text-red-700 text-lg uppercase">Atenção, {lastOrderInfo?.name}!</h3></div>
-                <p className="text-red-800 font-bold leading-tight text-left">Dirija-se ao CAIXA agora para realizar o pagamento e liberar seu pedido para a cozinha.</p>
+            
+            <h1 className="text-4xl font-black text-gray-800 mb-2">
+                {isPureDonationOrder ? 'Doação Iniciada!' : 'Pedido Recebido!'}
+            </h1>
+            
+            <div className={`my-6 ${isPureDonationOrder ? 'bg-pink-50 border-pink-500' : 'bg-red-100 border-red-500'} border-l-4 p-4 rounded-r-lg max-w-md w-full animate-pulse`}>
+                <div className="flex items-center gap-3 mb-1">
+                    <Banknote size={28} className={isPureDonationOrder ? 'text-pink-600' : 'text-red-600'} />
+                    <h3 className={`font-black ${isPureDonationOrder ? 'text-pink-700' : 'text-red-700'} text-lg uppercase`}>
+                        Atenção, {lastOrderInfo?.name}!
+                    </h3>
+                </div>
+                <p className={`${isPureDonationOrder ? 'text-pink-800' : 'text-red-800'} font-bold leading-tight text-left`}>
+                    {isPureDonationOrder 
+                        ? "Dirija-se ao CAIXA para efetuar o pagamento da sua doação (Pix ou Dinheiro)." 
+                        : "Dirija-se ao CAIXA agora para realizar o pagamento e liberar seu pedido para a cozinha."}
+                </p>
             </div>
+
             <div className="bg-white p-8 rounded-3xl shadow-2xl border border-orange-100 w-full max-w-sm mb-8 relative overflow-hidden transform hover:scale-105 transition-transform duration-300">
-                <div className="absolute top-0 left-0 w-full h-3 bg-gradient-to-r from-orange-400 to-orange-600"></div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Sua Senha</p>
-                <p className="text-7xl font-black text-orange-600 tracking-tighter mb-4 drop-shadow-sm">#{lastOrderInfo?.number}</p>
+                <div className={`absolute top-0 left-0 w-full h-3 bg-gradient-to-r ${isPureDonationOrder ? 'from-pink-400 to-pink-600' : 'from-orange-400 to-orange-600'}`}></div>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+                    {isPureDonationOrder ? 'Código de Identificação' : 'Sua Senha'}
+                </p>
+                <p className={`text-7xl font-black ${isPureDonationOrder ? 'text-pink-600' : 'text-orange-600'} tracking-tighter mb-4 drop-shadow-sm`}>
+                    #{lastOrderInfo?.number}
+                </p>
                 <div className="text-xs text-gray-400 flex items-center justify-center gap-1"><Clock size={12}/> Registrado às {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
             </div>
+            
             <div className="flex flex-col gap-3 w-full max-w-sm">
-                <button onClick={() => setView('orders')} className="bg-white text-orange-600 border-2 border-orange-100 font-bold py-4 px-8 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"><Clock size={20} /> ACOMPANHAR PEDIDO</button>
-                <button onClick={() => { setView('menu'); setCustomerName(''); setLastOrderInfo(null); }} className="bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-orange-600 transition-colors">FAZER NOVO PEDIDO</button>
+                {!isPureDonationOrder && (
+                    <button onClick={() => setView('orders')} className="bg-white text-orange-600 border-2 border-orange-100 font-bold py-4 px-8 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"><Clock size={20} /> ACOMPANHAR PEDIDO</button>
+                )}
+                <button onClick={() => { setView('menu'); setCustomerName(''); setLastOrderInfo(null); setIsPureDonationOrder(false); }} className="bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-orange-600 transition-colors">
+                    {isPureDonationOrder ? 'VOLTAR AO INÍCIO' : 'FAZER NOVO PEDIDO'}
+                </button>
             </div>
         </div>
       );

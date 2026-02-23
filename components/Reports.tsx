@@ -187,21 +187,34 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     return entries.sort((a, b) => b.date - a.date); // Mais recente primeiro
   }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
-  // --- ESTATÍSTICAS ---
+    // --- ESTATÍSTICAS ---
   const stats = useMemo(() => {
     const activeTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
     
     // Filtra transações financeiras (exclui trocas de pontos e prêmios do faturamento)
     const financialTransactions = activeTransactions.filter(t => t.paymentMethod !== 'Pontos Fidelidade' && t.paymentMethod !== PaymentMethod.PRIZE);
 
-    const salesIncome = financialTransactions.reduce((acc, t) => acc + t.total, 0);
+    let salesIncome = 0;
+    let donationIncome = 0;
+
+    financialTransactions.forEach(t => {
+        t.items.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            if (item.category === 'Doação') {
+                donationIncome += itemTotal;
+            } else {
+                salesIncome += itemTotal;
+            }
+        });
+    });
+
     const contributionsIncome = filteredContributions.reduce((acc, c) => acc + c.amount, 0);
-    const totalIncome = salesIncome + contributionsIncome;
+    const totalIncome = salesIncome + donationIncome + contributionsIncome;
 
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
     const balance = totalIncome - totalExpenses;
     
-    const averageTicket = financialTransactions.length > 0 ? salesIncome / financialTransactions.length : 0;
+    const averageTicket = financialTransactions.length > 0 ? (salesIncome + donationIncome) / financialTransactions.length : 0;
     
     // By Payment Method (Inclui Pontos para visualização, mas com valor 0 ou separado)
     const byMethod = activeTransactions.reduce((acc, t) => {
@@ -248,7 +261,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       value: byMethod[method]
     }));
 
-    return { totalIncome, totalExpenses, balance, averageTicket, chartData, byMethod, bySeller, productSales, contributionsIncome };
+    return { totalIncome, totalExpenses, balance, averageTicket, chartData, byMethod, bySeller, productSales, contributionsIncome, donationIncome, salesIncome };
   }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
   // --- ACTIONS ---
@@ -361,8 +374,9 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         content = `
             <h2>RELATÓRIO GERENCIAL</h2>
             <div class="summary-box">
-                <p>FATURAMENTO BRUTO: <strong>${formatCurrency(stats.totalIncome)}</strong></p>
-                <p>GASTOS TOTAIS: <span style="color: red;">-${formatCurrency(stats.totalExpenses)}</span></p>
+                <p>VENDAS: <strong>${formatCurrency(stats.salesIncome + stats.contributionsIncome)}</strong></p>
+                <p>DOAÇÕES: <span style="color: #db2777;">${formatCurrency(stats.donationIncome)}</span></p>
+                <p>GASTOS: <span style="color: red;">-${formatCurrency(stats.totalExpenses)}</span></p>
                 <p class="total">LUCRO LÍQUIDO: ${formatCurrency(stats.balance)}</p>
             </div>
 
@@ -547,10 +561,15 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       {currentView === 'dashboard' && (
           <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-300">
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
                 <div className="p-3 bg-green-100 rounded-full text-green-600"><DollarSign size={24} /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Entradas (Vendas + Contrib.)</p><h3 className="text-2xl font-black text-gray-900">{formatCurrency(stats.totalIncome)}</h3></div>
+                <div><p className="text-xs font-bold uppercase text-gray-400">Entradas (Vendas)</p><h3 className="text-2xl font-black text-gray-900">{formatCurrency(stats.salesIncome + stats.contributionsIncome)}</h3></div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
+                <div className="p-3 bg-pink-100 rounded-full text-pink-600"><HandCoins size={24} /></div>
+                <div><p className="text-xs font-bold uppercase text-gray-400">Doações</p><h3 className="text-2xl font-black text-pink-600">{formatCurrency(stats.donationIncome)}</h3></div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
