@@ -17,6 +17,17 @@ const SOUND_PAYMENT_CONFIRMED = "https://codeskulptor-demos.commondatastorage.go
 const SOUND_ORDER_READY = "https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3";
 const SOUND_WIN = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/reward.mp3";
 
+const THANK_YOU_MESSAGES = [
+    "Obrigado por apoiar nosso sonho! 🎓✨",
+    "Sua ajuda faz a diferença na nossa formatura! 🚀",
+    "Gratidão! Você está ajudando a construir nosso futuro. ❤️",
+    "Valeu demais! A turma de 2026 agradece. 🙌",
+    "Cada contribuição nos aproxima da nossa festa! 🎉",
+    "Você é incrível! Obrigado por acreditar em nós. 🌟",
+    "Sua generosidade vai ficar para a história! 📖",
+    "Obrigado por fazer parte da nossa jornada! 🎓"
+];
+
 const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber, settings }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
@@ -29,6 +40,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const [isSending, setIsSending] = useState(false);
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [customDonation, setCustomDonation] = useState('');
+  const [donationMessage, setDonationMessage] = useState<string | null>(null);
   
   const [myOrders, setMyOrders] = useState<Transaction[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
@@ -513,10 +525,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     const success = await createTransaction(newTransaction);
     
     if (success) {
-        // Points will be added upon payment confirmation in App.tsx
-        // if (customer) {
-        //    setCustomer(prev => prev ? ({...prev, points: prev.points + pointsEarned}) : null);
-        // }
+        // CHECK FOR DONATION
+        const hasDonation = cart.some(item => item.category === 'Doação');
+        if (hasDonation) {
+            const randomMsg = THANK_YOU_MESSAGES[Math.floor(Math.random() * THANK_YOU_MESSAGES.length)];
+            setDonationMessage(randomMsg);
+        } else {
+            setDonationMessage(null);
+        }
 
         setIsSending(false);
         saveOrderId(transactionId); 
@@ -525,12 +541,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         requestNotificationPermission(); 
         loadMyOrders();
         
-        // Se tiver cliente, vai para o Mini Game, senão vai para sucesso direto
-        // if (customer) {
-        //     setView('mini_game');
-        // } else {
-            setView('success');
-        // }
+        setView('success');
     } else {
         setIsSending(false);
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
@@ -717,6 +728,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         </div>
                         <h3 className="text-2xl font-black text-gray-800 leading-tight">Apoie a Formatura 2026!</h3>
                         <p className="text-gray-500 font-medium mt-2">Sua contribuição é muito importante para nós.</p>
+                        <p className="text-xs text-gray-400 mt-1 font-bold uppercase bg-gray-100 inline-block px-2 py-1 rounded">Pagamento via Pix ou Dinheiro no Caixa</p>
                     </div>
 
                     <div className="grid grid-cols-3 gap-3 mb-4">
@@ -1247,7 +1259,45 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       return (
         <div className="h-full bg-orange-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
             {renderReadyModal()}
-            {/* ... success view content (mesmo código anterior) ... */}
+            
+            {/* MENSAGEM DE AGRADECIMENTO PELA DOAÇÃO */}
+            {donationMessage && (
+                <div className="absolute inset-0 z-50 bg-pink-600 flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 text-white">
+                    <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-2xl animate-bounce">
+                        <Heart size={64} className="text-pink-500 fill-current" />
+                    </div>
+                    <h1 className="text-3xl md:text-5xl font-black mb-6 leading-tight drop-shadow-md">
+                        {donationMessage}
+                    </h1>
+                    <p className="text-pink-200 text-lg font-medium mb-12 max-w-md">
+                        Sua doação foi registrada com sucesso!
+                    </p>
+                    <button 
+                        onClick={() => setDonationMessage(null)}
+                        className="bg-white text-pink-600 font-black py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform text-xl"
+                    >
+                        CONTINUAR
+                    </button>
+                    
+                    {/* Confetti */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                        {[...Array(30)].map((_, i) => (
+                            <div 
+                                key={i}
+                                className="absolute w-4 h-4 rounded-full animate-ping"
+                                style={{
+                                    top: `${Math.random() * 100}%`,
+                                    left: `${Math.random() * 100}%`,
+                                    backgroundColor: ['#fff', '#fbcfe8', '#f472b6'][Math.floor(Math.random() * 3)],
+                                    animationDelay: `${Math.random() * 2}s`,
+                                    animationDuration: '1.5s'
+                                }}
+                            ></div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-xl shadow-green-200 animate-in zoom-in duration-500">
                 <CheckCircle2 size={64} className="text-green-600 animate-in spin-in-90 duration-700" />
             </div>

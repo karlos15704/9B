@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Transaction, AppSettings } from '../types';
-import { ChefHat, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Heart } from 'lucide-react';
 
 interface PublicDisplayProps {
   transactions: Transaction[];
@@ -9,18 +9,22 @@ interface PublicDisplayProps {
 
 // Som de Campainha de Atendimento (Fonte estável: Google Demo Assets - Glass Ting)
 const BELL_SOUND_URL = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
+const DONATION_SOUND_URL = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/reward.mp3";
 
 const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Estado para controlar a animação de celebração (Pedido Atualmente na Tela)
   const [celebratingOrder, setCelebratingOrder] = useState<Transaction | null>(null);
+  const [celebratingDonation, setCelebratingDonation] = useState<Transaction | null>(null);
   
   // FILA DE CELEBRAÇÃO: Armazena pedidos que precisam ser mostrados
   const [celebrationQueue, setCelebrationQueue] = useState<Transaction[]>([]);
+  const [donationQueue, setDonationQueue] = useState<Transaction[]>([]);
   
   // Histórico de IDs processados para não repetir o mesmo pedido
   const processedOrderIdsRef = useRef<Set<string>>(new Set());
+  const processedDonationIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef<boolean>(true);
 
   useEffect(() => {
@@ -33,26 +37,53 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  // Pedidos em Preparo
+  // Helper para identificar doações puras (sem itens de comida/bebida)
+  const isPureDonation = (t: Transaction) => {
+      return t.items.length > 0 && t.items.every(i => i.category === 'Doação');
+  };
+
+  // Pedidos em Preparo (Exclui doações puras)
   const preparingOrders = useMemo(() => {
     return transactions
-      .filter(t => t.kitchenStatus === 'pending' && t.status !== 'cancelled' && t.timestamp >= startOfDay.getTime())
+      .filter(t => 
+        t.kitchenStatus === 'pending' && 
+        t.status !== 'cancelled' && 
+        t.timestamp >= startOfDay.getTime() &&
+        !isPureDonation(t)
+      )
       .sort((a, b) => a.timestamp - b.timestamp);
   }, [transactions]);
 
   // Pedidos Prontos (Limitado aos últimos 5 para ficarem GRANDES na TV)
+  // Exclui doações puras para não aparecerem como "Senha Pronta"
   const readyOrders = useMemo(() => {
     return transactions
-      .filter(t => t.kitchenStatus === 'done' && t.status !== 'cancelled' && t.timestamp >= startOfDay.getTime())
+      .filter(t => 
+        t.kitchenStatus === 'done' && 
+        t.status !== 'cancelled' && 
+        t.timestamp >= startOfDay.getTime() &&
+        !isPureDonation(t)
+      )
       .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, 5); // Reduzido para 5 para caber melhor na safe zone
   }, [transactions]);
 
+  // Doações Confirmadas
+  const completedDonations = useMemo(() => {
+      return transactions
+        .filter(t => 
+            (t.status === 'completed' || t.status === 'paid') && 
+            t.items.some(i => i.category === 'Doação') &&
+            t.timestamp >= startOfDay.getTime()
+        )
+        .sort((a, b) => a.timestamp - b.timestamp);
+  }, [transactions]);
+
   // --- FUNÇÃO DE ÁUDIO MELHORADA ---
-  const playAudio = (orderNumber: string) => {
+  const playAudio = (type: 'order' | 'donation', textToSpeak?: string) => {
     // Criação do objeto de áudio com tratamento de erro
-    const audio = new Audio(BELL_SOUND_URL);
-    audio.volume = 0.7; // Volume confortável
+    const audio = new Audio(type === 'donation' ? DONATION_SOUND_URL : BELL_SOUND_URL);
+    audio.volume = 0.8; // Volume confortável
     
     // Tenta tocar o som
     const playPromise = audio.play();
@@ -68,7 +99,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             window.speechSynthesis.cancel();
             
             // Texto curto e direto para soar menos robótico
-            const text = `Senha ${orderNumber}.`;
+            const text = textToSpeak || `Senha .`;
             const utterance = new SpeechSynthesisUtterance(text);
             
             utterance.lang = 'pt-BR';
@@ -99,16 +130,20 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     }
   }, []);
 
-  // === LÓGICA DE DETECÇÃO DE NOVOS PEDIDOS ===
+  // === LÓGICA DE DETECÇÃO DE NOVOS PEDIDOS E DOAÇÕES ===
   useEffect(() => {
     if (isFirstLoadRef.current) {
         if (readyOrders.length > 0) {
             readyOrders.forEach(t => processedOrderIdsRef.current.add(t.id));
         }
+        if (completedDonations.length > 0) {
+            completedDonations.forEach(t => processedDonationIdsRef.current.add(t.id));
+        }
         isFirstLoadRef.current = false;
         return;
     }
 
+    // Detectar novos pedidos prontos
     const currentReadyIds = new Set(readyOrders.map(t => t.id));
     processedOrderIdsRef.current.forEach(id => {
         if (!currentReadyIds.has(id)) {
@@ -123,17 +158,35 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
         const sortedNewItems = [...newItems].sort((a, b) => a.timestamp - b.timestamp);
         setCelebrationQueue(prevQueue => [...prevQueue, ...sortedNewItems]);
     }
-  }, [readyOrders]);
+
+    // Detectar novas doações
+    const newDonations = completedDonations.filter(t => !processedDonationIdsRef.current.has(t.id));
+    if (newDonations.length > 0) {
+        newDonations.forEach(t => processedDonationIdsRef.current.add(t.id));
+        setDonationQueue(prev => [...prev, ...newDonations]);
+    }
+
+  }, [readyOrders, completedDonations]);
 
   // === LÓGICA DE PROCESSAMENTO DA FILA ===
   useEffect(() => {
-    if (!celebratingOrder && celebrationQueue.length > 0) {
+    // Prioridade para doações
+    if (!celebratingDonation && !celebratingOrder && donationQueue.length > 0) {
+        const nextDonation = donationQueue[0];
+        setCelebratingDonation(nextDonation);
+        const donorName = nextDonation.customerName || 'Amigo';
+        playAudio('donation', `${donorName}, muito obrigado por ajudar com a nossa formatura!`);
+        setDonationQueue(prev => prev.slice(1));
+        return;
+    }
+
+    if (!celebratingOrder && !celebratingDonation && celebrationQueue.length > 0) {
         const nextOrder = celebrationQueue[0];
         setCelebratingOrder(nextOrder);
-        playAudio(nextOrder.orderNumber);
+        playAudio('order', `Senha ${nextOrder.orderNumber}.`);
         setCelebrationQueue(prev => prev.slice(1));
     }
-  }, [celebratingOrder, celebrationQueue]);
+  }, [celebratingOrder, celebratingDonation, celebrationQueue, donationQueue]);
 
   useEffect(() => {
     if (celebratingOrder) {
@@ -143,6 +196,15 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
       return () => clearTimeout(timer);
     }
   }, [celebratingOrder]);
+
+  useEffect(() => {
+    if (celebratingDonation) {
+      const timer = setTimeout(() => {
+        setCelebratingDonation(null);
+      }, 10000); // Doação fica um pouco mais de tempo (10s)
+      return () => clearTimeout(timer);
+    }
+  }, [celebratingDonation]);
 
   // --- TEXTO DO RODAPÉ (PERSONALIZADO) ---
   const marqueeContent = useMemo(() => {
@@ -173,8 +235,56 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
         {/* Fire Border Animation Overlay */}
         <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/30 pointer-events-none animate-pulse z-20"></div>
 
+        {/* === OVERLAY DE DOAÇÃO (PRIORIDADE MÁXIMA) === */}
+        {celebratingDonation && (
+            <div className="absolute inset-0 z-[250] flex flex-col items-center justify-center bg-pink-900/95 backdrop-blur-xl animate-in zoom-in-90 duration-500">
+                 {/* Background Effects */}
+                 <div className="absolute inset-0 overflow-hidden">
+                    <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-pink-500/30 via-transparent to-transparent animate-pulse"></div>
+                    {[...Array(20)].map((_, i) => (
+                        <Heart 
+                            key={i}
+                            className="absolute text-pink-400/30 animate-bounce"
+                            style={{
+                                top: `${Math.random() * 100}%`,
+                                left: `${Math.random() * 100}%`,
+                                width: `${Math.random() * 100 + 50}px`,
+                                height: `${Math.random() * 100 + 50}px`,
+                                animationDuration: `${Math.random() * 3 + 2}s`,
+                                animationDelay: `${Math.random()}s`
+                            }}
+                            fill="currentColor"
+                        />
+                    ))}
+                 </div>
+
+                 <div className="relative z-10 flex flex-col items-center text-center p-8 max-w-5xl">
+                    <div className="w-40 h-40 bg-white rounded-full flex items-center justify-center mb-8 shadow-[0_0_60px_rgba(236,72,153,0.6)] animate-bounce">
+                        <Heart size={80} className="text-pink-600 fill-current" />
+                    </div>
+                    
+                    <h1 className="text-[5vw] leading-none font-black text-white mb-6 drop-shadow-lg uppercase tracking-tight">
+                        NOVA DOAÇÃO!
+                    </h1>
+
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl transform rotate-1">
+                        <p className="text-[4vw] font-black text-pink-200 uppercase leading-tight mb-4">
+                            {celebratingDonation.customerName || 'AMIGO'}
+                        </p>
+                        <p className="text-[2.5vw] font-bold text-white uppercase leading-tight">
+                            MUITO OBRIGADO POR AJUDAR COM A NOSSA FORMATURA!
+                        </p>
+                    </div>
+                    
+                    <div className="mt-12 flex items-center gap-4 bg-pink-600/50 px-8 py-4 rounded-full border border-pink-400/30">
+                        <span className="text-2xl font-bold text-white uppercase tracking-widest">TURMA 2026 AGRADECE ❤️</span>
+                    </div>
+                 </div>
+            </div>
+        )}
+
         {/* === OVERLAY DE CELEBRAÇÃO GIGANTE PARA TV === */}
-        {celebratingOrder && (
+        {celebratingOrder && !celebratingDonation && (
             <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl animate-in zoom-in-90 duration-300">
             
             {/* Fundo de Fogo */}

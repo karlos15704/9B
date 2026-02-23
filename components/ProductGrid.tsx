@@ -114,6 +114,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                       </div>
                       <h3 className="text-xl font-black text-gray-800">Apoie a Formatura 2026!</h3>
                       <p className="text-gray-500 text-sm mt-1">Sua contribuição ajuda a realizar nosso sonho.</p>
+                      <p className="text-xs text-gray-400 mt-1 font-bold uppercase bg-gray-100 inline-block px-2 py-1 rounded">Pagamento via Pix ou Dinheiro</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 mb-4">
