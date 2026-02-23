@@ -956,9 +956,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                       
                       <button 
                           onClick={() => setView('menu')}
-                          className="w-full text-purple-300 text-sm font-bold hover:text-white transition-colors py-2"
+                          className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3 rounded-xl border border-white/10 transition-all text-sm uppercase tracking-wide mt-2"
                       >
-                          Voltar ao Cardápio
+                          NÃO QUERO ME IDENTIFICAR
                       </button>
                   </div>
               </div>
