@@ -183,7 +183,11 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     if (!celebratingOrder && !celebratingDonation && celebrationQueue.length > 0) {
         const nextOrder = celebrationQueue[0];
         setCelebratingOrder(nextOrder);
-        playAudio('order', `Senha ${nextOrder.orderNumber}.`);
+        
+        const name = nextOrder.customerName;
+        const text = name ? `${name}, sua senha é ${nextOrder.orderNumber}.` : `Senha ${nextOrder.orderNumber}.`;
+        
+        playAudio('order', text);
         setCelebrationQueue(prev => prev.slice(1));
     }
   }, [celebratingOrder, celebratingDonation, celebrationQueue, donationQueue]);
