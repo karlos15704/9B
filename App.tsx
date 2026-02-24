@@ -36,7 +36,7 @@ import {
   saveSettings
 } from './services/supabase';
 import { addPoints, redeemPoints } from './services/loyaltyService';
-import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins } from 'lucide-react';
+import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
 
 const App: React.FC = () => {
   // Login & Users State
