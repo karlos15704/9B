@@ -185,7 +185,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
         setCelebratingOrder(nextOrder);
         
         const name = nextOrder.customerName;
-        const text = name ? `${name}, sua senha é ${nextOrder.orderNumber}.` : `Senha ${nextOrder.orderNumber}.`;
+        const text = name ? `${name}, senha ${nextOrder.orderNumber}, tá frito!` : `Senha ${nextOrder.orderNumber}, tá frito!`;
         
         playAudio('order', text);
         setCelebrationQueue(prev => prev.slice(1));
