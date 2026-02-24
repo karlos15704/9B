@@ -515,6 +515,9 @@ const App: React.FC = () => {
       setProducts(productsCopy);
       localStorage.setItem('app_products', JSON.stringify(productsCopy));
 
+      // CHECK FOR DONATION
+      const isPureDonation = cart.every(item => item.category === 'Doação');
+      
       let transactionToSave: Transaction;
       const pointsEarned = method !== PaymentMethod.LOYALTY ? Math.floor(total * 100) : 0;
 
@@ -535,7 +538,7 @@ const App: React.FC = () => {
             change,
             sellerName: currentUser?.name || 'Caixa',
             status: 'completed',
-            kitchenStatus: 'pending',
+            kitchenStatus: isPureDonation ? 'done' : 'pending', // Doações já nascem prontas
             customerId: customerId || original.customerId,
             pointsEarned: pointsEarned,
             pointsRedeemed: pointsRedeemed
@@ -551,7 +554,17 @@ const App: React.FC = () => {
          setTransactions(prev => [...prev.filter(t => t.id !== currentPendingOrderId), transactionToSave]);
 
       } else {
-         const safeOrderNumber = (nextOrderNumber || 1).toString();
+         let safeOrderNumber = "";
+         
+         if (isPureDonation) {
+             // Generate Donation Code
+             safeOrderNumber = "D-" + Math.floor(1000 + Math.random() * 9000);
+         } else {
+             safeOrderNumber = (nextOrderNumber || 1).toString();
+             // Increment Order Number ONLY if not a donation
+             setNextOrderNumber(prev => (prev || 1) + 1);
+         }
+
          const id = generateId();
    
          transactionToSave = {
@@ -568,7 +581,7 @@ const App: React.FC = () => {
            change,
            sellerName: currentUser?.name || 'Caixa',
            status: 'completed',
-           kitchenStatus: 'pending',
+           kitchenStatus: isPureDonation ? 'done' : 'pending', // Doações já nascem prontas
            customerId: customerId,
            pointsEarned: pointsEarned,
            pointsRedeemed: pointsRedeemed
@@ -587,8 +600,6 @@ const App: React.FC = () => {
                await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
            }
          }
-         
-         setNextOrderNumber(prev => (prev || 1) + 1);
       }
 
       setLastCompletedOrder({ transaction: transactionToSave });
@@ -765,10 +776,21 @@ const App: React.FC = () => {
           {lastCompletedOrder && currentUser.role !== 'kitchen' && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
               <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-sm w-full text-center transform scale-100 animate-in zoom-in-95 duration-200 relative">
-                 <div className="bg-orange-100 border-2 border-dashed rounded-xl p-6 mb-8" style={{ borderColor: appSettings.primaryColor }}>
-                  <span className="text-sm font-bold uppercase tracking-wider block mb-1" style={{ color: appSettings.primaryColor }}>SENHA</span>
-                  <span className="text-6xl font-black tracking-tighter" style={{ color: appSettings.primaryColor }}>{lastCompletedOrder.transaction.orderNumber}</span>
-                </div>
+                 
+                 {lastCompletedOrder.transaction.items.every(i => i.category === 'Doação') ? (
+                    <div className="bg-pink-50 border-2 border-pink-200 rounded-xl p-6 mb-8">
+                        <Heart size={48} className="text-pink-500 mx-auto mb-2 animate-pulse fill-current" />
+                        <h2 className="text-2xl font-black text-pink-600 mb-1">DOAÇÃO RECEBIDA!</h2>
+                        <p className="text-pink-800 font-bold text-lg uppercase">{lastCompletedOrder.transaction.customerName || 'Amigo'}</p>
+                        <p className="text-xs text-pink-400 mt-2">Agradecimento enviado para o telão.</p>
+                    </div>
+                 ) : (
+                    <div className="bg-orange-100 border-2 border-dashed rounded-xl p-6 mb-8" style={{ borderColor: appSettings.primaryColor }}>
+                        <span className="text-sm font-bold uppercase tracking-wider block mb-1" style={{ color: appSettings.primaryColor }}>SENHA</span>
+                        <span className="text-6xl font-black tracking-tighter" style={{ color: appSettings.primaryColor }}>{lastCompletedOrder.transaction.orderNumber}</span>
+                    </div>
+                 )}
+
                  <div className="flex gap-2">
                     <button onClick={() => setLastCompletedOrder(null)} className="flex-1 text-white font-bold py-4 rounded-xl transition-colors duration-300 animate-cta-bounce active:scale-95 active:animate-none" style={{ backgroundColor: appSettings.primaryColor }}>
                         Nova Venda
