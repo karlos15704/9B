@@ -498,10 +498,23 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         }
     }
 
+    // CHECK FOR DONATION
+    const isPureDonation = cart.every(item => item.category === 'Doação');
+    const hasDonation = cart.some(item => item.category === 'Doação');
+
     setIsSending(true);
-    let orderNumber = nextOrderNumber.toString();
-    const freshNumber = await fetchNextOrderNumber();
-    if (freshNumber) orderNumber = freshNumber;
+    
+    let orderNumber = "";
+
+    if (isPureDonation) {
+        // Generate a random code for donation identification (Not a sequential kitchen ticket)
+        orderNumber = "D-" + Math.floor(1000 + Math.random() * 9000);
+    } else {
+        orderNumber = nextOrderNumber.toString();
+        const freshNumber = await fetchNextOrderNumber();
+        if (freshNumber) orderNumber = freshNumber;
+    }
+
     const transactionId = generateId();
     
     // Calcula pontos ganhos (R$ 1 = 100 pontos)
@@ -526,9 +539,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     const success = await createTransaction(newTransaction);
     
     if (success) {
-        // CHECK FOR DONATION
-        const hasDonation = cart.some(item => item.category === 'Doação');
-        const isPureDonation = cart.every(item => item.category === 'Doação');
         setIsPureDonationOrder(isPureDonation);
 
         if (hasDonation) {
