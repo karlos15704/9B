@@ -487,23 +487,16 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       }
   };
 
-  const handleFinishOrder = async () => {
-    if (!customerName.trim()) { alert("Por favor, digite seu nome."); return; }
-    
-    // Se não estiver logado na fidelidade, pede login antes de finalizar (opcional, mas bom para pontuar)
-    if (!customer) {
-        if (confirm("Quer ganhar pontos com essa compra? Clique em OK para se identificar ou Cancelar para continuar sem pontos.")) {
-            setView('loyalty_login');
-            return;
-        }
-    }
+  const [donationNote, setDonationNote] = useState('');
+  const [showDonationNoteModal, setShowDonationNoteModal] = useState(false);
 
+  const finishOrderProcess = async () => {
+    setIsSending(true);
+    
     // CHECK FOR DONATION
     const isPureDonation = cart.every(item => item.category === 'Doação');
     const hasDonation = cart.some(item => item.category === 'Doação');
 
-    setIsSending(true);
-    
     let orderNumber = "";
 
     if (isPureDonation) {
@@ -533,7 +526,8 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         status: 'pending_payment', 
         kitchenStatus: 'pending',
         customerId: customer?.id,
-        pointsEarned: customer ? pointsEarned : 0
+        pointsEarned: customer ? pointsEarned : 0,
+        donationMessage: hasDonation ? donationNote : undefined
     };
 
     const success = await createTransaction(newTransaction);
@@ -552,6 +546,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         saveOrderId(transactionId); 
         setLastOrderInfo({ number: orderNumber, name: customerName }); 
         setCart([]); 
+        setDonationNote(''); // Reset note
         requestNotificationPermission(); 
         loadMyOrders();
         
@@ -560,6 +555,27 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         setIsSending(false);
         alert("❌ ERRO AO ENVIAR PEDIDO!\n\nTente novamente ou chame um atendente.");
     }
+  };
+
+  const handleFinishOrder = async () => {
+    if (!customerName.trim()) { alert("Por favor, digite seu nome."); return; }
+    
+    // Se não estiver logado na fidelidade, pede login antes de finalizar (opcional, mas bom para pontuar)
+    if (!customer) {
+        if (confirm("Quer ganhar pontos com essa compra? Clique em OK para se identificar ou Cancelar para continuar sem pontos.")) {
+            setView('loyalty_login');
+            return;
+        }
+    }
+
+    // Check if there is a donation and we haven't asked for a message yet
+    const hasDonation = cart.some(item => item.category === 'Doação');
+    if (hasDonation && !donationNote && !showDonationNoteModal) {
+        setShowDonationNoteModal(true);
+        return;
+    }
+
+    await finishOrderProcess();
   };
 
   const handleRedeemPoints = async (product: Product) => {
@@ -727,10 +743,60 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
 
   // --- COMPONENTE: PRODUTOS (NOVO DESIGN) ---
+  const renderDonationNoteModal = () => (
+      showDonationNoteModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl p-6 max-w-md w-full animate-in zoom-in-95 duration-200 relative">
+            <div className="text-center mb-6">
+                <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-pink-200">
+                    <Heart size={40} className="text-pink-600 fill-current animate-pulse" />
+                </div>
+                <h3 className="text-2xl font-black text-gray-800 mb-2">Deixe uma Mensagem!</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">
+                    Sua mensagem aparecerá no telão da formatura para os alunos no final do ano. ❤️
+                </p>
+            </div>
+
+            <textarea
+                value={donationNote}
+                onChange={(e) => setDonationNote(e.target.value)}
+                placeholder="Escreva sua mensagem de carinho aqui..."
+                className="w-full h-32 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl mb-6 focus:outline-none focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all resize-none text-gray-700 font-medium"
+                maxLength={150}
+            />
+            
+            <div className="flex gap-3">
+                <button 
+                    onClick={() => {
+                        setShowDonationNoteModal(false);
+                        finishOrderProcess();
+                    }}
+                    className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+                >
+                    Pular
+                </button>
+                <button 
+                    onClick={() => {
+                        setShowDonationNoteModal(false);
+                        finishOrderProcess();
+                    }}
+                    className="flex-1 py-3 px-4 bg-pink-600 text-white font-bold rounded-xl hover:bg-pink-700 shadow-lg shadow-pink-200 transition-colors"
+                >
+                    Enviar Mensagem
+                </button>
+            </div>
+          </div>
+        </div>
+      )
+  );
+
   const renderProductGrid = () => (
     <div className="p-4 md:p-6 pb-32">
         
-        {/* MODAL DE DOAÇÃO */}
+        {/* DONATION NOTE MODAL */}
+        {renderDonationNoteModal()}
+
+      {/* MODAL DE DOAÇÃO */}
         {showDonationModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
@@ -1405,6 +1471,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     return (
         <div className="h-full bg-white flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden">
             {renderReadyModal()}
+            {renderDonationNoteModal()}
             <div className="p-4 border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10 flex-shrink-0"><button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={24} className="text-gray-700" /></button><h2 className="text-xl font-bold text-gray-800">Seu Carrinho</h2></div>
             <div className="flex-1 p-4 overflow-y-auto">
                 <div className="mb-6"><label className="text-xs font-bold text-gray-500 uppercase ml-1">Seu Nome</label><div className="relative mt-1"><User className="absolute left-3 top-3 text-orange-500" size={20} /><input type="text" placeholder="Digite seu nome..." className="w-full pl-10 pr-4 py-3 bg-orange-50 border-2 border-orange-100 rounded-xl focus:border-orange-500 focus:outline-none font-bold text-gray-800" value={customerName} onChange={(e) => setCustomerName(e.target.value)} autoFocus /></div></div>

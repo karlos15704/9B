@@ -78,6 +78,9 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   -- 7. Sistema de Prêmios (Resgatar Depois)
   ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS "prizes" jsonb DEFAULT '[]'::jsonb;
   
+  -- 8. Mensagem de Doação
+  ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS "donationMessage" text;
+
   -- Permissões
   GRANT ALL ON public.customers TO anon, authenticated, service_role;
 

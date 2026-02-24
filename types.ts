@@ -80,6 +80,7 @@ export interface Transaction {
   pointsEarned?: number;
   pointsRedeemed?: number;
   hasPlayedMiniGame?: boolean; // Indica se o cliente já jogou o mini-game nesta compra
+  donationMessage?: string; // Mensagem de doação para o telão
 }
 
 // Nova Interface para Despesas (Retiradas/Compras)
