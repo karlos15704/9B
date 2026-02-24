@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ComboItem } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package, Layers, UploadCloud } from 'lucide-react';
+import { uploadProductImage } from '../services/supabase';
 
 interface ProductManagementProps {
   products: Product[];
@@ -33,6 +34,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
   const [comboItems, setComboItems] = useState<ComboItem[]>([]);
   const [selectedSubProduct, setSelectedSubProduct] = useState('');
   const [subProductQty, setSubProductQty] = useState(1);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Efeito para ativar disponibilidade automaticamente ao digitar estoque positivo (apenas se não for combo)
   useEffect(() => {
@@ -98,6 +100,20 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
 
   const handleRemoveSubProduct = (id: string) => {
     setComboItems(comboItems.filter(i => i.productId !== id));
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+        setIsUploading(true);
+        const file = e.target.files[0];
+        const url = await uploadProductImage(file);
+        if (url) {
+            setImageUrl(url);
+        } else {
+            alert("Erro ao fazer upload da imagem. Tente novamente.");
+        }
+        setIsUploading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -452,22 +468,55 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                  )}
 
                  <div className="col-span-2">
-                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Link da Imagem</label>
-                    <div className="flex gap-2">
-                        <div className="relative flex-1">
+                    <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Imagem do Produto</label>
+                    
+                    <div className="flex flex-col gap-3">
+                        {/* 1. Upload Button */}
+                        <div className="relative">
+                            <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={handleImageUpload}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                disabled={isUploading}
+                            />
+                            <div className={`w-full border-2 border-dashed ${isUploading ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-blue-500 hover:bg-blue-50'} rounded-xl p-4 flex flex-col items-center justify-center transition-all text-center`}>
+                                {isUploading ? (
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-2"></div>
+                                ) : (
+                                    <UploadCloud size={24} className="text-gray-400 mb-2" />
+                                )}
+                                <span className="text-sm font-bold text-gray-600">
+                                    {isUploading ? 'Enviando...' : 'Clique para enviar uma foto'}
+                                </span>
+                                <span className="text-xs text-gray-400 mt-1">JPG, PNG ou WEBP</span>
+                            </div>
+                        </div>
+
+                        {/* 2. URL Input (Fallback) */}
+                        <div className="relative">
                             <ImageIcon className="absolute left-3 top-3 text-gray-400" size={18}/>
                             <input 
-                            type="url" 
-                            value={imageUrl}
-                            onChange={e => setImageUrl(e.target.value)}
-                            className="w-full pl-10 border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 text-sm"
-                            placeholder="https://..."
+                                type="url" 
+                                value={imageUrl}
+                                onChange={e => setImageUrl(e.target.value)}
+                                className="w-full pl-10 border-2 border-gray-200 rounded-xl p-3 focus:outline-none focus:border-blue-500 text-sm text-gray-500 bg-gray-50"
+                                placeholder="Ou cole o link da imagem aqui..."
                             />
                         </div>
                     </div>
+
                     {imageUrl && (
-                        <div className="mt-2 h-32 w-full bg-gray-50 rounded-lg border border-dashed border-gray-300 flex items-center justify-center overflow-hidden">
+                        <div className="mt-3 h-40 w-full bg-white rounded-xl border border-gray-200 shadow-sm flex items-center justify-center overflow-hidden relative group">
                             <img src={imageUrl} alt="Preview" className="h-full object-contain" />
+                            <button 
+                                type="button"
+                                onClick={() => setImageUrl('')}
+                                className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-md"
+                                title="Remover imagem"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
                     )}
                  </div>

@@ -38,10 +38,10 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
     "registeredBy" text
   );
 
-  -- 5. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS) e Galeria
+  -- 5. Criar Bucket de Armazenamento para Notas Fiscais (RECIBOS), Galeria e Produtos
   -- Rode isso apenas uma vez para criar os buckets
   INSERT INTO storage.buckets (id, name, public) 
-  VALUES ('receipts', 'receipts', true), ('gallery', 'gallery', true)
+  VALUES ('receipts', 'receipts', true), ('gallery', 'gallery', true), ('products', 'products', true)
   ON CONFLICT (id) DO NOTHING;
 
   -- Políticas de Segurança para o Storage (Permitir Upload e Leitura pública)
@@ -50,6 +50,8 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   DROP POLICY IF EXISTS "Public Upload Receipts" ON storage.objects;
   DROP POLICY IF EXISTS "Public Access Gallery" ON storage.objects;
   DROP POLICY IF EXISTS "Public Upload Gallery" ON storage.objects;
+  DROP POLICY IF EXISTS "Public Access Products" ON storage.objects;
+  DROP POLICY IF EXISTS "Public Upload Products" ON storage.objects;
 
   -- Cria novas políticas
   CREATE POLICY "Public Access Receipts" ON storage.objects FOR SELECT USING (bucket_id = 'receipts');
@@ -57,6 +59,9 @@ import { Transaction, User, Product, AppSettings, Expense, Contribution } from '
   
   CREATE POLICY "Public Access Gallery" ON storage.objects FOR SELECT USING (bucket_id = 'gallery');
   CREATE POLICY "Public Upload Gallery" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'gallery');
+
+  CREATE POLICY "Public Access Products" ON storage.objects FOR SELECT USING (bucket_id = 'products');
+  CREATE POLICY "Public Upload Products" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'products');
 
   -- 6. Sistema de Fidelidade (Mini Game e Pontos)
   CREATE TABLE IF NOT EXISTS public.customers (
@@ -363,6 +368,35 @@ export const uploadGalleryImage = async (file: File): Promise<string | null> => 
 
         // 2. Get Public URL
         const { data } = supabase.storage.from('gallery').getPublicUrl(filePath);
+        return data.publicUrl;
+    } catch (error) {
+        console.error('Unexpected upload error:', error);
+        return null;
+    }
+};
+
+export const uploadProductImage = async (file: File): Promise<string | null> => {
+    if (!supabase) return null;
+    try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+        
+        // 1. Upload
+        const { error: uploadError } = await supabase.storage
+            .from('products')
+            .upload(filePath, file);
+
+        if (uploadError) {
+            console.error('Error uploading product image:', uploadError);
+            if (uploadError.message.includes('Bucket not found')) {
+                alert("ERRO: Bucket 'products' não encontrado. Rode o SQL no Supabase!");
+            }
+            return null;
+        }
+
+        // 2. Get Public URL
+        const { data } = supabase.storage.from('products').getPublicUrl(filePath);
         return data.publicUrl;
     } catch (error) {
         console.error('Unexpected upload error:', error);
