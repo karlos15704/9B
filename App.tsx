@@ -62,7 +62,7 @@ const App: React.FC = () => {
     schoolClass: DEFAULT_CLASS,
     mascotUrl: DEFAULT_MASCOT,
     schoolLogoUrl: DEFAULT_LOGO,
-    emptyCartImageUrl: "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png",
+    emptyCartImageUrl: DEFAULT_MASCOT,
     primaryColor: '#ea580c', // Default Orange
     buttonSize: 'medium',
     modules: defaultModules

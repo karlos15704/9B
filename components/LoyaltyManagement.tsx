@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Product, Customer, Transaction } from '../types';
+import { User, Product, Customer, Transaction, PaymentMethod } from '../types';
 import { Search, Gift, PlusCircle, Save, User as UserIcon, Trophy, History, ShoppingCart, Trash2, CheckCircle2 } from 'lucide-react';
 import { getCustomerByPhone, createCustomer, addPoints, redeemPoints } from '../services/loyaltyService';
 import { createTransaction, fetchNextOrderNumber } from '../services/supabase';
@@ -102,7 +102,7 @@ const LoyaltyManagement: React.FC<LoyaltyManagementProps> = ({ currentUser, prod
             subtotal: 0, 
             discount: 0, 
             total: 0, 
-            paymentMethod: 'Pontos Fidelidade', 
+            paymentMethod: PaymentMethod.LOYALTY, 
             status: 'completed', 
             kitchenStatus: 'pending',
             customerId: customer.id,

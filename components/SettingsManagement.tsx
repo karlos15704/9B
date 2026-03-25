@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppSettings, AppModules, RoulettePrize } from '../types';
 import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud, Dices, Plus, Trash2 } from 'lucide-react';
 import { uploadGalleryImage } from '../services/supabase';

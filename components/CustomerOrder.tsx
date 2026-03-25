@@ -286,7 +286,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
           type: 'hero', 
           title: settings.customerWelcomeTitle || 'Bem-vindo', 
           // Prioriza a configuração, mas se não houver, usa a imagem solicitada
-          imageUrl: settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png', 
+          imageUrl: settings.customerHeroUrl || settings.mascotUrl, 
           style: { height: 'medium', alignment: 'center' } 
       },
       { id: 'p1', type: 'products' }
@@ -610,7 +610,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             subtotal: 0, 
             discount: 0, 
             total: 0, 
-            paymentMethod: 'Pontos Fidelidade', // Identifica como troca
+            paymentMethod: PaymentMethod.LOYALTY, // Identifica como troca
             status: 'completed', // Já nasce pago/completado pois é troca
             kitchenStatus: 'pending',
             customerId: customer.id,
@@ -855,7 +855,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             <div 
                 className="absolute inset-0 opacity-40 blur-2xl scale-110 transition-opacity duration-700"
                 style={{ 
-                    backgroundImage: `url(${settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png'})`,
+                    backgroundImage: `url(${settings.customerHeroUrl || settings.mascotUrl})`,
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                 }}
@@ -866,7 +866,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
             
             {/* Imagem Principal (Sem cortar) */}
             <img 
-                src={settings.customerHeroUrl || 'https://i.ibb.co/xt5zh5bR/logoo-Edited.png'} 
+                src={settings.customerHeroUrl || settings.mascotUrl} 
                 className="relative z-10 w-full h-full object-contain p-2 md:p-4 origin-right md:origin-center transform group-hover:scale-105 transition-transform duration-700" 
                 alt="Hero" 
             />
@@ -1095,7 +1095,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
               <div 
                   className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm scale-110"
                   style={{ 
-                      backgroundImage: `url(${settings.customerHeroUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=1000&auto=format&fit=crop'})` 
+                      backgroundImage: `url(${settings.customerHeroUrl || settings.mascotUrl})` 
                   }}
               ></div>
               <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/90 to-slate-900"></div>
