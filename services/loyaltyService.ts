@@ -1,143 +1,105 @@
-import { supabase } from './supabase';
+import { db } from './supabase'; // which is actually firebase now
+import { collection, query, where, getDocs, getDoc, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { Customer } from '../types';
 
 export const getCustomerByPhone = async (phone: string): Promise<Customer | null> => {
-    if (!supabase) return null;
-    
-    // Remove formatação do telefone para busca
     const cleanPhone = phone.replace(/\D/g, '');
-
-    const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('phone', cleanPhone)
-        .single();
-
-    if (error) {
-        if (error.code === 'PGRST116') return null; // Não encontrado
+    try {
+        const q = query(collection(db, 'customers'), where('phone', '==', cleanPhone));
+        const snapshot = await getDocs(q);
+        if (snapshot.empty) return null;
+        return snapshot.docs[0].data() as Customer;
+    } catch (error) {
         console.error('Error fetching customer:', error);
         return null;
     }
-
-    return data as Customer;
 };
 
 export const createCustomer = async (phone: string, name?: string): Promise<Customer | null> => {
-    if (!supabase) return null;
-
     const cleanPhone = phone.replace(/\D/g, '');
+    const newId = crypto.randomUUID();
+    const newCustomer: Customer = {
+        id: newId,
+        phone: cleanPhone,
+        name: name || '',
+        points: 0,
+        prizes: []
+    };
 
-    const { data, error } = await supabase
-        .from('customers')
-        .insert([{ phone: cleanPhone, name, points: 0 }])
-        .select()
-        .single();
-
-    if (error) {
+    try {
+        await setDoc(doc(db, 'customers', newId), newCustomer);
+        return newCustomer;
+    } catch (error) {
         console.error('Error creating customer:', error);
         return null;
     }
-
-    return data as Customer;
 };
 
 export const addPoints = async (customerId: string, points: number): Promise<boolean> => {
-    if (!supabase) return false;
-
-    // Primeiro busca o saldo atual
-    const { data: customer, error: fetchError } = await supabase
-        .from('customers')
-        .select('points')
-        .eq('id', customerId)
-        .single();
-
-    if (fetchError || !customer) return false;
-
-    const newPoints = (customer.points || 0) + points;
-
-    const { error: updateError } = await supabase
-        .from('customers')
-        .update({ points: newPoints })
-        .eq('id', customerId);
-
-    return !updateError;
+    try {
+        const docRef = doc(db, 'customers', customerId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return false;
+        
+        const customer = docSnap.data() as Customer;
+        const newPoints = (customer.points || 0) + points;
+        
+        await updateDoc(docRef, { points: newPoints });
+        return true;
+    } catch (error) { return false; }
 };
 
 export const redeemPoints = async (customerId: string, pointsToRedeem: number): Promise<boolean> => {
-    if (!supabase) return false;
-
-    const { data: customer, error: fetchError } = await supabase
-        .from('customers')
-        .select('points')
-        .eq('id', customerId)
-        .single();
-
-    if (fetchError || !customer) return false;
-
-    if (customer.points < pointsToRedeem) return false; // Saldo insuficiente
-
-    const newPoints = customer.points - pointsToRedeem;
-
-    const { error: updateError } = await supabase
-        .from('customers')
-        .update({ points: newPoints })
-        .eq('id', customerId);
-
-    return !updateError;
+    try {
+        const docRef = doc(db, 'customers', customerId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return false;
+        
+        const customer = docSnap.data() as Customer;
+        if ((customer.points || 0) < pointsToRedeem) return false;
+        
+        const newPoints = customer.points - pointsToRedeem;
+        await updateDoc(docRef, { points: newPoints });
+        return true;
+    } catch (error) { return false; }
 };
 
 export const savePrize = async (customerId: string, prizeName: string): Promise<boolean> => {
-    if (!supabase) return false;
-
-    // Fetch current prizes
-    const { data: customer, error: fetchError } = await supabase
-        .from('customers')
-        .select('prizes')
-        .eq('id', customerId)
-        .single();
-
-    if (fetchError || !customer) return false;
-
-    const currentPrizes = (customer.prizes as any[]) || [];
-    const newPrize = {
-        id: crypto.randomUUID(),
-        name: prizeName,
-        dateWon: Date.now(),
-        redeemed: false
-    };
-
-    const { error: updateError } = await supabase
-        .from('customers')
-        .update({ prizes: [...currentPrizes, newPrize] })
-        .eq('id', customerId);
-
-    return !updateError;
+    try {
+        const docRef = doc(db, 'customers', customerId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return false;
+        
+        const customer = docSnap.data() as Customer;
+        const currentPrizes = customer.prizes || [];
+        const newPrize = {
+            id: crypto.randomUUID(),
+            name: prizeName,
+            dateWon: Date.now(),
+            redeemed: false
+        };
+        
+        await updateDoc(docRef, { prizes: [...currentPrizes, newPrize] });
+        return true;
+    } catch (error) { return false; }
 };
 
 export const redeemPrize = async (customerId: string, prizeId: string): Promise<boolean> => {
-    if (!supabase) return false;
-
-    // Fetch current prizes
-    const { data: customer, error: fetchError } = await supabase
-        .from('customers')
-        .select('prizes')
-        .eq('id', customerId)
-        .single();
-
-    if (fetchError || !customer) return false;
-
-    const currentPrizes = (customer.prizes as any[]) || [];
-    const updatedPrizes = currentPrizes.map(p => {
-        if (p.id === prizeId) {
-            return { ...p, redeemed: true, redeemedDate: Date.now() };
-        }
-        return p;
-    });
-
-    const { error: updateError } = await supabase
-        .from('customers')
-        .update({ prizes: updatedPrizes })
-        .eq('id', customerId);
-
-    return !updateError;
+    try {
+        const docRef = doc(db, 'customers', customerId);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) return false;
+        
+        const customer = docSnap.data() as Customer;
+        const currentPrizes = customer.prizes || [];
+        const updatedPrizes = currentPrizes.map(p => {
+            if (p.id === prizeId) {
+                return { ...p, redeemed: true, redeemedDate: Date.now() };
+            }
+            return p;
+        });
+        
+        await updateDoc(docRef, { prizes: updatedPrizes });
+        return true;
+    } catch (error) { return false; }
 };
