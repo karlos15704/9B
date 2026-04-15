@@ -1,282 +1,213 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, getDocs, getDoc, doc, setDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { getAuth, signInAnonymously } from 'firebase/auth';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import firebaseConfig from '../firebase-applet-config.json';
+import { createClient } from '@supabase/supabase-js';
 import { Transaction, User, Product, AppSettings, Expense, Contribution } from '../types';
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
-export const auth = getAuth(app);
-export const storage = getStorage(app);
+const SUPABASE_URL = 'https://uayvvfiqzfzlwzcbggqy.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVheXZ2ZmlxemZ6bHd6Y2JnZ3F5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg5NDYyNzYsImV4cCI6MjA4NDUyMjI3Nn0.V-CP7sywiRVeoZuhxgtWz86IkN0tbuV0MXnb_0nLOrM';
 
-// Sign in anonymously to access the database
-signInAnonymously(auth).catch(console.error);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// Helper to handle errors
-const handleFirestoreError = (error: any) => {
-    console.error('Firestore Error:', error);
-    return null;
-};
+export const authPromise = Promise.resolve();
 
 // --- TRANSACTIONS ---
 export const fetchTransactions = async (): Promise<Transaction[] | null> => {
-  try {
-    const q = query(collection(db, 'transactions'), orderBy('timestamp', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Transaction);
-  } catch (err) { return handleFirestoreError(err); }
+  const { data, error } = await supabase.from('transactions').select('*').order('timestamp', { ascending: true });
+  if (error) { console.error(error); return null; }
+  return data as Transaction[];
 };
 
 export const fetchPendingTransactions = async (): Promise<Transaction[]> => {
-  try {
-    const q = query(collection(db, 'transactions'), where('status', '==', 'pending_payment'), orderBy('timestamp', 'asc'));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Transaction);
-  } catch (err) { return []; }
+  const { data, error } = await supabase.from('transactions').select('*').eq('status', 'pending_payment').order('timestamp', { ascending: true });
+  if (error) return [];
+  return data as Transaction[];
 };
 
 export const fetchTransactionsByIds = async (ids: string[]): Promise<Transaction[]> => {
   if (ids.length === 0) return [];
-  try {
-    const q = query(collection(db, 'transactions'), where('id', 'in', ids));
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(doc => doc.data() as Transaction).sort((a, b) => b.timestamp - a.timestamp);
-  } catch (err) { return []; }
+  const { data, error } = await supabase.from('transactions').select('*').in('id', ids).order('timestamp', { ascending: false });
+  if (error) return [];
+  return data as Transaction[];
 };
 
 export const fetchNextOrderNumber = async (): Promise<string | null> => {
-  try {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const q = query(collection(db, 'transactions'), where('timestamp', '>=', startOfDay.getTime()));
-    const snapshot = await getDocs(q);
-    const maxOrder = snapshot.docs.length > 0 
-      ? Math.max(...snapshot.docs.map(d => parseInt(d.data().orderNumber) || 0)) 
-      : 0;
-    return (maxOrder + 1).toString();
-  } catch (err) { return null; }
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const { data, error } = await supabase.from('transactions').select('orderNumber').gte('timestamp', startOfDay.getTime());
+  if (error) return null;
+  const maxOrder = data.length > 0 
+    ? Math.max(...data.map(d => parseInt(d.orderNumber) || 0)) 
+    : 0;
+  return (maxOrder + 1).toString();
 };
 
 export const createTransaction = async (transaction: Transaction): Promise<boolean> => {
-  try {
-    await setDoc(doc(db, 'transactions', transaction.id), transaction);
-    return true;
-  } catch (err) { 
-    console.error(err);
-    return false; 
-  }
+  const { error } = await supabase.from('transactions').insert(transaction);
+  if (error) { console.error(error); return false; }
+  return true;
 };
 
 export const confirmTransactionPayment = async (updatedTransaction: Transaction): Promise<boolean> => {
-    try {
-        await updateDoc(doc(db, 'transactions', updatedTransaction.id), {
-            status: 'completed',
-            paymentMethod: updatedTransaction.paymentMethod,
-            amountPaid: updatedTransaction.amountPaid,
-            change: updatedTransaction.change,
-            sellerName: updatedTransaction.sellerName,
-            total: updatedTransaction.total, 
-            discount: updatedTransaction.discount,
-            items: updatedTransaction.items, 
-            kitchenStatus: 'pending' 
-        });
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('transactions').update({
+    status: 'completed',
+    paymentMethod: updatedTransaction.paymentMethod,
+    amountPaid: updatedTransaction.amountPaid,
+    change: updatedTransaction.change,
+    sellerName: updatedTransaction.sellerName,
+    total: updatedTransaction.total, 
+    discount: updatedTransaction.discount,
+    items: updatedTransaction.items, 
+    kitchenStatus: 'pending' 
+  }).eq('id', updatedTransaction.id);
+  return !error;
 };
 
 export const updateTransactionStatus = async (id: string, status: 'completed' | 'cancelled') => {
-  try { await updateDoc(doc(db, 'transactions', id), { status }); } catch (err) {}
+  await supabase.from('transactions').update({ status }).eq('id', id);
 };
 
 export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' | 'done') => {
-  try { await updateDoc(doc(db, 'transactions', id), { kitchenStatus }); } catch (err) {}
+  await supabase.from('transactions').update({ kitchenStatus }).eq('id', id);
 };
 
 export const resetDatabase = async (): Promise<boolean> => {
-    try {
-        const snapshot = await getDocs(collection(db, 'transactions'));
-        const deletePromises = snapshot.docs.map(d => deleteDoc(d.ref));
-        await Promise.all(deletePromises);
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('transactions').delete().neq('id', '0');
+  return !error;
 };
 
 // --- USERS ---
 export const fetchUsers = async (): Promise<User[] | null> => {
-  try {
-    const snapshot = await getDocs(collection(db, 'users'));
-    return snapshot.docs.map(doc => doc.data() as User);
-  } catch (err) { return null; }
+  const { data, error } = await supabase.from('users').select('*');
+  if (error) return null;
+  return data as User[];
 };
 
 export const createUser = async (user: User): Promise<boolean> => {
-  try {
-    await setDoc(doc(db, 'users', user.id), user);
-    return true;
-  } catch (err) { return false; }
+  const { error } = await supabase.from('users').insert(user);
+  return !error;
 };
 
 export const updateUser = async (user: User): Promise<boolean> => {
-  try {
-    await updateDoc(doc(db, 'users', user.id), { 
-      name: user.name, 
-      password: user.password, 
-      role: user.role 
-    });
-    return true;
-  } catch (err) { return false; }
+  const { error } = await supabase.from('users').update({ 
+    name: user.name, 
+    password: user.password, 
+    role: user.role 
+  }).eq('id', user.id);
+  return !error;
 };
 
 export const deleteUser = async (userId: string): Promise<boolean> => {
-  try {
-    await deleteDoc(doc(db, 'users', userId));
-    return true;
-  } catch (err) { return false; }
+  const { error } = await supabase.from('users').delete().eq('id', userId);
+  return !error;
 };
 
 // --- PRODUCTS ---
 export const fetchProducts = async (): Promise<Product[] | null> => {
-  try {
-    const snapshot = await getDocs(collection(db, 'products'));
-    return snapshot.docs.map(doc => doc.data() as Product);
-  } catch (err) { return null; }
+  const { data, error } = await supabase.from('products').select('*');
+  if (error) return null;
+  return data as Product[];
 };
 
 export const createProduct = async (product: Product): Promise<boolean> => {
-  try {
-    await setDoc(doc(db, 'products', product.id), product);
-    return true;
-  } catch (err) { return false; }
+  const { error } = await supabase.from('products').insert(product);
+  return !error;
 };
 
 export const updateProduct = async (product: Product): Promise<boolean> => {
-    try {
-        await updateDoc(doc(db, 'products', product.id), product as any);
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('products').update(product).eq('id', product.id);
+  return !error;
 };
 
 export const deleteProduct = async (productId: string): Promise<boolean> => {
-    try {
-        await deleteDoc(doc(db, 'products', productId));
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('products').delete().eq('id', productId);
+  return !error;
 };
 
 // --- EXPENSES ---
 export const fetchExpenses = async (): Promise<Expense[]> => {
-    try {
-        const q = query(collection(db, 'expenses'), orderBy('timestamp', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data() as Expense);
-    } catch (err) { return []; }
+  const { data, error } = await supabase.from('expenses').select('*').order('timestamp', { ascending: false });
+  if (error) return [];
+  return data as Expense[];
 };
 
 export const uploadReceiptImage = async (file: File): Promise<string | null> => {
-    try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const storageRef = ref(storage, `receipts/${fileName}`);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
-    } catch (error) { return null; }
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const { data, error } = await supabase.storage.from('receipts').upload(fileName, file);
+  if (error) return null;
+  const { data: publicUrlData } = supabase.storage.from('receipts').getPublicUrl(fileName);
+  return publicUrlData.publicUrl;
 };
 
 export const uploadGalleryImage = async (file: File): Promise<string | null> => {
-    try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const storageRef = ref(storage, `gallery/${fileName}`);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
-    } catch (error) { return null; }
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const { data, error } = await supabase.storage.from('gallery').upload(fileName, file);
+  if (error) return null;
+  const { data: publicUrlData } = supabase.storage.from('gallery').getPublicUrl(fileName);
+  return publicUrlData.publicUrl;
 };
 
 export const uploadProductImage = async (file: File): Promise<string | null> => {
-    try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const storageRef = ref(storage, `products/${fileName}`);
-        await uploadBytes(storageRef, file);
-        return await getDownloadURL(storageRef);
-    } catch (error) { return null; }
+  const fileExt = file.name.split('.').pop();
+  const fileName = `${Date.now()}.${fileExt}`;
+  const { data, error } = await supabase.storage.from('products').upload(fileName, file);
+  if (error) return null;
+  const { data: publicUrlData } = supabase.storage.from('products').getPublicUrl(fileName);
+  return publicUrlData.publicUrl;
 };
 
 export const createExpense = async (expense: Expense): Promise<boolean> => {
-    try {
-        await setDoc(doc(db, 'expenses', expense.id), expense);
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('expenses').insert(expense);
+  return !error;
 };
 
 export const deleteExpense = async (expenseId: string): Promise<boolean> => {
-    try {
-        await deleteDoc(doc(db, 'expenses', expenseId));
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+  return !error;
 };
 
 // --- CONTRIBUTIONS ---
 export const fetchContributions = async (): Promise<Contribution[]> => {
-    try {
-        const q = query(collection(db, 'contributions'), orderBy('paymentDate', 'desc'));
-        const snapshot = await getDocs(q);
-        return snapshot.docs.map(doc => doc.data() as Contribution);
-    } catch (err) { return []; }
+  const { data, error } = await supabase.from('contributions').select('*').order('paymentDate', { ascending: false });
+  if (error) return [];
+  return data as Contribution[];
 };
 
 export const createContribution = async (contribution: Contribution): Promise<boolean> => {
-    try {
-        await setDoc(doc(db, 'contributions', contribution.id), contribution);
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('contributions').insert(contribution);
+  return !error;
 };
 
 export const deleteContribution = async (id: string): Promise<boolean> => {
-    try {
-        await deleteDoc(doc(db, 'contributions', id));
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('contributions').delete().eq('id', id);
+  return !error;
 };
 
 // --- SETTINGS ---
 export const fetchSettings = async (): Promise<AppSettings | null> => {
-    try {
-        const docSnap = await getDoc(doc(db, 'settings', 'global'));
-        if (docSnap.exists()) {
-            return docSnap.data() as AppSettings;
-        }
-        return null;
-    } catch (err) { return null; }
+  const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();
+  if (error) return null;
+  return data as AppSettings;
 };
 
 export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
-    try {
-        await setDoc(doc(db, 'settings', 'global'), settings);
-        return true;
-    } catch (err) { return false; }
+  const { error } = await supabase.from('settings').upsert({ id: 'global', ...settings });
+  return !error;
 };
 
 // --- SUBSCRIPTION ---
 export const subscribeToTransactions = (onUpdate: () => void) => {
-    const unsubTransactions = onSnapshot(collection(db, 'transactions'), () => onUpdate());
-    const unsubUsers = onSnapshot(collection(db, 'users'), () => onUpdate());
-    const unsubProducts = onSnapshot(collection(db, 'products'), () => onUpdate());
-    const unsubExpenses = onSnapshot(collection(db, 'expenses'), () => onUpdate());
-    const unsubContributions = onSnapshot(collection(db, 'contributions'), () => onUpdate());
-    const unsubSettings = onSnapshot(collection(db, 'settings'), () => onUpdate());
-    
-    return {
-        unsubscribe: () => {
-            unsubTransactions();
-            unsubUsers();
-            unsubProducts();
-            unsubExpenses();
-            unsubContributions();
-            unsubSettings();
-        }
-    };
-};
+  const channel = supabase.channel('custom-all-channel')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'expenses' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'contributions' }, () => onUpdate())
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'settings' }, () => onUpdate())
+    .subscribe();
 
-export const supabase = true; // Mock to prevent breaking existing checks
+  return {
+    unsubscribe: () => {
+      supabase.removeChannel(channel);
+    }
+  };
+};

@@ -33,7 +33,8 @@ import {
   deleteProduct as deleteProductSupabase,
   resetDatabase,
   fetchSettings,
-  saveSettings
+  saveSettings,
+  authPromise
 } from './services/supabase';
 import { addPoints, redeemPoints } from './services/loyaltyService';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
@@ -93,6 +94,7 @@ const App: React.FC = () => {
   
   const [nextOrderNumber, setNextOrderNumber] = useState<number>(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // State for Order Success Modal
   const [lastCompletedOrder, setLastCompletedOrder] = useState<{transaction: Transaction} | null>(null);
@@ -121,6 +123,18 @@ const App: React.FC = () => {
 
   // --- CARREGAMENTO DE DADOS BLINDADO ---
   const loadData = async () => {
+    try {
+        await authPromise;
+    } catch (error: any) {
+        console.error("Auth Promise Error:", error);
+        if (error.code === 'auth/admin-restricted-operation') {
+            setAuthError("Anonymous authentication is disabled. Please enable 'Anonymous' sign-in provider in your Firebase Console (Authentication -> Sign-in method) to use this app.");
+        } else {
+            setAuthError(error.message || "Failed to authenticate with Firebase.");
+        }
+        setIsLoading(false);
+        return;
+    }
     // --- CARREGAR CONFIGURAÇÕES ---
     try {
         const remoteSettings = await fetchSettings();
@@ -714,6 +728,14 @@ const App: React.FC = () => {
   return (
     <div className={`w-full min-h-screen flex flex-col md:flex-row bg-slate-50 relative ${transitionState === 'logging-out' ? 'animate-shake-screen' : ''}`}>
       
+      {authError && (
+        <div className="fixed inset-0 z-[9999] bg-red-900 text-white flex flex-col items-center justify-center p-8 text-center">
+            <Flame size={64} className="mb-4 text-yellow-400" />
+            <h1 className="text-3xl font-bold mb-4">Authentication Error</h1>
+            <p className="text-xl max-w-2xl">{authError}</p>
+        </div>
+      )}
+
       {(transitionState === 'logging-out' || transitionState === 'logging-in') && (
         <div className={`fire-curtain ${transitionState === 'logging-out' ? 'animate-curtain-rise' : 'animate-curtain-split'}`}>
            <div className="absolute inset-0 bg-gradient-to-t from-red-600 via-[var(--primary-color)] to-yellow-300"></div>

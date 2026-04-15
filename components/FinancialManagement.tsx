@@ -6,7 +6,7 @@ import {
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
   ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers, Minus
 } from 'lucide-react';
-import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage } from '../services/supabase';
+import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage, authPromise } from '../services/supabase';
 
 interface FinancialManagementProps {
   products: Product[];
@@ -35,8 +35,13 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
   useEffect(() => {
     const loadExpenses = async () => {
       setIsLoading(true);
-      const data = await fetchExpenses();
-      setExpenses(data);
+      try {
+          await authPromise;
+          const data = await fetchExpenses();
+          setExpenses(data);
+      } catch (err) {
+          console.error("Auth failed, cannot load expenses", err);
+      }
       setIsLoading(false);
     };
     loadExpenses();

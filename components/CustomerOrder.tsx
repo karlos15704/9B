@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer, PaymentMethod } from '../types';
 import { formatCurrency, generateId } from '../utils';
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices, LogOut, Heart } from 'lucide-react';
-import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions } from '../services/supabase';
+import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions, authPromise } from '../services/supabase';
 import { getCustomerByPhone, createCustomer, addPoints, redeemPoints, savePrize, redeemPrize } from '../services/loyaltyService';
 
 interface CustomerOrderProps {
@@ -336,10 +336,15 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
   const loadMyOrders = async () => {
     if (myOrders.length === 0) setIsLoadingOrders(true);
-    const ids = getStoredOrderIds();
-    if (ids.length > 0) {
-        const transactions = await fetchTransactionsByIds(ids);
-        if (transactions) setMyOrders(transactions);
+    try {
+        await authPromise;
+        const ids = getStoredOrderIds();
+        if (ids.length > 0) {
+            const transactions = await fetchTransactionsByIds(ids);
+            if (transactions) setMyOrders(transactions);
+        }
+    } catch (err) {
+        console.error("Auth failed, cannot load orders", err);
     }
     setIsLoadingOrders(false);
   };

@@ -4,7 +4,7 @@ import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus, HandCoins } from 'lucide-react';
 import { APP_NAME } from '../services/constants';
-import { fetchExpenses, fetchContributions } from '../services/supabase';
+import { fetchExpenses, fetchContributions, authPromise } from '../services/supabase';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -52,8 +52,10 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
 
   // CARREGAR DADOS FINANCEIROS ADICIONAIS
   useEffect(() => {
-    fetchExpenses().then(data => setExpenses(data || []));
-    fetchContributions().then(data => setContributions(data || []));
+    authPromise.then(() => {
+      fetchExpenses().then(data => setExpenses(data || []));
+      fetchContributions().then(data => setContributions(data || []));
+    }).catch(console.error);
   }, []);
 
   // --- HELPER: CALCULAR SEMANAS DO MÊS ---

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Contribution } from '../types';
 import { generateId, formatCurrency } from '../utils';
 import { Plus, Trash2, Search, Calendar, User, DollarSign, HandCoins, CheckCircle2 } from 'lucide-react';
-import { createContribution, deleteContribution, fetchContributions } from '../services/supabase';
+import { createContribution, deleteContribution, fetchContributions, authPromise } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -19,8 +19,13 @@ const StudentContributions: React.FC = () => {
 
   const loadData = async () => {
     setIsLoading(true);
-    const data = await fetchContributions();
-    setContributions(data);
+    try {
+        await authPromise;
+        const data = await fetchContributions();
+        setContributions(data);
+    } catch (err) {
+        console.error("Auth failed, cannot load contributions", err);
+    }
     setIsLoading(false);
   };
 

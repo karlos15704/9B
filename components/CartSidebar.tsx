@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { CartItem, PaymentMethod, Transaction, User, AppSettings, Customer } from '../types';
 import { formatCurrency } from '../utils';
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, ChevronDown, Edit3, User as UserIcon, Globe, RefreshCw, Gift } from 'lucide-react';
-import { fetchPendingTransactions, updateTransactionStatus } from '../services/supabase';
+import { fetchPendingTransactions, updateTransactionStatus, authPromise } from '../services/supabase';
 import { getCustomerByPhone } from '../services/loyaltyService';
 
 interface CartSidebarProps {
@@ -75,8 +75,13 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
   const loadPending = async () => {
     setIsLoadingPending(true);
-    const orders = await fetchPendingTransactions();
-    setPendingOrders(orders);
+    try {
+        await authPromise;
+        const orders = await fetchPendingTransactions();
+        setPendingOrders(orders);
+    } catch (err) {
+        console.error("Auth failed, cannot load pending orders", err);
+    }
     setIsLoadingPending(false);
   };
 
