@@ -82,7 +82,12 @@ export const fetchUsers = async (): Promise<User[] | null> => {
 };
 
 export const createUser = async (user: User): Promise<boolean> => {
-  const { error } = await supabase.from('users').insert(user);
+  const { error } = await supabase.from('users').insert({
+    id: user.id,
+    name: user.name,
+    password: user.password,
+    role: user.role
+  });
   if (error) { console.error('Error creating user:', error); return false; }
   return true;
 };
