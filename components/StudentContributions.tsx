@@ -1,15 +1,21 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Contribution } from '../types';
+import { Contribution, User } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Trash2, Search, Calendar, User, DollarSign, HandCoins, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2 } from 'lucide-react';
 import { createContribution, deleteContribution, fetchContributions, authPromise } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const StudentContributions: React.FC = () => {
+interface StudentContributionsProps {
+  currentUser: User | null;
+}
+
+const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser }) => {
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  const isProfessor = currentUser?.id === '0' || currentUser?.role === 'admin';
 
   // Form State
   const [studentName, setStudentName] = useState('');
@@ -106,6 +112,7 @@ const StudentContributions: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
                 {/* Formuário */}
+                {isProfessor && (
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 h-fit">
                     <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
                         <Plus size={20} className="text-emerald-500"/> Registrar Pagamento
@@ -114,7 +121,7 @@ const StudentContributions: React.FC = () => {
                         <div>
                             <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nome Completo do Aluno</label>
                             <div className="relative">
-                                <User className="absolute left-3 top-3 text-gray-400" size={18} />
+                                <UserIcon className="absolute left-3 top-3 text-gray-400" size={18} />
                                 <input 
                                     type="text" 
                                     value={studentName} 
@@ -169,9 +176,10 @@ const StudentContributions: React.FC = () => {
                         </button>
                     </form>
                 </div>
+                )}
 
                 {/* Lista */}
-                <div className="lg:col-span-2 flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200">
+                <div className={`flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 ${isProfessor ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                         <h3 className="font-bold text-gray-800">Histórico de Pagamentos</h3>
                         <div className="relative w-48">
@@ -194,14 +202,14 @@ const StudentContributions: React.FC = () => {
                                     <th className="px-4 py-3 font-bold">Referência</th>
                                     <th className="px-4 py-3 font-bold">Data Pagto</th>
                                     <th className="px-4 py-3 font-bold text-right">Valor</th>
-                                    <th className="px-4 py-3 font-bold text-center">Ação</th>
+                                    {isProfessor && <th className="px-4 py-3 font-bold text-center">Ação</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {isLoading ? (
-                                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">Carregando...</td></tr>
+                                    <tr><td colSpan={isProfessor ? 5 : 4} className="p-8 text-center text-gray-400">Carregando...</td></tr>
                                 ) : filteredContributions.length === 0 ? (
-                                    <tr><td colSpan={5} className="p-8 text-center text-gray-400">Nenhuma contribuição encontrada.</td></tr>
+                                    <tr><td colSpan={isProfessor ? 5 : 4} className="p-8 text-center text-gray-400">Nenhuma contribuição encontrada.</td></tr>
                                 ) : (
                                     filteredContributions.map(contrib => (
                                         <tr key={contrib.id} className="hover:bg-gray-50">
@@ -215,11 +223,13 @@ const StudentContributions: React.FC = () => {
                                             <td className="px-4 py-3 text-right font-black text-emerald-600">
                                                 {formatCurrency(contrib.amount)}
                                             </td>
+                                            {isProfessor && (
                                             <td className="px-4 py-3 text-center">
                                                 <button onClick={() => handleDelete(contrib.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </td>
+                                            )}
                                         </tr>
                                     ))
                                 )}

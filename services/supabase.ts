@@ -69,8 +69,9 @@ export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' |
 };
 
 export const resetDatabase = async (): Promise<boolean> => {
-  const { error } = await supabase.from('transactions').delete().neq('id', '0');
-  return !error;
+  const { error } = await supabase.from('transactions').delete().gte('timestamp', 0);
+  if (error) { console.error('Error resetting transactions:', error); return false; }
+  return true;
 };
 
 // --- USERS ---
@@ -82,7 +83,8 @@ export const fetchUsers = async (): Promise<User[] | null> => {
 
 export const createUser = async (user: User): Promise<boolean> => {
   const { error } = await supabase.from('users').insert(user);
-  return !error;
+  if (error) { console.error('Error creating user:', error); return false; }
+  return true;
 };
 
 export const updateUser = async (user: User): Promise<boolean> => {

@@ -637,10 +637,17 @@ const App: React.FC = () => {
   };
 
   const handleResetSystem = async () => {
-    if (currentUser?.id !== '0') {
+    if (currentUser?.id !== '0' && currentUser?.role !== 'admin') {
         alert("Ação não autorizada.");
         return;
     }
+    
+    // Always clear local storage first so we don't accidentally sync back old items
+    localStorage.removeItem('pos_transactions');
+    localStorage.setItem('next_order_number', '1');
+    setTransactions([]);
+    setNextOrderNumber(1);
+
     if (isConnected) {
         const success = await resetDatabase();
         if (success) {
@@ -650,9 +657,6 @@ const App: React.FC = () => {
             alert("Erro ao limpar banco de dados.");
         }
     } else {
-        localStorage.removeItem('pos_transactions');
-        setTransactions([]);
-        setNextOrderNumber(1);
         alert("Dados locais limpos.");
     }
   };
@@ -972,7 +976,7 @@ const App: React.FC = () => {
                             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
                             {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
-                            {currentView === 'contributions' && <StudentContributions />}
+                            {currentView === 'contributions' && <StudentContributions currentUser={currentUser} />}
                         </div>
                     )}
                 </div>
