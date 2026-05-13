@@ -203,7 +203,8 @@ export const saveSettings = async (settings: AppSettings): Promise<boolean> => {
 
 // --- SUBSCRIPTION ---
 export const subscribeToTransactions = (onUpdate: () => void) => {
-  const channel = supabase.channel('custom-all-channel')
+  const channelName = `transactions-channel-${Math.random().toString(36).substring(2, 9)}`;
+  const channel = supabase.channel(channelName)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, () => onUpdate())
     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => onUpdate())
