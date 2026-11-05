@@ -50,10 +50,13 @@ export const MOCK_PRODUCTS: Product[] = [
   { 
     id: '1', 
     name: 'Combo Tô Frito (Clássico + Refri)', 
-    price: 18.00, 
+    price: 30.00, 
     category: 'Combos', 
-    // Imagem: Combo (Balde + Lata)
-    imageUrl: '/images/combo-classico.png' 
+    imageUrl: '/images/combo-classico.png',
+    comboItems: [
+        { productId: '2', quantity: 1 },
+        { productId: '4', quantity: 1 }
+    ]
   },
   { 
     id: '2', 
@@ -73,19 +76,53 @@ export const MOCK_PRODUCTS: Product[] = [
   },
   { 
     id: '4', 
-    name: 'Refrigerante Lata 350ml', 
-    price: 5.00, 
+    name: 'REFRIGERANTE', 
+    price: 7.00, 
     category: 'Bebidas', 
-    // Imagem: Lata de Refri
     imageUrl: '/images/refrigerante.png' 
   },
   { 
     id: '5', 
     name: 'Água Mineral 500ml', 
-    price: 3.00, 
+    price: 4.00, 
     category: 'Bebidas', 
-    // Imagem: Garrafa de Água
     imageUrl: '/images/agua.png' 
+  },
+  { 
+    id: 'soda-coca', 
+    name: 'Coca-Cola Lata 350ml', 
+    price: 7.00, 
+    category: 'Bebidas', 
+    imageUrl: '/images/refrigerante.png',
+    isAvailable: true,
+    stock: 100
+  },
+  { 
+    id: 'soda-soda', 
+    name: 'Soda Lata 350ml', 
+    price: 7.00, 
+    category: 'Bebidas', 
+    imageUrl: '/images/refrigerante.png',
+    isAvailable: true,
+    stock: 100
+  },
+  { 
+    id: 'soda-fanta', 
+    name: 'Fanta Laranja Lata 350ml', 
+    price: 7.00, 
+    category: 'Bebidas', 
+    imageUrl: '/images/refrigerante.png',
+    isAvailable: true,
+    stock: 100
+  },
+  { 
+    id: 'soda-guarana', 
+    name: 'Guaraná Antarctica Lata 350ml', 
+    price: 7.00, 
+    category: 'Bebidas', 
+    imageUrl: '/images/refrigerante.png',
+    isAvailable: true,
+    stock: 100
   },
 ];
 

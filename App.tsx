@@ -39,6 +39,7 @@ import {
   createContribution,
   updateContribution as updateContributionSupabase,
   deleteContribution as deleteContributionSupabase,
+  upsertProduct,
   authPromise,
   } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
@@ -188,9 +189,49 @@ const App: React.FC = () => {
                      localStorage.setItem('db_seeded', 'true');
                      setProducts(MOCK_PRODUCTS);
                 } else {
-                    setProducts(dbProducts);
-                    localStorage.setItem('app_products', JSON.stringify(dbProducts));
-                    if (dbProducts.length > 0) localStorage.setItem('db_seeded', 'true');
+                    // --- MIGRAÇÃO / ATUALIZAÇÃO PARA NOVOS REFRIGERANTES ---
+                    const sodaIds = ['4', 'soda-coca', 'soda-soda', 'soda-fanta', 'soda-guarana', '1'];
+                    const migrationProducts = MOCK_PRODUCTS.filter(p => sodaIds.includes(p.id));
+                    
+                    // Upsert specifically the generic soda and the flavors and the default combo
+                    for (const p of migrationProducts) {
+                        const existing = dbProducts.find(dbP => dbP.id === p.id);
+                        // If it's ID '4' (Generic) and name is not 'REFRIGERANTE' or category is wrong, force update
+                        if (p.id === '4' && (existing?.name !== 'REFRIGERANTE' || existing?.category !== 'Bebidas')) {
+                            await upsertProduct({ ...p, name: 'REFRIGERANTE', category: 'Bebidas' });
+                        } else if (!existing) {
+                            await upsertProduct(p);
+                        }
+                    }
+
+                    // --- LIMPEZA DE DUPLICADOS (BEBIDAS) ---
+                    const canonicalIds = ['4', 'soda-coca', 'soda-soda', 'soda-fanta', 'soda-guarana', '5', '1', '2', '3'];
+                    const duplicateBebidas = dbProducts.filter(p => 
+                        p.category === 'Bebidas' && 
+                        !canonicalIds.includes(p.id) &&
+                        (p.name.toLowerCase().includes('coca') || 
+                         p.name.toLowerCase().includes('fanta') || 
+                         p.name.toLowerCase().includes('guaran') || 
+                         p.name.toLowerCase().includes('soda') ||
+                         p.name.toLowerCase().includes('refrigerante'))
+                    );
+
+                    if (duplicateBebidas.length > 0) {
+                        console.log("Removendo bebidas duplicadas...");
+                        await Promise.all(duplicateBebidas.map(p => deleteProductSupabase(p.id)));
+                    }
+
+                    // Forçar atualização do Combo 1 se ele ainda for "antigo" (sem comboItems)
+                    const combo1 = dbProducts.find(p => p.id === '1');
+                    if (combo1 && (!combo1.comboItems || combo1.comboItems.length === 0)) {
+                        const updatedCombo1 = MOCK_PRODUCTS.find(p => p.id === '1');
+                        if (updatedCombo1) await upsertProduct(updatedCombo1);
+                    }
+                    
+                    const refreshedProducts = await fetchProducts() || dbProducts;
+                    setProducts(refreshedProducts);
+                    localStorage.setItem('app_products', JSON.stringify(refreshedProducts));
+                    localStorage.setItem('db_seeded', 'true');
                 }
             } else {
                  const saved = localStorage.getItem('app_products');

@@ -44,6 +44,70 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Flavor Selection State
+  const [showFlavorModal, setShowFlavorModal] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
+
+  const sodaFlavors = useMemo(() => {
+    return products
+      .filter(p => p.id.startsWith('soda-'))
+      .map(p => ({
+        id: p.id,
+        name: p.name.replace(' Lata 350ml', ''),
+        color: (p.id.toLowerCase().includes('coca') || p.name.toLowerCase().includes('coca')) ? '#e11d48' : 
+               (p.id.toLowerCase().includes('fanta') || p.name.toLowerCase().includes('fanta')) ? '#f59e0b' : 
+               (p.id.toLowerCase().includes('soda') || p.name.toLowerCase().includes('soda')) ? '#16a34a' : '#059669',
+        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock > 0)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  const handleProductClick = (product: Product) => {
+      const isSoda = product.id === '4';
+      const hasSodaInCombo = product.comboItems?.some(item => item.productId === '4');
+
+      if (isSoda || hasSodaInCombo) {
+          setPendingProduct(product);
+          setShowFlavorModal(true);
+      } else {
+          addToCart(product);
+      }
+  };
+
+  const handleFlavorSelect = (flavorId: string, flavorName: string) => {
+      if (!pendingProduct) return;
+
+      const flavorProduct = products.find(p => p.id === flavorId);
+      
+      if (pendingProduct.id === '4') {
+          // Individual soda
+          if (flavorProduct) {
+              addToCart({
+                  ...flavorProduct,
+                  name: `REFRIGERANTE (${flavorName})`,
+              });
+          }
+      } else {
+          // Combo with soda
+          const updatedComboItems = pendingProduct.comboItems?.map(item => {
+              if (item.productId === '4') {
+                  return { ...item, productId: flavorId };
+              }
+              return item;
+          });
+
+          addToCart({
+              ...pendingProduct,
+              id: `${pendingProduct.id}-${flavorId}`,
+              name: `${pendingProduct.name} (${flavorName})`,
+              comboItems: updatedComboItems
+          });
+      }
+
+      setShowFlavorModal(false);
+      setPendingProduct(null);
+  };
+
   const handleAddDonation = (amount: number) => {
       const donationProduct: Product = {
           id: `donation-${Date.now()}`,
@@ -147,6 +211,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const filteredProducts = useMemo(() => {
       return products.filter(p => {
+          // HIDE SPECIFIC SODA FLAVORS FROM MAIN GRID
+          if (p.id.startsWith('soda-')) return false;
+
           const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
           if (selectedCategory === 'Todos') return matchesSearch;
           return matchesSearch && p.category === selectedCategory;
@@ -315,6 +382,53 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const renderProductGrid = () => (
     <div className="p-4 md:p-6 pb-32">
         {renderDonationNoteModal()}
+        
+        {/* MODAL DE ESCOLHA DE SABOR (REFRIGERANTE) */}
+        {showFlavorModal && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
+                    <button onClick={() => setShowFlavorModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                    
+                    <div className="text-center mb-6">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500">
+                            <UtensilsCrossed size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-gray-800">Escolha o Sabor</h3>
+                        <p className="text-gray-500 text-sm mt-1">Qual refrigerante você deseja?</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-3">
+                        {sodaFlavors.map(flavor => (
+                            <button 
+                                key={flavor.id}
+                                onClick={() => flavor.isAvailable && handleFlavorSelect(flavor.id, flavor.name)}
+                                disabled={!flavor.isAvailable}
+                                className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all group active:scale-95 shadow-sm
+                                  ${flavor.isAvailable 
+                                    ? 'border-gray-100 hover:border-blue-500 hover:bg-blue-50' 
+                                    : 'border-red-50 bg-red-50/50 opacity-60 cursor-not-allowed'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-4 h-4 rounded-full" style={{ backgroundColor: flavor.color }}></div>
+                                    <span className={`font-black ${flavor.isAvailable ? 'text-gray-700 group-hover:text-blue-700' : 'text-red-400'}`}>
+                                        {flavor.name}
+                                    </span>
+                                </div>
+                                {!flavor.isAvailable && <span className="text-[10px] font-black text-red-500 uppercase bg-white px-2 py-0.5 rounded border border-red-200">Esgotado</span>}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button 
+                        onClick={() => setShowFlavorModal(false)}
+                        className="w-full mt-6 py-4 rounded-2xl border-2 border-gray-100 text-gray-400 font-black hover:bg-gray-50 transition-all uppercase tracking-tighter"
+                    >
+                        Voltar
+                    </button>
+                </div>
+            </div>
+        )}
+
         {showDonationModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                 <div className="bg-white rounded-3xl shadow-2xl max-sm w-full p-6 animate-in zoom-in-95 relative">
@@ -386,7 +500,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     const isSoldOut = maxStock === 0;
                     const isProductCombo = !!(product.comboItems && product.comboItems.length > 0);
                     return (
-                        <div key={product.id} onClick={() => !isSoldOut && addToCart(product)} className={`bg-white rounded-3xl shadow-sm border-2 transition-all duration-300 relative overflow-hidden flex flex-col group ${isSoldOut ? 'border-red-100 opacity-70 grayscale' : qty > 0 ? 'border-orange-500 shadow-orange-100 shadow-xl -translate-y-1' : 'border-transparent hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 active:scale-95'}`}>
+                        <div key={product.id} onClick={() => !isSoldOut && handleProductClick(product)} className={`bg-white rounded-3xl shadow-sm border-2 transition-all duration-300 relative overflow-hidden flex flex-col group ${isSoldOut ? 'border-red-100 opacity-70 grayscale' : qty > 0 ? 'border-orange-500 shadow-orange-100 shadow-xl -translate-y-1' : 'border-transparent hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 active:scale-95'}`}>
                             <div className="relative h-40 md:h-56 w-full p-4 bg-white flex items-center justify-center">
                                 {isProductCombo && product.comboItems && product.comboItems.length > 0 ? (
                                     <div className="w-full h-full grid grid-cols-2 gap-2 bg-gray-50 rounded-2xl p-2">

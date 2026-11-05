@@ -16,8 +16,72 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [showDonationModal, setShowDonationModal] = useState(false);
   const [customDonation, setCustomDonation] = useState('');
+  
+  // Flavor Selection State
+  const [showFlavorModal, setShowFlavorModal] = useState(false);
+  const [pendingProduct, setPendingProduct] = useState<Product | null>(null);
 
   const primaryColor = settings?.primaryColor || '#ea580c';
+
+  const sodaFlavors = useMemo(() => {
+    return products
+      .filter(p => p.id.startsWith('soda-'))
+      .map(p => ({
+        id: p.id,
+        name: p.name.replace(' Lata 350ml', ''),
+        color: (p.id.toLowerCase().includes('coca') || p.name.toLowerCase().includes('coca')) ? '#e11d48' : 
+               (p.id.toLowerCase().includes('fanta') || p.name.toLowerCase().includes('fanta')) ? '#f59e0b' : 
+               (p.id.toLowerCase().includes('soda') || p.name.toLowerCase().includes('soda')) ? '#16a34a' : '#059669',
+        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock > 0)
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [products]);
+
+  const handleProductClick = (product: Product) => {
+      const isSoda = product.id === '4';
+      const hasSodaInCombo = product.comboItems?.some(item => item.productId === '4');
+
+      if (isSoda || hasSodaInCombo) {
+          setPendingProduct(product);
+          setShowFlavorModal(true);
+      } else {
+          onAddToCart(product);
+      }
+  };
+
+  const handleFlavorSelect = (flavorId: string, flavorName: string) => {
+      if (!pendingProduct) return;
+
+      const flavorProduct = products.find(p => p.id === flavorId);
+      
+      if (pendingProduct.id === '4') {
+          // Individual soda
+          if (flavorProduct) {
+              onAddToCart({
+                  ...flavorProduct,
+                  name: `REFRIGERANTE (${flavorName})`,
+              });
+          }
+      } else {
+          // Combo with soda
+          const updatedComboItems = pendingProduct.comboItems?.map(item => {
+              if (item.productId === '4') {
+                  return { ...item, productId: flavorId };
+              }
+              return item;
+          });
+
+          onAddToCart({
+              ...pendingProduct,
+              id: `${pendingProduct.id}-${flavorId}`,
+              name: `${pendingProduct.name} (${flavorName})`,
+              comboItems: updatedComboItems
+          });
+      }
+
+      setShowFlavorModal(false);
+      setPendingProduct(null);
+  };
 
   const categories = useMemo(() => {
     const cats = Array.from(new Set(products.map(p => p.category)));
@@ -27,6 +91,9 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   const filteredProducts = useMemo(() => {
     return products
       .filter(product => {
+        // HIDE SPECIFIC SODA FLAVORS FROM MAIN GRID
+        if (product.id.startsWith('soda-')) return false;
+
         const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
         return matchesSearch && matchesCategory;
@@ -102,6 +169,52 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
   return (
     <div className="h-full w-full flex flex-col bg-gray-50/50">
       
+      {/* MODAL DE ESCOLHA DE SABOR (REFRIGERANTE) */}
+      {showFlavorModal && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
+                  <button onClick={() => setShowFlavorModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                  
+                  <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500">
+                          <UtensilsCrossed size={32} />
+                      </div>
+                      <h3 className="text-xl font-black text-gray-800">Escolha o Sabor</h3>
+                      <p className="text-gray-500 text-sm mt-1">Qual refrigerante você deseja?</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-3">
+                      {sodaFlavors.map(flavor => (
+                          <button 
+                              key={flavor.id}
+                              onClick={() => flavor.isAvailable && handleFlavorSelect(flavor.id, flavor.name)}
+                              disabled={!flavor.isAvailable}
+                              className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-all group active:scale-95
+                                ${flavor.isAvailable 
+                                  ? 'border-gray-100 hover:border-blue-500 hover:bg-blue-50' 
+                                  : 'border-red-50 bg-red-50/50 opacity-60 cursor-not-allowed'}`}
+                          >
+                              <div className="flex items-center gap-3">
+                                  <div className="w-4 h-4 rounded-full" style={{ backgroundColor: flavor.color }}></div>
+                                  <span className={`font-black ${flavor.isAvailable ? 'text-gray-700 group-hover:text-blue-700' : 'text-red-400'}`}>
+                                      {flavor.name}
+                                  </span>
+                              </div>
+                              {!flavor.isAvailable && <span className="text-[10px] font-black text-red-500 uppercase bg-white px-2 py-0.5 rounded border border-red-200">Esgotado</span>}
+                          </button>
+                      ))}
+                  </div>
+
+                  <button 
+                      onClick={() => setShowFlavorModal(false)}
+                      className="w-full mt-6 py-3 rounded-xl border-2 border-gray-100 text-gray-500 font-bold hover:bg-gray-50 transition-all"
+                  >
+                      CANCELAR
+                  </button>
+              </div>
+          </div>
+      )}
+
       {/* MODAL DE DOAÇÃO */}
       {showDonationModal && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -268,7 +381,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                   `}
                   style={borderStyle}
                   onClick={() => {
-                      if (!isSoldOut) onAddToCart(product);
+                      if (!isSoldOut) handleProductClick(product);
                   }}
                 >
                   {/* Imagem */}

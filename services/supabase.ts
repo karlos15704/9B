@@ -128,6 +128,11 @@ export const deleteProduct = async (productId: string): Promise<boolean> => {
   return !error;
 };
 
+export const upsertProduct = async (product: Product): Promise<boolean> => {
+  const { error } = await supabase.from('products').upsert(product);
+  return !error;
+};
+
 // --- EXPENSES ---
 export const fetchExpenses = async (): Promise<Expense[]> => {
   const { data, error } = await supabase.from('expenses').select('*').order('timestamp', { ascending: false });

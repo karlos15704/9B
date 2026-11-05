@@ -29,6 +29,7 @@ export interface Product {
 export interface CartItem extends Product {
   quantity: number;
   notes?: string;
+  selectedFlavor?: string; // Para produtos genéricos como "REFRIGERANTE"
 }
 
 export interface User {

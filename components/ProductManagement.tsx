@@ -429,7 +429,9 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                             >
                                 <option value="">Selecione um produto...</option>
                                 {products.filter(p => !p.comboItems || p.comboItems.length === 0).filter(p => p.id !== editingProduct?.id).map(p => (
-                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                    <option key={p.id} value={p.id} className={p.id === '4' ? 'font-black text-blue-600' : ''}>
+                                        {p.name === 'REFRIGERANTE' ? '🥤 REFRIGERANTE (ESCOLHER SABOR)' : p.name}
+                                    </option>
                                 ))}
                             </select>
                             <input 
