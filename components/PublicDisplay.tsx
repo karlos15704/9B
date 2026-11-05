@@ -42,12 +42,12 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
       return t.items.length > 0 && t.items.every(i => i.category === 'Doação');
   };
 
-  // Pedidos em Preparo (Exclui doações puras)
+  // Pedidos em Preparo (Apenas pedidos com pagamento confirmado/concluído)
   const preparingOrders = useMemo(() => {
     return transactions
       .filter(t => 
         t.kitchenStatus === 'pending' && 
-        t.status !== 'cancelled' && 
+        (t.status === 'completed' || (t.status as string) === 'paid') && 
         t.timestamp >= startOfDay.getTime() &&
         !isPureDonation(t)
       )
@@ -55,12 +55,12 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
   }, [transactions]);
 
   // Pedidos Prontos (Limitado aos últimos 5 para ficarem GRANDES na TV)
-  // Exclui doações puras para não aparecerem como "Senha Pronta"
+  // Apenas pedidos com pagamento confirmado/concluído
   const readyOrders = useMemo(() => {
     return transactions
       .filter(t => 
         t.kitchenStatus === 'done' && 
-        t.status !== 'cancelled' && 
+        (t.status === 'completed' || (t.status as string) === 'paid') && 
         t.timestamp >= startOfDay.getTime() &&
         !isPureDonation(t)
       )
