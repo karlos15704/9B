@@ -273,12 +273,34 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                 >
                   {/* Imagem */}
                   <div className="relative h-32 md:h-40 w-full bg-white p-2">
-                    <img 
-                      src={product.imageUrl} 
-                      alt={product.name} 
-                      className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-50' : 'group-hover:scale-105'} drop-shadow-sm`}
-                      loading="lazy"
-                    />
+                    {isCombo && product.comboItems && product.comboItems.length > 0 ? (
+                        <div className="w-full h-full grid grid-cols-2 gap-1 bg-gray-50 rounded-lg p-1">
+                            {product.comboItems.slice(0, 4).map((item, idx) => {
+                                const ingredient = products.find(p => p.id === item.productId);
+                                return (
+                                    <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-md border border-gray-100 shadow-inner">
+                                        <img 
+                                            src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                            alt="" 
+                                            className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                        />
+                                        {item.quantity > 1 && (
+                                            <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                x{item.quantity}
+                                            </div>
+                                        )}
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <img 
+                          src={product.imageUrl} 
+                          alt={product.name} 
+                          className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-50' : 'group-hover:scale-105'} drop-shadow-sm`}
+                          loading="lazy"
+                        />
+                    )}
                     
                     {isCombo && (
                         <div className="absolute top-2 left-2 z-20 bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[9px] font-black uppercase flex items-center gap-1 border border-purple-200">

@@ -2,16 +2,18 @@ import React, { useState, useMemo } from 'react';
 import { Contribution, User } from '../types';
 import { generateId, formatCurrency } from '../utils';
 import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2, Edit3, X } from 'lucide-react';
-import { createContribution, deleteContribution, updateContribution } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 interface StudentContributionsProps {
   contributions: Contribution[];
   currentUser: User | null;
+  onAdd: (contrib: Contribution) => void;
+  onUpdate: (contrib: Contribution) => void;
+  onDelete: (id: string) => void;
 }
 
-const StudentContributions: React.FC<StudentContributionsProps> = ({ contributions, currentUser }) => {
+const StudentContributions: React.FC<StudentContributionsProps> = ({ contributions, currentUser, onAdd, onUpdate, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingContrib, setEditingContrib] = useState<Contribution | null>(null);
   
@@ -45,37 +47,24 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ contributio
         registeredBy: 'Professor'
     };
 
-    const success = await createContribution(newContrib);
-    if (success) {
-        setStudentName('');
-        setAmount('');
-        // A atualização local acontece via subscription no App.tsx
-        alert("Contribuição registrada!");
-    } else {
-        alert("Erro ao salvar contribuição.");
-    }
+    onAdd(newContrib);
+    setStudentName('');
+    setAmount('');
+    alert("Contribuição registrada!");
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingContrib) return;
 
-    const success = await updateContribution(editingContrib);
-    if (success) {
-        setEditingContrib(null);
-        // A atualização local acontece via subscription no App.tsx
-        alert("Registro atualizado!");
-    } else {
-        alert("Erro ao atualizar registro.");
-    }
+    onUpdate(editingContrib);
+    setEditingContrib(null);
+    alert("Registro atualizado!");
   };
 
   const handleDelete = async (id: string) => {
       if (window.confirm("Tem certeza que deseja excluir este registro?")) {
-          const success = await deleteContribution(id);
-          if (success) {
-              // A atualização local acontece via subscription no App.tsx
-          }
+          onDelete(id);
       }
   };
 

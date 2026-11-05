@@ -213,13 +213,35 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                     className="cursor-pointer flex-1 flex flex-col relative"
                 >
                     {/* Imagem Preview */}
-                    <div className="relative h-32 w-full bg-white p-2 border-b border-gray-50">
-                        <img 
-                            src={product.imageUrl} 
-                            alt={product.name} 
-                            className={`w-full h-full object-contain ${isSoldOut ? 'grayscale' : ''}`}
-                            onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Erro'}
-                        />
+                    <div className="relative h-32 w-full bg-white p-2 border-b border-gray-50 flex items-center justify-center overflow-hidden">
+                        {isProductCombo && product.comboItems && product.comboItems.length > 0 ? (
+                            <div className="w-full h-full grid grid-cols-2 gap-1 bg-gray-50 rounded-lg p-1">
+                                {product.comboItems.slice(0, 4).map((item, idx) => {
+                                    const ingredient = products.find(p => p.id === item.productId);
+                                    return (
+                                        <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-md border border-gray-100 shadow-inner">
+                                            <img 
+                                                src={ingredient?.imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem'} 
+                                                alt="" 
+                                                className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                            />
+                                            {item.quantity > 1 && (
+                                                <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                    x{item.quantity}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        ) : (
+                            <img 
+                                src={product.imageUrl} 
+                                alt={product.name} 
+                                className={`w-full h-full object-contain ${isSoldOut ? 'grayscale' : ''}`}
+                                onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Erro'}
+                            />
+                        )}
                         
                         {/* Overlay ao passar o mouse para indicar edição */}
                         <div className="absolute inset-0 bg-blue-900/0 group-hover:bg-blue-900/10 transition-colors flex items-center justify-center">

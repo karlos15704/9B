@@ -36,6 +36,9 @@ import {
   saveSettings,
   fetchExpenses,
   fetchContributions,
+  createContribution,
+  updateContribution as updateContributionSupabase,
+  deleteContribution as deleteContributionSupabase,
   authPromise,
   } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
@@ -640,6 +643,21 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddContribution = async (contrib: Contribution) => {
+    setContributions(prev => [...prev, contrib]);
+    if (isConnected) await createContribution(contrib);
+  };
+
+  const handleUpdateContribution = async (contrib: Contribution) => {
+    setContributions(prev => prev.map(c => c.id === contrib.id ? contrib : c));
+    if (isConnected) await updateContributionSupabase(contrib);
+  };
+
+  const handleDeleteContribution = async (id: string) => {
+    setContributions(prev => prev.filter(c => c.id !== id));
+    if (isConnected) await deleteContributionSupabase(id);
+  };
+
   const cartItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   if (isLoading) {
@@ -955,7 +973,15 @@ const App: React.FC = () => {
                             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
                             {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} expenses={expenses} contributions={contributions} onUpdateProduct={handleUpdateProduct} onResetSystem={handleResetSystem}/>}
-                            {currentView === 'contributions' && <StudentContributions contributions={contributions} currentUser={currentUser} />}
+                            {currentView === 'contributions' && (
+                              <StudentContributions 
+                                contributions={contributions} 
+                                currentUser={currentUser} 
+                                onAdd={handleAddContribution}
+                                onUpdate={handleUpdateContribution}
+                                onDelete={handleDeleteContribution}
+                              />
+                            )}
                         </div>
                     )}
                 </div>

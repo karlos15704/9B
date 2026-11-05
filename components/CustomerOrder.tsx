@@ -384,10 +384,33 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     const qty = cartItem ? cartItem.quantity : 0;
                     const maxStock = calculateMaxStock(product);
                     const isSoldOut = maxStock === 0;
+                    const isProductCombo = !!(product.comboItems && product.comboItems.length > 0);
                     return (
                         <div key={product.id} onClick={() => !isSoldOut && addToCart(product)} className={`bg-white rounded-3xl shadow-sm border-2 transition-all duration-300 relative overflow-hidden flex flex-col group ${isSoldOut ? 'border-red-100 opacity-70 grayscale' : qty > 0 ? 'border-orange-500 shadow-orange-100 shadow-xl -translate-y-1' : 'border-transparent hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 active:scale-95'}`}>
                             <div className="relative h-40 md:h-56 w-full p-4 bg-white flex items-center justify-center">
-                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain transform transition-transform group-hover:scale-110" />
+                                {isProductCombo && product.comboItems && product.comboItems.length > 0 ? (
+                                    <div className="w-full h-full grid grid-cols-2 gap-2 bg-gray-50 rounded-2xl p-2">
+                                        {product.comboItems.slice(0, 4).map((item, idx) => {
+                                            const ingredient = products.find(p => p.id === item.productId);
+                                            return (
+                                                <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-xl border border-gray-100 shadow-sm">
+                                                    <img 
+                                                        src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                        alt="" 
+                                                        className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                    />
+                                                    {item.quantity > 1 && (
+                                                        <div className="absolute bottom-0 right-0 bg-orange-600 text-white text-[10px] font-black px-1.5 rounded-tl-lg">
+                                                            x{item.quantity}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                ) : (
+                                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain transform transition-transform group-hover:scale-110" />
+                                )}
                                 {isSoldOut && <div className="absolute inset-0 bg-white/40 flex items-center justify-center"><div className="bg-red-600 text-white font-black text-xs px-3 py-1 rounded-lg transform -rotate-12">ESGOTADO</div></div>}
                                 {qty > 0 && <div className="absolute top-3 right-3 bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black shadow-lg animate-in zoom-in">{qty}</div>}
                             </div>

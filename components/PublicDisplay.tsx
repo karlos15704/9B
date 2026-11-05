@@ -210,6 +210,42 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     }
   }, [celebratingDonation]);
 
+  // --- MODO COMERCIAL / DESCANSO ---
+  const [displayMode, setDisplayMode] = useState<'status' | 'commercial'>('status');
+  const lastChangeRef = useRef<number>(Date.now());
+  const commercialCycleRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Monitora mudanças nos pedidos para resetar o timer de inatividade
+  useEffect(() => {
+    lastChangeRef.current = Date.now();
+    // Se estava em modo comercial e chegou algo novo, volta pro status imediatamente
+    if (displayMode === 'commercial') {
+        setDisplayMode('status');
+    }
+  }, [transactions, celebratingOrder, celebratingDonation]);
+
+  // Lógica de Timer para Modo Comercial
+  useEffect(() => {
+    const checkInactivity = setInterval(() => {
+        const now = Date.now();
+        const inactiveTime = now - lastChangeRef.current;
+        
+        // Se houver celebração ativa, não entra em modo comercial
+        if (celebratingOrder || celebratingDonation) return;
+
+        // Se passar 45 segundos sem alteração OU a cada 5 minutos forçado
+        const shouldBeCommercial = inactiveTime > 45000 || (Math.floor(now / 1000) % 300 < 20); // 20s de comercial a cada 5 min
+
+        if (shouldBeCommercial && displayMode === 'status') {
+            setDisplayMode('commercial');
+        } else if (!shouldBeCommercial && displayMode === 'commercial') {
+            setDisplayMode('status');
+        }
+    }, 1000);
+
+    return () => clearInterval(checkInactivity);
+  }, [displayMode, celebratingOrder, celebratingDonation]);
+
   // --- TEXTO DO RODAPÉ (PERSONALIZADO) ---
   const marqueeContent = useMemo(() => {
       if (settings.marqueeText) {
@@ -218,6 +254,60 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
       }
       return `RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE! • ${settings.appName} • EVITE FILAS • RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE!`;
   }, [settings.marqueeText, settings.appName]);
+
+  // --- COMPONENTE DE COMERCIAL ---
+  const renderCommercial = () => {
+    const snacks = [
+        { name: 'Tô Frito! Clássico', img: '/images/frito-classico.png', price: 'R$ 10,00' },
+        { name: 'Combo Clássico', img: '/images/combo-classico.png', price: 'R$ 30,00' },
+        { name: 'Batata Frita', img: '/images/frito-junior.png', price: 'R$ 10,00' },
+        { name: 'Refrigerante Gelado', img: '/images/refrigerante.png', price: 'R$ 7,00' }
+    ];
+
+    return (
+        <div className="absolute inset-0 z-[150] bg-black flex flex-col items-center justify-center animate-in fade-in duration-1000 overflow-hidden">
+            {/* Fundo Animado */}
+            <div className="absolute inset-0 opacity-20">
+                <div className="fire-container scale-[3] origin-bottom opacity-30">
+                    <div className="flame-base"></div>
+                    <div className="flame-body"></div>
+                </div>
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center text-center w-full px-20">
+                <div className="mb-8 animate-bounce">
+                    <img src={settings.mascotUrl} className="h-48 w-48 object-contain drop-shadow-[0_0_30px_rgba(234,88,12,0.6)]" alt="Logo" />
+                </div>
+                
+                <h2 className="text-[6vw] font-black text-white leading-none tracking-tighter uppercase mb-2 drop-shadow-lg">
+                    BATEU AQUELA <span className="text-orange-500">FOME?</span>
+                </h2>
+                <p className="text-[3vw] font-bold text-gray-400 uppercase tracking-widest mb-12">
+                    Faça seu pedido agora no balcão ou pelo totem!
+                </p>
+
+                <div className="grid grid-cols-4 gap-8 w-full">
+                    {snacks.map((snack, idx) => (
+                        <div key={idx} className="bg-white/5 border-2 border-white/10 p-6 rounded-[2rem] flex flex-col items-center transform hover:scale-110 transition-transform duration-500 animate-in slide-in-from-bottom-10" style={{ animationDelay: `${idx * 200}ms` }}>
+                            <div className="h-48 w-48 mb-4 relative">
+                                <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 rounded-full"></div>
+                                <img src={snack.img} alt={snack.name} className="w-full h-full object-contain relative z-10 drop-shadow-2xl" />
+                            </div>
+                            <h3 className="text-xl font-black text-white uppercase mb-1">{snack.name}</h3>
+                            <span className="bg-orange-600 text-white px-4 py-1 rounded-full font-black text-2xl shadow-lg border-2 border-orange-400">
+                                {snack.price}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="mt-16 bg-gradient-to-r from-orange-600 to-red-600 px-12 py-6 rounded-full shadow-[0_0_50px_rgba(234,88,12,0.5)] border-4 border-yellow-400 animate-pulse">
+                    <span className="text-4xl font-black text-white uppercase tracking-tighter">Vem pro TÔ FRITO! 🍟🔥</span>
+                </div>
+            </div>
+        </div>
+    );
+  };
 
   return (
     <div className="h-screen w-screen bg-[#0a0500] flex items-center justify-center overflow-hidden relative font-sans text-white p-6 md:p-8 lg:p-12">
@@ -238,6 +328,9 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
         
         {/* Fire Border Animation Overlay */}
         <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/30 pointer-events-none animate-pulse z-20"></div>
+
+        {/* === MODO COMERCIAL === */}
+        {displayMode === 'commercial' && !celebratingOrder && !celebratingDonation && renderCommercial()}
 
         {/* === OVERLAY DE DOAÇÃO (PRIORIDADE MÁXIMA) === */}
         {celebratingDonation && (

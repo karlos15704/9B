@@ -19,7 +19,7 @@ interface FinancialManagementProps {
 
 type Tab = 'cashflow' | 'inventory';
 
-const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, transactions, expenses, contributions, onUpdateProduct }) => {
+const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, transactions, expenses, contributions, onUpdateProduct, onResetSystem }) => {
   const [activeTab, setActiveTab] = useState<Tab>('cashflow');
 
   // --- STATES DE ESTOQUE ---
