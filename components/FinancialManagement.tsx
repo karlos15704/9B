@@ -6,7 +6,7 @@ import {
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
   ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers, Minus
 } from 'lucide-react';
-import { createExpense, deleteExpense, uploadReceiptImage, resetSalesDatabase } from '../services/supabase';
+import { createExpense, deleteExpense, uploadReceiptImage } from '../services/supabase';
 
 interface FinancialManagementProps {
   products: Product[];
@@ -14,6 +14,7 @@ interface FinancialManagementProps {
   expenses: Expense[];
   contributions: Contribution[];
   onUpdateProduct: (product: Product) => void;
+  onResetSystem: () => void;
 }
 
 type Tab = 'cashflow' | 'inventory';
@@ -174,15 +175,9 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                 <Package size={16}/> Estoque
             </button>
          </div>
-         <button onClick={async () => {
+         <button onClick={() => {
              if (window.confirm("ATENÇÃO: Deseja realmente apagar TODAS as vendas realizadas? \n\nIMPORTANTE: As contribuições dos alunos SERÃO MANTIDAS.")) {
-                 const success = await resetSalesDatabase();
-                 if (success) {
-                     alert("Vendas apagadas com sucesso! Contribuições preservadas.");
-                     window.location.reload();
-                 } else {
-                     alert("Erro ao apagar vendas.");
-                 }
+                 onResetSystem();
              }
          }} className="ml-4 bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-100 flex items-center gap-2 transition-all">
             <Trash2 size={16}/> Limpar Vendas

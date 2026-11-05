@@ -252,11 +252,10 @@ const App: React.FC = () => {
         const localData: Transaction[] = localDataString ? JSON.parse(localDataString) : [];
 
         if (data.length === 0 && localData.length > 0) {
-           setTransactions(localData);
-           setIsSyncing(true);
-           Promise.all(localData.map(t => createTransaction(t)))
-             .then(() => setIsSyncing(false))
-             .catch(() => setIsSyncing(false));
+           // We no longer auto-sync local items to the server if the server is empty
+           // to avoid re-uploading items that were intentionally deleted.
+           setTransactions([]); 
+           localStorage.setItem('pos_transactions', JSON.stringify([]));
         } else {
            setTransactions(data);
            localStorage.setItem('pos_transactions', JSON.stringify(data));
@@ -955,7 +954,7 @@ const App: React.FC = () => {
                             {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
                             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
-                            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} expenses={expenses} contributions={contributions} onUpdateProduct={handleUpdateProduct}/>}
+                            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} expenses={expenses} contributions={contributions} onUpdateProduct={handleUpdateProduct} onResetSystem={handleResetSystem}/>}
                             {currentView === 'contributions' && <StudentContributions contributions={contributions} currentUser={currentUser} />}
                         </div>
                     )}

@@ -4,7 +4,6 @@ import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus, HandCoins } from 'lucide-react';
 import { APP_NAME } from '../services/constants';
-import { resetSalesDatabase } from '../services/supabase';
 
 interface ReportsProps {
   transactions: Transaction[];
@@ -241,17 +240,11 @@ const Reports: React.FC<ReportsProps> = ({ transactions, expenses, contributions
   }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
   // --- ACTIONS ---
-  const handleSystemReset = async () => {
+  const handleSystemReset = () => {
     if (resetPassword === '0') {
-      const success = await resetSalesDatabase();
-      if (success) {
-          setShowResetModal(false);
-          setResetPassword('');
-          alert('Vendas apagadas com sucesso! As contribuições foram mantidas.');
-          window.location.reload();
-      } else {
-          alert('Erro ao apagar vendas.');
-      }
+      onResetSystem();
+      setShowResetModal(false);
+      setResetPassword('');
     } else {
       alert('Senha incorreta.');
     }
