@@ -76,9 +76,30 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
   const handleEditContribution = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingContrib) return;
-    const success = await updateContribution(editingContrib);
+
+    // 1. Find all contributions for this student
+    const studentContribs = contributions.filter(c => c.studentName.toLowerCase().trim() === editingContrib.studentName.toLowerCase().trim());
+    
+    // 2. Keep the most recent one to update, delete the rest
+    const sorted = studentContribs.sort((a,b) => b.paymentDate - a.paymentDate);
+    const toUpdate = sorted[0];
+    const toDelete = sorted.slice(1);
+    
+    // 3. Update the most recent one
+    const updatedEntry = { ...toUpdate, amount: editingContrib.amount, paymentDate: editingContrib.paymentDate };
+    const success = await updateContribution(updatedEntry);
+
+    // 4. Delete the rest
+    for (const c of toDelete) {
+        await deleteContribution(c.id);
+    }
+
+    // 5. Update local state
     if (success) {
-        setContributions(contributions.map(c => c.id === editingContrib.id ? editingContrib : c));
+        setContributions(prev => {
+            const filtered = prev.filter(c => c.studentName.toLowerCase().trim() !== editingContrib.studentName.toLowerCase().trim());
+            return [...filtered, updatedEntry];
+        });
         setEditingContrib(null);
         alert("Contribuição atualizada!");
     } else {
@@ -277,7 +298,10 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                             <h3 className="font-bold text-gray-800 mb-4">Editar Contribuição</h3>
                             <form onSubmit={handleEditContribution} className="space-y-4">
                                 <input type="text" value={editingContrib.studentName} onChange={e => setEditingContrib({...editingContrib, studentName: e.target.value})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
-                                <input type="number" step="0.01" value={editingContrib.amount} onChange={e => setEditingContrib({...editingContrib, amount: parseFloat(e.target.value)})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
+                                <input type="number" step="0.01" value={editingContrib.amount} onChange={e => {
+                                    const val = parseFloat(e.target.value);
+                                    setEditingContrib({...editingContrib, amount: isNaN(val) ? 0 : val});
+                                }} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
                                 <input type="date" value={new Date(editingContrib.paymentDate).toISOString().split('T')[0]} onChange={e => setEditingContrib({...editingContrib, paymentDate: new Date(e.target.value).getTime()})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
                                 <div className="flex justify-end gap-2">
                                     <button type="button" onClick={() => setEditingContrib(null)} className="px-4 py-2 bg-gray-200 rounded-lg font-bold">Cancelar</button>
