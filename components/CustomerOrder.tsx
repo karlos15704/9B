@@ -57,7 +57,7 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         color: (p.id.toLowerCase().includes('coca') || p.name.toLowerCase().includes('coca')) ? '#e11d48' : 
                (p.id.toLowerCase().includes('fanta') || p.name.toLowerCase().includes('fanta')) ? '#f59e0b' : 
                (p.id.toLowerCase().includes('soda') || p.name.toLowerCase().includes('soda')) ? '#16a34a' : '#059669',
-        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock > 0)
+        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock === null || Number(p.stock) > 0)
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
@@ -222,19 +222,54 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const calculateMaxStock = (product: Product): number => {
     if (product.isAvailable === false) return 0;
+
+    // CASO ESPECIAL: REFRIGERANTE GENÉRICO (ID 4)
+    // Disponível se a soma dos estoques dos sabores for > 0
+    if (product.id === '4') {
+        const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+        return sodaFlavors.reduce((acc, p) => {
+            const stockVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+            return acc + (isNaN(stockVal) ? 0 : stockVal);
+        }, 0);
+    }
+
     if (product.comboItems && product.comboItems.length > 0) {
-        let minCombos = 999999;
+        let minStock = 999999;
+        let hasLimitedIngredient = false;
+
         for (const item of product.comboItems) {
             const ingredient = products.find(p => p.id === item.productId);
-            if (!ingredient || ingredient.isAvailable === false) return 0;
+            
+            // SE INGREDIENTE FALTAR OU ESTIVER INDISPONÍVEL, COMBO ZERA
+            if (!ingredient || ingredient.isAvailable === false) {
+                return 0;
+            }
+
+            // Caso especial para refrigerante dentro do combo
+            if (item.productId === '4') {
+                const availableSodaStock = calculateMaxStock(ingredient);
+                const possibleCombos = Math.floor(availableSodaStock / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
+                hasLimitedIngredient = true;
+                continue;
+            }
+
             if (ingredient.stock !== undefined && ingredient.stock !== null) {
-                const possible = Math.floor(ingredient.stock / item.quantity);
-                if (possible < minCombos) minCombos = possible;
+                hasLimitedIngredient = true;
+                const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
+                const safeStock = isNaN(stockVal) ? 0 : stockVal;
+                const possibleCombos = Math.floor(safeStock / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
             }
         }
-        return minCombos === 999999 ? 999999 : minCombos; 
+        return hasLimitedIngredient ? minStock : 999999;
     }
-    if (product.stock !== undefined && product.stock !== null) return product.stock;
+    
+    if (product.stock !== undefined && product.stock !== null) {
+         const stockVal = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock;
+         return isNaN(stockVal) ? 0 : stockVal;
+    }
+
     return 999999;
   };
 
@@ -463,17 +498,34 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 <p className="text-white/90 font-medium text-sm md:text-lg drop-shadow-md">Escolha o que você quer comer e receba rapidinho!</p>
             </div>
         </div>
-        <div onClick={() => setShowDonationModal(true)} className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-4 mb-6 shadow-lg shadow-pink-200 text-white flex items-center justify-between relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
-            <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-1">
-                    <Heart className="fill-white animate-pulse" size={20} />
-                    <span className="font-black text-xs uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">Formatura 2026</span>
-                </div>
-                <h3 className="font-black text-xl md:text-2xl leading-tight mb-1">Faça uma doação!</h3>
-                <p className="text-white/90 text-xs md:text-sm font-medium max-w-[200px]">Ajude nossa turma a realizar este sonho.</p>
+        <div onClick={() => setShowDonationModal(true)} className="bg-gradient-to-br from-pink-600 via-rose-500 to-pink-500 rounded-3xl p-6 mb-8 shadow-xl shadow-pink-200 text-white flex items-center justify-between relative overflow-hidden cursor-pointer group hover:scale-[1.02] active:scale-95 transition-all duration-300">
+            {/* Animated Background Elements */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+                <Heart className="absolute top-2 left-1/4 text-white rotate-12 animate-bounce" size={20} />
+                <Heart className="absolute bottom-4 right-1/3 text-white -rotate-12 animate-pulse" size={24} />
+                <Heart className="absolute top-1/2 right-1/4 text-white rotate-45 animate-bounce" size={16} />
             </div>
-            <div className="relative z-10 bg-white text-pink-600 px-4 py-2 rounded-xl font-black shadow-md text-sm whitespace-nowrap">CONTRIBUIR</div>
-            <Heart className="absolute -right-6 -bottom-6 text-white/10 w-32 h-32 rotate-12" />
+
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-2">
+                    <div className="bg-white/20 backdrop-blur-md p-1.5 rounded-lg border border-white/30">
+                        <Heart className="fill-white animate-pulse" size={24} />
+                    </div>
+                    <span className="font-black text-[10px] md:text-xs uppercase tracking-widest bg-white/10 px-3 py-1 rounded-full border border-white/20">Formatura 2026</span>
+                </div>
+                <h3 className="font-black text-2xl md:text-4xl leading-tight mb-1 drop-shadow-md">Apoie nossa Turma!</h3>
+                <p className="text-white/90 text-sm md:text-base font-bold max-w-[250px] leading-snug">Ajude a realizar nosso sonho com qualquer valor. ❤️</p>
+            </div>
+
+            <div className="relative z-10 flex flex-col items-center gap-2">
+                <div className="bg-white text-pink-600 px-6 py-3 rounded-2xl font-black shadow-xl text-base md:text-lg whitespace-nowrap group-hover:scale-110 group-hover:rotate-2 transition-transform duration-300 flex items-center gap-2">
+                    CONTRIBUIR <Heart size={18} fill="currentColor" />
+                </div>
+                <span className="text-[10px] font-black uppercase tracking-tighter text-white/70 animate-pulse">Toque para participar</span>
+            </div>
+
+            {/* Decorative Icon */}
+            <Heart className="absolute -right-8 -bottom-8 text-white/10 w-48 h-48 rotate-12 group-hover:scale-110 group-hover:rotate-6 transition-transform duration-700" />
         </div>
         <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-30 py-4 -mx-4 px-4 md:mx-0 md:px-0 mb-6 space-y-4">
              <div className="relative group">
@@ -501,26 +553,43 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     const isProductCombo = !!(product.comboItems && product.comboItems.length > 0);
                     return (
                         <div key={product.id} onClick={() => !isSoldOut && handleProductClick(product)} className={`bg-white rounded-3xl shadow-sm border-2 transition-all duration-300 relative overflow-hidden flex flex-col group ${isSoldOut ? 'border-red-100 opacity-70 grayscale' : qty > 0 ? 'border-orange-500 shadow-orange-100 shadow-xl -translate-y-1' : 'border-transparent hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 active:scale-95'}`}>
-                            <div className="relative h-40 md:h-56 w-full p-4 bg-white flex items-center justify-center">
+                            <div className="relative h-56 md:h-80 w-full p-2 bg-white flex items-center justify-center">
                                 {isProductCombo && product.comboItems && product.comboItems.length > 0 ? (
-                                    <div className="w-full h-full grid grid-cols-2 gap-2 bg-gray-50 rounded-2xl p-2">
-                                        {product.comboItems.slice(0, 4).map((item, idx) => {
-                                            const ingredient = products.find(p => p.id === item.productId);
-                                            return (
-                                                <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-xl border border-gray-100 shadow-sm">
-                                                    <img 
-                                                        src={ingredient?.imageUrl || '/images/placeholder.png'} 
-                                                        alt="" 
-                                                        className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
-                                                    />
-                                                    {item.quantity > 1 && (
-                                                        <div className="absolute bottom-0 right-0 bg-orange-600 text-white text-[10px] font-black px-1.5 rounded-tl-lg">
-                                                            x{item.quantity}
-                                                        </div>
-                                                    )}
+                                    <div className="w-full h-full relative bg-gray-50 rounded-2xl overflow-hidden p-2 group-hover:bg-orange-50 transition-colors duration-500">
+                                        <div className={`w-full h-full relative ${product.comboItems.length === 3 ? 'grid grid-cols-2 grid-rows-2 gap-1.5' : 'grid grid-cols-2 gap-1.5'}`}>
+                                            {product.comboItems.slice(0, 4).map((item, idx) => {
+                                                const ingredient = products.find(p => p.id === item.productId);
+                                                const isLastAndThird = product.comboItems!.length === 3 && idx === 2;
+                                                
+                                                return (
+                                                    <div 
+                                                        key={idx} 
+                                                        className={`relative flex items-center justify-center overflow-hidden bg-white rounded-xl border border-gray-100 shadow-sm transition-transform duration-500 group-hover:scale-105
+                                                            ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
+                                                    >
+                                                        <img 
+                                                            src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                            alt="" 
+                                                            className={`w-full h-full object-contain p-2 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                        />
+                                                        {item.quantity > 1 && (
+                                                            <div className="absolute bottom-0 right-0 bg-orange-600 text-white text-[10px] font-black px-1.5 rounded-tl-lg">
+                                                                x{item.quantity}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
+                                        </div>
+
+                                        {/* Central Plus Icon */}
+                                        {!isSoldOut && (
+                                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                                <div className="bg-orange-500 text-white rounded-full p-2 shadow-xl border-2 border-white transform group-hover:scale-125 transition-transform duration-300">
+                                                    <Plus size={20} strokeWidth={4} />
                                                 </div>
-                                            )
-                                        })}
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain transform transition-transform group-hover:scale-110" />

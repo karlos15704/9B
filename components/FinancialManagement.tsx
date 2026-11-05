@@ -124,12 +124,22 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
   };
 
   const getDisplayStock = (product: Product) => {
+    // CASO ESPECIAL: REFRIGERANTE GENÉRICO (ID 4)
+    if (product.id === '4') {
+        const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+        return sodaFlavors.reduce((acc, p) => {
+            const stockVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+            return acc + (isNaN(stockVal) ? 0 : stockVal);
+        }, 0);
+    }
+
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
         product.comboItems.forEach(item => {
             const ingredient = products.find(p => p.id === item.productId);
-            if (ingredient && typeof ingredient.stock === 'number') {
-                const possibleCombos = Math.floor(ingredient.stock / item.quantity);
+            if (ingredient) {
+                const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : (ingredient.stock || 0);
+                const possibleCombos = Math.floor(stockVal / item.quantity);
                 if (possibleCombos < minStock) minStock = possibleCombos;
             } else {
                 minStock = 0;
@@ -137,7 +147,8 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
         });
         return minStock === 999999 ? 0 : minStock;
     }
-    return product.stock || 0;
+    const stockVal = typeof product.stock === 'string' ? parseInt(product.stock) : (product.stock || 0);
+    return isNaN(stockVal) ? 0 : stockVal;
   };
 
   const filteredProducts = useMemo(() => {
@@ -421,27 +432,27 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        {!isCombo ? (
-                                            <div className="flex items-center justify-center gap-2">
-                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Minus size={16}/></button>
-                                                
-                                                <input 
-                                                    type="number" 
-                                                    min="0"
-                                                    value={product.stock || 0}
-                                                    onChange={(e) => {
-                                                        const val = parseInt(e.target.value);
-                                                        if (!isNaN(val)) handleUpdateStock(product, val);
-                                                    }}
-                                                    className="w-16 h-8 text-center font-black text-gray-800 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
-                                                />
+                                        {!isCombo && product.id !== '4' ? (
+                                             <div className="flex items-center justify-center gap-2">
+                                                 <button onClick={() => handleUpdateStock(product, (Number(product.stock) || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Minus size={16}/></button>
+                                                 
+                                                 <input 
+                                                     type="number" 
+                                                     min="0"
+                                                     value={Number(product.stock) || 0}
+                                                     onChange={(e) => {
+                                                         const val = parseInt(e.target.value);
+                                                         if (!isNaN(val)) handleUpdateStock(product, val);
+                                                     }}
+                                                     className="w-16 h-8 text-center font-black text-gray-800 border-2 border-gray-200 rounded-lg focus:border-blue-500 outline-none"
+                                                 />
 
-                                                <button onClick={() => handleUpdateStock(product, (product.stock || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Plus size={16}/></button>
-                                            </div>
-                                        ) : (
-                                            <span className="text-xs text-gray-400 italic">Automático</span>
-                                        )}
-                                    </td>
+                                                 <button onClick={() => handleUpdateStock(product, (Number(product.stock) || 0) + 1)} className="w-8 h-8 rounded-lg bg-green-100 text-green-600 hover:bg-green-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Plus size={16}/></button>
+                                             </div>
+                                         ) : (
+                                             <span className="text-xs text-gray-400 italic font-bold uppercase">{isCombo ? 'Automático' : 'Gerenciar Sabores'}</span>
+                                         )}
+                                     </td>
                                 </tr>
                             )})}
                         </tbody>

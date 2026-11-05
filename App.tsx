@@ -427,6 +427,16 @@ const App: React.FC = () => {
   };
 
   const getCalculatedStock = (product: Product): number => {
+    // CASO ESPECIAL: REFRIGERANTE GENÉRICO (ID 4)
+    // O estoque exibido é a soma de todos os sabores disponíveis
+    if (product.id === '4') {
+        const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+        return sodaFlavors.reduce((acc, p) => {
+            const stockVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+            return acc + (isNaN(stockVal) ? 0 : stockVal);
+        }, 0);
+    }
+
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
         let hasLimitedIngredient = false;
@@ -439,14 +449,23 @@ const App: React.FC = () => {
                 return 0;
             }
 
+            // Caso especial para refrigerante dentro do combo
+            if (item.productId === '4') {
+                const availableSodaStock = getCalculatedStock(ingredient);
+                const possibleCombos = Math.floor(availableSodaStock / item.quantity);
+                if (possibleCombos < minStock) minStock = possibleCombos;
+                hasLimitedIngredient = true;
+                continue;
+            }
+
             if (ingredient.stock !== undefined && ingredient.stock !== null) {
                 hasLimitedIngredient = true;
                 const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
-                const possibleCombos = Math.floor(stockVal / item.quantity);
+                const safeStock = isNaN(stockVal) ? 0 : stockVal;
+                const possibleCombos = Math.floor(safeStock / item.quantity);
                 if (possibleCombos < minStock) minStock = possibleCombos;
             }
         }
-        // Se nenhum ingrediente limita, estoque é "infinito" (ex: 999999), NÃO 0.
         return hasLimitedIngredient ? minStock : 999999;
     }
     
@@ -551,14 +570,15 @@ const App: React.FC = () => {
           const productIndex = productsCopy.findIndex(p => p.id === productId);
           if (productIndex > -1) {
               const product = productsCopy[productIndex];
-              if (typeof product.stock === 'number') {
-                  const newStock = Math.max(0, product.stock - qtyToDeduct);
+              if (product.stock !== undefined && product.stock !== null) {
+                  const currentStock = typeof product.stock === 'string' ? parseInt(product.stock) : product.stock;
+                  const newStock = Math.max(0, currentStock - qtyToDeduct);
                   const isSoldOut = newStock === 0;
 
                   const updatedProduct = {
                       ...product,
                       stock: newStock,
-                      isAvailable: isSoldOut ? false : product.isAvailable
+                      isAvailable: isSoldOut ? (product.id === '4' ? product.isAvailable : false) : product.isAvailable
                   };
                   productsCopy[productIndex] = updatedProduct;
                   productsToUpdate.push(updatedProduct);

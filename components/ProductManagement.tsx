@@ -213,26 +213,41 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                     className="cursor-pointer flex-1 flex flex-col relative"
                 >
                     {/* Imagem Preview */}
-                    <div className="relative h-32 w-full bg-white p-2 border-b border-gray-50 flex items-center justify-center overflow-hidden">
+                    <div className="relative h-48 w-full bg-white p-1 border-b border-gray-50 flex items-center justify-center overflow-hidden">
                         {isProductCombo && product.comboItems && product.comboItems.length > 0 ? (
-                            <div className="w-full h-full grid grid-cols-2 gap-1 bg-gray-50 rounded-lg p-1">
-                                {product.comboItems.slice(0, 4).map((item, idx) => {
-                                    const ingredient = products.find(p => p.id === item.productId);
-                                    return (
-                                        <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-md border border-gray-100 shadow-inner">
-                                            <img 
-                                                src={ingredient?.imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem'} 
-                                                alt="" 
-                                                className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
-                                            />
-                                            {item.quantity > 1 && (
-                                                <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
-                                                    x{item.quantity}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )
-                                })}
+                            <div className="w-full h-full relative bg-gray-50 rounded-lg overflow-hidden p-1.5 group-hover:bg-blue-50 transition-colors duration-500">
+                                <div className={`w-full h-full relative ${product.comboItems.length === 3 ? 'grid grid-cols-2 grid-rows-2 gap-1' : 'grid grid-cols-2 gap-1'}`}>
+                                    {product.comboItems.slice(0, 4).map((item, idx) => {
+                                        const ingredient = products.find(p => p.id === item.productId);
+                                        const isLastAndThird = product.comboItems!.length === 3 && idx === 2;
+                                        
+                                        return (
+                                            <div 
+                                                key={idx} 
+                                                className={`relative flex items-center justify-center overflow-hidden bg-white rounded-md border border-gray-100 shadow-inner transition-transform duration-500 group-hover:scale-105
+                                                    ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
+                                            >
+                                                <img 
+                                                    src={ingredient?.imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem'} 
+                                                    alt="" 
+                                                    className={`w-full h-full object-contain p-1 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                />
+                                                {item.quantity > 1 && (
+                                                    <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                        x{item.quantity}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                
+                                {/* Central Plus Icon */}
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                    <div className="bg-blue-600 text-white rounded-full p-1 shadow-lg border-2 border-white transform group-hover:scale-125 transition-transform duration-300">
+                                        <Plus size={12} strokeWidth={4} />
+                                    </div>
+                                </div>
                             </div>
                         ) : (
                             <img 

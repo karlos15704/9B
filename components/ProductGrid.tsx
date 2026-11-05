@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
-import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers, Heart, CheckCircle2 } from 'lucide-react';
+import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers, Heart, CheckCircle2, PlusCircle } from 'lucide-react';
 
 interface ProductGridProps {
   products: Product[];
@@ -32,7 +32,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
         color: (p.id.toLowerCase().includes('coca') || p.name.toLowerCase().includes('coca')) ? '#e11d48' : 
                (p.id.toLowerCase().includes('fanta') || p.name.toLowerCase().includes('fanta')) ? '#f59e0b' : 
                (p.id.toLowerCase().includes('soda') || p.name.toLowerCase().includes('soda')) ? '#16a34a' : '#059669',
-        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock > 0)
+        isAvailable: p.isAvailable !== false && (p.stock === undefined || p.stock === null || Number(p.stock) > 0)
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [products]);
@@ -106,30 +106,47 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
     // Se for desativado manualmente, retorna 0 (Esgotado)
     if (product.isAvailable === false) return 0;
 
+    // CASO ESPECIAL: REFRIGERANTE GENÉRICO (ID 4)
+    // Disponível se houver pelo menos um sabor com estoque
+    if (product.id === '4') {
+        const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+        const totalSodaStock = sodaFlavors.reduce((acc, p) => {
+            const stockVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+            return acc + (isNaN(stockVal) ? 0 : stockVal);
+        }, 0);
+        return totalSodaStock > 0 ? -1 : 0; // -1 significa "infinito/disponível" no grid para não mostrar número gigante
+    }
+
     // Se for um combo, calcula baseado nos ingredientes
     if (product.comboItems && product.comboItems.length > 0) {
         let minCombos = 999999;
-        let hasIngredients = false;
+        let hasLimitedIngredient = false;
         
         for (const comboItem of product.comboItems) {
             const ingredient = products.find(p => p.id === comboItem.productId);
             
             // SE O INGREDIENTE NÃO EXISTE MAIS (FOI EXCLUÍDO), O COMBO ESTÁ ESGOTADO
-            if (!ingredient) {
-                return 0;
-            }
-            
-            // SE O INGREDIENTE ESTÁ INDISPONÍVEL
-            if (ingredient.isAvailable === false) {
+            if (!ingredient || ingredient.isAvailable === false) {
                 return 0;
             }
 
-            hasIngredients = true;
+            // Caso especial para refrigerante dentro do combo
+            if (comboItem.productId === '4') {
+                const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+                const totalSodaStock = sodaFlavors.reduce((acc, p) => {
+                    const stockVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+                    return acc + (isNaN(stockVal) ? 0 : stockVal);
+                }, 0);
+                const possible = Math.floor(totalSodaStock / comboItem.quantity);
+                if (possible < minCombos) minCombos = possible;
+                hasLimitedIngredient = true;
+                continue;
+            }
 
             // Se o ingrediente tem estoque controlado (numérico)
             if (ingredient.stock !== undefined && ingredient.stock !== null) {
+                hasLimitedIngredient = true;
                 const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
-                // Prevenção contra NaN
                 const safeStock = isNaN(stockVal) ? 0 : stockVal;
                 
                 const possible = Math.floor(safeStock / comboItem.quantity);
@@ -138,7 +155,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
         }
         
         // Se minCombos não foi alterado (nenhum ingrediente com estoque limitado), retorna -1
-        return minCombos === 999999 ? -1 : minCombos;
+        return hasLimitedIngredient ? minCombos : -1;
     }
 
     // Se for produto simples com controle de estoque
@@ -337,25 +354,38 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
             {(!searchTerm || searchTerm.toLowerCase().includes('doa') || searchTerm.toLowerCase().includes('formatura')) && (
                 <div 
                   onClick={() => setShowDonationModal(true)}
-                  className="bg-gradient-to-br from-pink-50 to-white rounded-2xl shadow-sm border border-pink-200 transition-all duration-200 cursor-pointer group relative overflow-hidden flex flex-col h-full hover:shadow-lg hover:-translate-y-1 active:scale-95"
+                  className="bg-white rounded-2xl shadow-sm border border-pink-100 transition-all duration-300 cursor-pointer group relative overflow-hidden flex flex-col h-full hover:shadow-xl hover:-translate-y-2 active:scale-95"
                 >
-                  <div className="relative h-32 md:h-40 w-full bg-pink-50 p-2 flex items-center justify-center">
-                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-pink-500 shadow-md group-hover:scale-110 transition-transform">
-                        <Heart size={32} fill="currentColor" />
+                  <div className="relative h-48 md:h-64 w-full bg-gradient-to-br from-pink-500 via-rose-500 to-pink-600 p-2 flex items-center justify-center">
+                    {/* Floating Hearts Animation Background */}
+                    <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                        <Heart className="absolute top-4 left-4 text-white rotate-12 animate-bounce" size={24} />
+                        <Heart className="absolute bottom-10 right-10 text-white -rotate-12 animate-pulse" size={32} />
+                        <Heart className="absolute top-1/2 left-1/4 text-white rotate-45 animate-bounce" size={16} />
                     </div>
-                    <div className="absolute top-2 right-2 bg-pink-500 text-white text-[10px] font-black px-2 py-1 rounded-full uppercase">
-                        2026
+
+                    <div className="w-24 h-24 bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center text-white shadow-2xl group-hover:scale-110 transition-transform duration-500 border border-white/30 relative">
+                        <div className="absolute inset-0 bg-white rounded-full scale-0 group-hover:scale-100 transition-transform duration-500 opacity-10"></div>
+                        <Heart size={48} className="drop-shadow-lg fill-current animate-pulse" />
+                    </div>
+                    
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-pink-600 text-[10px] font-black px-2.5 py-1 rounded-full uppercase shadow-sm border border-pink-100">
+                        FORMATURA 2026
                     </div>
                   </div>
-                  <div className="p-3 border-t border-pink-100 flex-1 flex flex-col justify-between">
-                    <h3 className="font-bold text-gray-800 text-xs md:text-sm leading-tight">
-                      Doação Formatura
-                    </h3>
-                    <div className="mt-2">
-                        <p className="text-[10px] text-gray-500 leading-tight mb-1">Ajude nossa turma!</p>
-                        <p className="font-black text-sm md:text-base text-pink-600">
-                            Contribua ❤️
-                        </p>
+                  
+                  <div className="p-4 flex-1 flex flex-col justify-between text-center bg-white">
+                    <div>
+                        <h3 className="font-black text-gray-800 text-sm md:text-base leading-tight mb-1">
+                          Apoie nossa Turma!
+                        </h3>
+                        <p className="text-[11px] text-gray-500 font-medium leading-tight">Sua doação ajuda a realizar nossa festa.</p>
+                    </div>
+
+                    <div className="mt-4">
+                        <div className="w-full bg-pink-600 text-white font-black text-xs md:text-sm py-3 rounded-xl shadow-lg shadow-pink-200 group-hover:bg-pink-700 transition-all flex items-center justify-center gap-2 transform group-hover:scale-105">
+                            DOE AGORA <Heart size={14} fill="currentColor" />
+                        </div>
                     </div>
                   </div>
                 </div>
@@ -385,26 +415,43 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                   }}
                 >
                   {/* Imagem */}
-                  <div className="relative h-32 md:h-40 w-full bg-white p-2">
+                  <div className="relative h-48 md:h-64 w-full bg-white p-1">
                     {isCombo && product.comboItems && product.comboItems.length > 0 ? (
-                        <div className="w-full h-full grid grid-cols-2 gap-1 bg-gray-50 rounded-lg p-1">
-                            {product.comboItems.slice(0, 4).map((item, idx) => {
-                                const ingredient = products.find(p => p.id === item.productId);
-                                return (
-                                    <div key={idx} className="relative w-full h-full flex items-center justify-center overflow-hidden bg-white rounded-md border border-gray-100 shadow-inner">
-                                        <img 
-                                            src={ingredient?.imageUrl || '/images/placeholder.png'} 
-                                            alt="" 
-                                            className={`w-full h-full object-contain ${isSoldOut ? 'grayscale opacity-50' : ''}`}
-                                        />
-                                        {item.quantity > 1 && (
-                                            <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
-                                                x{item.quantity}
-                                            </div>
-                                        )}
+                        <div className="w-full h-full relative bg-gray-50 rounded-xl overflow-hidden p-2 group-hover:bg-orange-50 transition-colors duration-500">
+                            <div className={`w-full h-full relative ${product.comboItems.length === 3 ? 'grid grid-cols-2 grid-rows-2 gap-1' : 'grid grid-cols-2 gap-1'}`}>
+                                {product.comboItems.slice(0, 4).map((item, idx) => {
+                                    const ingredient = products.find(p => p.id === item.productId);
+                                    const isLastAndThird = product.comboItems!.length === 3 && idx === 2;
+                                    
+                                    return (
+                                        <div 
+                                            key={idx} 
+                                            className={`relative flex items-center justify-center overflow-hidden bg-white rounded-lg border border-gray-100 shadow-sm transition-transform duration-500 group-hover:scale-105
+                                                ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
+                                        >
+                                            <img 
+                                                src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                alt="" 
+                                                className={`w-full h-full object-contain p-1 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                            />
+                                            {item.quantity > 1 && (
+                                                <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
+                                                    x{item.quantity}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                            
+                            {/* Central Plus Icon */}
+                            {!isSoldOut && (
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+                                    <div className="bg-orange-500 text-white rounded-full p-1.5 shadow-lg border-2 border-white transform group-hover:scale-125 transition-transform duration-300">
+                                        <Plus size={16} strokeWidth={4} />
                                     </div>
-                                )
-                            })}
+                                </div>
+                            )}
                         </div>
                     ) : (
                         <img 
