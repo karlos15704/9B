@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS, DEFAULT_ROLE_PERMISSIONS } from './services/constants';
 import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules, Contribution, Expense } from './types';
-import { generateId, formatCurrency } from './utils';
+import { generateId, formatCurrency, resolveProductImage } from './utils';
+
 import ProductGrid from './components/ProductGrid';
 import CartSidebar from './components/CartSidebar';
 import Reports from './components/Reports';
@@ -228,15 +229,32 @@ const App: React.FC = () => {
                         if (updatedCombo1) await upsertProduct(updatedCombo1);
                     }
                     
-                    const refreshedProducts = await fetchProducts() || dbProducts;
-                    setProducts(refreshedProducts);
-                    localStorage.setItem('app_products', JSON.stringify(refreshedProducts));
+                    const rawLoaded = await fetchProducts() || dbProducts;
+                    const sanitizedProducts = rawLoaded.map(p => ({
+                        ...p,
+                        imageUrl: resolveProductImage(p.imageUrl, p)
+                    }));
+
+                    // Auto-heal any product in DB that had a broken placeholder URL
+                    for (const p of sanitizedProducts) {
+                        const original = rawLoaded.find(op => op.id === p.id);
+                        if (original && original.imageUrl !== p.imageUrl) {
+                            await upsertProduct(p);
+                        }
+                    }
+
+                    setProducts(sanitizedProducts);
+                    localStorage.setItem('app_products', JSON.stringify(sanitizedProducts));
                     localStorage.setItem('db_seeded', 'true');
                 }
             } else {
                  const saved = localStorage.getItem('app_products');
-                 if (saved) setProducts(JSON.parse(saved));
-                 else setProducts(MOCK_PRODUCTS);
+                 if (saved) {
+                     const parsed = JSON.parse(saved);
+                     setProducts(parsed.map((p: Product) => ({ ...p, imageUrl: resolveProductImage(p.imageUrl, p) })));
+                 } else {
+                     setProducts(MOCK_PRODUCTS);
+                 }
             }
         }
     } catch(e) {

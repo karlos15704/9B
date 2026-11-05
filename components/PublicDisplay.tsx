@@ -210,100 +210,246 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     }
   }, [celebratingDonation]);
 
-  // --- MODO COMERCIAL / DESCANSO ---
+  // --- MODO COMERCIAL / CHAMARIS (DESCANSO) ---
   const [displayMode, setDisplayMode] = useState<'status' | 'commercial'>('status');
-  const lastChangeRef = useRef<number>(Date.now());
-  const commercialCycleRef = useRef<NodeJS.Timeout | null>(null);
+  const [commercialPhase, setCommercialPhase] = useState<'video' | 'showcase'>('video');
+  const [isMuted, setIsMuted] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  // Monitora mudanças nos pedidos para resetar o timer de inatividade
-  useEffect(() => {
-    lastChangeRef.current = Date.now();
-    // Se estava em modo comercial e chegou algo novo, volta pro status imediatamente
-    if (displayMode === 'commercial') {
-        setDisplayMode('status');
+  const PROMO_VIDEO_URL = "/assets/aistudio/Video_Project_6d65d52d.mp4";
+
+  // Função para retornar imediatamente ao status dos pedidos
+  const returnToStatus = () => {
+    if (videoRef.current) {
+      videoRef.current.pause();
     }
-  }, [transactions, celebratingOrder, celebratingDonation]);
+    setDisplayMode('status');
+    setCommercialPhase('video');
+  };
 
-  // Lógica de Timer para Modo Comercial
+  // Se houver nova celebração (pedido pronto ou doação), interrompe imediatamente o comercial
   useEffect(() => {
-    const checkInactivity = setInterval(() => {
-        const now = Date.now();
-        const inactiveTime = now - lastChangeRef.current;
-        
-        // Se houver celebração ativa, não entra em modo comercial
-        if (celebratingOrder || celebratingDonation) return;
+    if (celebratingOrder || celebratingDonation || celebrationQueue.length > 0 || donationQueue.length > 0) {
+      if (displayMode === 'commercial') {
+        returnToStatus();
+      }
+    }
+  }, [celebratingOrder, celebratingDonation, celebrationQueue, donationQueue, displayMode]);
 
-        // Se passar 45 segundos sem alteração OU a cada 5 minutos forçado
-        const shouldBeCommercial = inactiveTime > 45000 || (Math.floor(now / 1000) % 300 < 20); // 20s de comercial a cada 5 min
+  // Ciclo automático entre STATUS (pedidos) e COMERCIAL (chamaris)
+  useEffect(() => {
+    if (displayMode === 'status') {
+      // Se há pedidos sendo celebrados no momento, não conta tempo para comercial
+      if (celebratingOrder || celebratingDonation) return;
 
-        if (shouldBeCommercial && displayMode === 'status') {
-            setDisplayMode('commercial');
-        } else if (!shouldBeCommercial && displayMode === 'commercial') {
-            setDisplayMode('status');
+      // Fica 45 segundos exibindo o status dos pedidos
+      const statusTimer = setTimeout(() => {
+        if (!celebratingOrder && !celebratingDonation) {
+          setDisplayMode('commercial');
+          setCommercialPhase('video');
         }
-    }, 1000);
+      }, 45000);
 
-    return () => clearInterval(checkInactivity);
+      return () => clearTimeout(statusTimer);
+    }
   }, [displayMode, celebratingOrder, celebratingDonation]);
+
+  // Controle de reprodução e transição das etapas do comercial
+  useEffect(() => {
+    if (displayMode === 'commercial') {
+      if (commercialPhase === 'video') {
+        const video = videoRef.current;
+        if (video) {
+          video.currentTime = 0;
+          const playPromise = video.play();
+          if (playPromise !== undefined) {
+            playPromise.catch((err) => {
+              console.warn("Autoplay com áudio bloqueado pelo navegador, tentando mudo:", err);
+              video.muted = true;
+              setIsMuted(true);
+              video.play().catch(e => console.error("Falha ao reproduzir vídeo:", e));
+            });
+          }
+        }
+
+        // Fallback de segurança se onEnded não disparar (o vídeo dura ~7.5s)
+        const fallbackTimer = setTimeout(() => {
+          setCommercialPhase('showcase');
+        }, 9000);
+
+        return () => clearTimeout(fallbackTimer);
+      } else if (commercialPhase === 'showcase') {
+        // Exibe os lanches por 10 segundos e depois VOLTA AO STATUS DOS PEDIDOS
+        const showcaseTimer = setTimeout(() => {
+          returnToStatus();
+        }, 10000);
+
+        return () => clearTimeout(showcaseTimer);
+      }
+    } else {
+      if (videoRef.current) {
+        videoRef.current.pause();
+      }
+    }
+  }, [displayMode, commercialPhase]);
 
   // --- TEXTO DO RODAPÉ (PERSONALIZADO) ---
   const marqueeContent = useMemo(() => {
       if (settings.marqueeText) {
-          // Repete o texto algumas vezes para garantir o loop visual
           return `${settings.marqueeText} • ${settings.marqueeText} • ${settings.marqueeText}`; 
       }
       return `RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE! • ${settings.appName} • EVITE FILAS • RETIRE SEU PEDIDO IMEDIATAMENTE • BOM APETITE!`;
   }, [settings.marqueeText, settings.appName]);
 
-  // --- COMPONENTE DE COMERCIAL ---
+  // --- COMPONENTE DE COMERCIAL / CHAMARIS ---
   const renderCommercial = () => {
     const snacks = [
-        { name: 'Tô Frito! Clássico', img: '/images/frito-classico.png', price: 'R$ 10,00' },
-        { name: 'Combo Clássico', img: '/images/combo-classico.png', price: 'R$ 30,00' },
-        { name: 'Batata Frita', img: '/images/frito-junior.png', price: 'R$ 10,00' },
-        { name: 'Refrigerante Gelado', img: '/images/refrigerante.png', price: 'R$ 7,00' }
+        { name: 'Combo Tô Frito!', desc: 'Clássico + Batata + Refri', img: '/images/combo-classico.png', price: 'R$ 30,00', tag: 'CAMPEÃO DE VENDAS' },
+        { name: 'Tô Frito! Clássico', desc: '150g Frango Crocante', img: '/images/frito-classico.png', price: 'R$ 15,00', tag: 'MAIS PEDIDO' },
+        { name: 'Batata Frita', desc: 'Dourada e Sequinha', img: '/images/batata.png', price: 'R$ 10,00', tag: 'CROCANTE' },
+        { name: 'Refrigerante Gelado', desc: 'Coca, Fanta, Guaraná, Soda', img: '/images/refrigerante.png', price: 'R$ 7,00', tag: 'SUPER GELADO' }
     ];
 
     return (
-        <div className="absolute inset-0 z-[150] bg-black flex flex-col items-center justify-center animate-in fade-in duration-1000 overflow-hidden">
-            {/* Fundo Animado */}
-            <div className="absolute inset-0 opacity-20">
+        <div className="absolute inset-0 z-[150] bg-black flex flex-col items-center justify-between animate-in fade-in duration-700 overflow-hidden p-6 md:p-8">
+            {/* Fundo com efeito de chamas */}
+            <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="fire-container scale-[3] origin-bottom opacity-30">
                     <div className="flame-base"></div>
                     <div className="flame-body"></div>
                 </div>
             </div>
 
-            <div className="relative z-10 flex flex-col items-center text-center w-full px-20">
-                <div className="mb-8 animate-bounce">
-                    <img src={settings.mascotUrl} className="h-48 w-48 object-contain drop-shadow-[0_0_30px_rgba(234,88,12,0.6)]" alt="Logo" />
+            {/* BARRA SUPERIOR DO COMERCIAL */}
+            <div className="relative z-20 w-full flex items-center justify-between px-4 py-2 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+                <div className="flex items-center gap-3">
+                    <img src={settings.mascotUrl} className="h-10 w-10 object-contain drop-shadow" alt="Logo" />
+                    <div>
+                        <span className="font-black text-white text-base tracking-tight uppercase flex items-center gap-2">
+                            {settings.appName}
+                            <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Comercial</span>
+                        </span>
+                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{settings.schoolClass} • Feira Cultural</p>
+                    </div>
                 </div>
-                
-                <h2 className="text-[6vw] font-black text-white leading-none tracking-tighter uppercase mb-2 drop-shadow-lg">
-                    BATEU AQUELA <span className="text-orange-500">FOME?</span>
-                </h2>
-                <p className="text-[3vw] font-bold text-gray-400 uppercase tracking-widest mb-12">
-                    Faça seu pedido agora no balcão ou pelo totem!
-                </p>
 
-                <div className="grid grid-cols-4 gap-8 w-full">
-                    {snacks.map((snack, idx) => (
-                        <div key={idx} className="bg-white/5 border-2 border-white/10 p-6 rounded-[2rem] flex flex-col items-center transform hover:scale-110 transition-transform duration-500 animate-in slide-in-from-bottom-10" style={{ animationDelay: `${idx * 200}ms` }}>
-                            <div className="h-48 w-48 mb-4 relative">
-                                <div className="absolute inset-0 bg-orange-500 blur-3xl opacity-20 rounded-full"></div>
-                                <img src={snack.img} alt={snack.name} className="w-full h-full object-contain relative z-10 drop-shadow-2xl" />
-                            </div>
-                            <h3 className="text-xl font-black text-white uppercase mb-1">{snack.name}</h3>
-                            <span className="bg-orange-600 text-white px-4 py-1 rounded-full font-black text-2xl shadow-lg border-2 border-orange-400">
-                                {snack.price}
+                <div className="flex items-center gap-3">
+                    {/* Botão de Som para o Vídeo */}
+                    {commercialPhase === 'video' && (
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (videoRef.current) {
+                                    videoRef.current.muted = !videoRef.current.muted;
+                                    setIsMuted(videoRef.current.muted);
+                                }
+                            }}
+                            className="bg-black/60 hover:bg-black/80 text-white px-3 py-1.5 rounded-xl flex items-center gap-2 border border-white/20 transition-all text-xs font-bold"
+                            title="Alternar áudio"
+                        >
+                            <span>{isMuted ? '🔇 Ativar Som' : '🔊 Som Ativo'}</span>
+                        </button>
+                    )}
+
+                    {/* Botão de Pular para os Pedidos */}
+                    <button 
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            returnToStatus();
+                        }}
+                        className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 flex items-center gap-1.5"
+                    >
+                        <span>Ver Pedidos</span>
+                        <span>➔</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* CONTEÚDO PRINCIPAL: VÍDEO OU SHOWCASE DE LANCHES */}
+            <div className="relative z-10 flex-1 w-full flex items-center justify-center my-3">
+                {commercialPhase === 'video' ? (
+                    /* ETAPA 1: O VÍDEO CHAMARIS */
+                    <div className="flex flex-col items-center justify-center w-full h-full max-w-5xl animate-in zoom-in-95 duration-500">
+                        <div className="relative w-full max-h-[66vh] aspect-video rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(234,88,12,0.6)] border-4 border-yellow-400 ring-4 ring-orange-500/50 bg-black flex items-center justify-center">
+                            <video 
+                                ref={videoRef}
+                                src={PROMO_VIDEO_URL}
+                                playsInline
+                                autoPlay
+                                muted={isMuted}
+                                preload="auto"
+                                onEnded={() => setCommercialPhase('showcase')}
+                                className="w-full h-full object-contain"
+                            />
+                        </div>
+
+                        <div className="mt-4 flex items-center gap-3 bg-gradient-to-r from-orange-600 to-red-600 px-8 py-2.5 rounded-full shadow-lg border-2 border-yellow-300 animate-pulse">
+                            <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">
+                                🔥 CORRA PRO BALCÃO OU PEÇA PELO TOTEM! 🔥
                             </span>
                         </div>
-                    ))}
+                    </div>
+                ) : (
+                    /* ETAPA 2: SHOWCASE DE LANCHES E COMBOS */
+                    <div className="flex flex-col items-center justify-center text-center w-full max-w-6xl animate-in fade-in zoom-in-95 duration-700">
+                        <div className="mb-4">
+                            <h2 className="text-4xl md:text-6xl font-black text-white leading-none tracking-tighter uppercase drop-shadow-lg">
+                                BATEU AQUELA <span className="text-orange-500">FOME?</span>
+                            </h2>
+                            <p className="text-sm md:text-lg font-bold text-gray-300 uppercase tracking-widest mt-1">
+                                Experimente nossos lanches quentinhos e crocantes feitos na hora!
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full px-4">
+                            {snacks.map((snack, idx) => (
+                                <div 
+                                    key={idx} 
+                                    className="bg-white/5 border-2 border-white/10 hover:border-orange-500/50 p-4 rounded-3xl flex flex-col items-center transform hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden group"
+                                >
+                                    <span className="absolute top-2 left-2 bg-orange-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                        {snack.tag}
+                                    </span>
+
+                                    <div className="h-32 md:h-40 w-full mb-3 relative flex items-center justify-center">
+                                        <div className="absolute inset-0 bg-orange-500 blur-2xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
+                                        <img src={snack.img} alt={snack.name} className="w-full h-full object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-300" />
+                                    </div>
+
+                                    <h3 className="text-base font-black text-white uppercase mb-0.5 line-clamp-1">{snack.name}</h3>
+                                    <p className="text-xs text-gray-400 font-medium mb-3 line-clamp-1">{snack.desc}</p>
+                                    
+                                    <span className="bg-orange-600 text-white px-4 py-1 rounded-xl font-black text-xl shadow-md border border-orange-400">
+                                        {snack.price}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-5 bg-gradient-to-r from-orange-600 to-red-600 px-8 py-3 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.5)] border-2 border-yellow-400 animate-bounce">
+                            <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">
+                                Peça já! Vem pro TÔ FRITO! 🍟🔥
+                            </span>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* RODAPÉ DO COMERCIAL COM INDICAÇÃO DE RETORNO AOS PEDIDOS */}
+            <div className="relative z-20 w-full flex items-center justify-between px-6 py-2 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 text-xs">
+                <div className="flex items-center gap-2 text-orange-300 font-bold">
+                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping"></span>
+                    <span>{commercialPhase === 'video' ? 'Exibindo Vídeo Chamaris' : 'Exibindo Cardápio em Destaque'}</span>
+                    <span className="text-gray-500">•</span>
+                    <span className="text-gray-400">Retornando aos pedidos em instantes</span>
                 </div>
 
-                <div className="mt-16 bg-gradient-to-r from-orange-600 to-red-600 px-12 py-6 rounded-full shadow-[0_0_50px_rgba(234,88,12,0.5)] border-4 border-yellow-400 animate-pulse">
-                    <span className="text-4xl font-black text-white uppercase tracking-tighter">Vem pro TÔ FRITO! 🍟🔥</span>
-                </div>
+                {readyOrders.length > 0 && (
+                    <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-lg border border-green-500/40 text-green-300 font-mono font-bold text-xs">
+                        <span>PRONTOS NO BALCÃO:</span>
+                        <span className="font-black text-green-400">#{readyOrders.map(o => o.orderNumber).slice(0, 4).join(', #')}</span>
+                    </div>
+                )}
             </div>
         </div>
     );

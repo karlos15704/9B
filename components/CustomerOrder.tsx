@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Product, CartItem, Transaction, AppSettings, LayoutBlock, PaymentMethod } from '../types';
-import { formatCurrency, generateId } from '../utils';
+import { formatCurrency, generateId, resolveProductImage, getDefaultProductImage } from '../utils';
+
 import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, Heart } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions, authPromise } from '../services/supabase';
 
@@ -567,9 +568,12 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                                             ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
                                                     >
                                                         <img 
-                                                            src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                            src={resolveProductImage(ingredient?.imageUrl, ingredient)} 
                                                             alt="" 
                                                             className={`w-full h-full object-contain p-2 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                            onError={(e) => {
+                                                                (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                                            }}
                                                         />
                                                         {item.quantity > 1 && (
                                                             <div className="absolute bottom-0 right-0 bg-orange-600 text-white text-[10px] font-black px-1.5 rounded-tl-lg">
@@ -591,7 +595,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                         )}
                                     </div>
                                 ) : (
-                                    <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain transform transition-transform group-hover:scale-110" />
+                                    <img 
+                                        src={resolveProductImage(product.imageUrl, product)} 
+                                        alt={product.name} 
+                                        className="w-full h-full object-contain transform transition-transform group-hover:scale-110" 
+                                        onError={(e) => {
+                                            (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(product);
+                                        }}
+                                    />
                                 )}
                                 {isSoldOut && <div className="absolute inset-0 bg-white/40 flex items-center justify-center"><div className="bg-red-600 text-white font-black text-xs px-3 py-1 rounded-lg transform -rotate-12">ESGOTADO</div></div>}
                                 {qty > 0 && <div className="absolute top-3 right-3 bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black shadow-lg animate-in zoom-in">{qty}</div>}
@@ -642,16 +653,26 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                             return (
                                                 <div key={idx} className="bg-white rounded-md overflow-hidden flex items-center justify-center border-[0.5px] border-gray-100 shadow-sm">
                                                     <img 
-                                                        src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                        src={resolveProductImage(ingredient?.imageUrl, ingredient)} 
                                                         alt="" 
                                                         className="w-full h-full object-contain"
+                                                        onError={(e) => {
+                                                            (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                                        }}
                                                     />
                                                 </div>
                                             );
                                         })}
                                     </div>
                                 ) : (
-                                    <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                                    <img 
+                                        src={resolveProductImage(item.imageUrl, item)} 
+                                        alt="" 
+                                        className="w-full h-full object-contain" 
+                                        onError={(e) => {
+                                            (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(item);
+                                        }}
+                                    />
                                 )}
                             </div>
                             <div className="flex-1 min-w-0">

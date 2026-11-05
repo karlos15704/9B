@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, CartItem, AppSettings } from '../types';
-import { formatCurrency } from '../utils';
+import { formatCurrency, resolveProductImage, getDefaultProductImage } from '../utils';
+
 import { Plus, X, Search, UtensilsCrossed, Ban, RefreshCw, Layers, Heart, CheckCircle2, PlusCircle } from 'lucide-react';
 
 interface ProductGridProps {
@@ -422,6 +423,7 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                                 {product.comboItems.slice(0, 4).map((item, idx) => {
                                     const ingredient = products.find(p => p.id === item.productId);
                                     const isLastAndThird = product.comboItems!.length === 3 && idx === 2;
+                                    const ingredientImg = resolveProductImage(ingredient?.imageUrl, ingredient);
                                     
                                     return (
                                         <div 
@@ -430,9 +432,12 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                                                 ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
                                         >
                                             <img 
-                                                src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                src={ingredientImg} 
                                                 alt="" 
                                                 className={`w-full h-full object-contain p-1 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                onError={(e) => {
+                                                    (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                                }}
                                             />
                                             {item.quantity > 1 && (
                                                 <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
@@ -455,10 +460,13 @@ const ProductGrid: React.FC<ProductGridProps> = ({ products, cart, onAddToCart, 
                         </div>
                     ) : (
                         <img 
-                          src={product.imageUrl} 
+                          src={resolveProductImage(product.imageUrl, product)} 
                           alt={product.name} 
                           className={`w-full h-full object-contain transition-transform duration-500 ${isSoldOut ? 'grayscale opacity-50' : 'group-hover:scale-105'} drop-shadow-sm`}
                           loading="lazy"
+                          onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(product);
+                          }}
                         />
                     )}
                     

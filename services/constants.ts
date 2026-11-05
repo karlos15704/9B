@@ -89,6 +89,14 @@ export const MOCK_PRODUCTS: Product[] = [
     imageUrl: '/images/agua.png' 
   },
   { 
+    id: 'batata', 
+    name: 'Batata Frita (150g)', 
+    price: 10.00, 
+    category: 'Porções', 
+    imageUrl: '/images/batata.png',
+    stock: 100
+  },
+  { 
     id: 'soda-coca', 
     name: 'Coca-Cola Lata 350ml', 
     price: 7.00, 
@@ -128,6 +136,15 @@ export const MOCK_PRODUCTS: Product[] = [
 
 export const APP_NAME = "TÔ FRITO!";
 
-// Mascote (Logo) Padrão do Sistema (Balde de Frango Genérico)
-// A imagem específica solicitada foi movida exclusivamente para o CartSidebar quando vazio.
 export const MASCOT_URL = "https://cdn-icons-png.flaticon.com/512/3075/3075977.png";
+
+// Imagens Oficiais Rápidas para o Cardápio (Garantidas e Locais)
+export const PRESET_PRODUCT_IMAGES = [
+  { label: 'Frango 150g (Clássico)', url: '/images/frito-classico.png' },
+  { label: 'Frango 100g (Junior)', url: '/images/frito-junior.png' },
+  { label: 'Batata Frita (150g)', url: '/images/batata.png' },
+  { label: 'Combo Tô Frito (Clássico)', url: '/images/combo-classico.png' },
+  { label: 'Combo Batata + Refri', url: '/images/combo-batata-refri.png' },
+  { label: 'Refrigerante Lata', url: '/images/refrigerante.png' },
+  { label: 'Água Mineral', url: '/images/agua.png' },
+];

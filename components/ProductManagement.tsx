@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Product, ComboItem } from '../types';
-import { generateId, formatCurrency } from '../utils';
-import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package, Layers, UploadCloud } from 'lucide-react';
+import { generateId, formatCurrency, resolveProductImage, getDefaultProductImage } from '../utils';
+import { Plus, Edit2, Trash2, Save, X, Image as ImageIcon, Search, LayoutGrid, PackageOpen, Ban, CheckCircle2, MousePointerClick, Barcode, Package, Layers, UploadCloud, Sparkles } from 'lucide-react';
 import { uploadProductImage } from '../services/supabase';
+import { PRESET_PRODUCT_IMAGES } from '../services/constants';
+
 
 interface ProductManagementProps {
   products: Product[];
@@ -124,7 +126,7 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
       name,
       price: parseFloat(price.replace(',', '.')),
       category,
-      imageUrl: imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem',
+      imageUrl: imageUrl.trim() ? resolveProductImage(imageUrl.trim(), { name, category }) : getDefaultProductImage({ name, category, comboItems: isCombo ? comboItems : undefined }),
       description,
       isAvailable: isAvailable,
       stock: stockValue,
@@ -228,9 +230,12 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                                                     ${isLastAndThird ? 'col-span-2 row-span-1' : ''}`}
                                             >
                                                 <img 
-                                                    src={ingredient?.imageUrl || 'https://via.placeholder.com/150?text=Sem+Imagem'} 
+                                                    src={resolveProductImage(ingredient?.imageUrl, ingredient)} 
                                                     alt="" 
                                                     className={`w-full h-full object-contain p-1 ${isSoldOut ? 'grayscale opacity-50' : ''}`}
+                                                    onError={(e) => {
+                                                        (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                                    }}
                                                 />
                                                 {item.quantity > 1 && (
                                                     <div className="absolute bottom-0 right-0 bg-gray-800/80 text-white text-[8px] font-black px-1 rounded-tl-md">
@@ -251,10 +256,12 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                             </div>
                         ) : (
                             <img 
-                                src={product.imageUrl} 
+                                src={resolveProductImage(product.imageUrl, product)} 
                                 alt={product.name} 
                                 className={`w-full h-full object-contain ${isSoldOut ? 'grayscale' : ''}`}
-                                onError={(e) => (e.target as HTMLImageElement).src = 'https://via.placeholder.com/150?text=Erro'}
+                                onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(product);
+                                }}
                             />
                         )}
                         
@@ -530,11 +537,38 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                                 placeholder="Ou cole o link da imagem aqui..."
                             />
                         </div>
+
+                        {/* 3. Atalhos de Imagens Oficiais Rápidas */}
+                        <div className="mt-1">
+                            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5 flex items-center gap-1">
+                                <Sparkles size={12} className="text-amber-500" /> Ou selecione uma foto oficial do cardápio:
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                {PRESET_PRODUCT_IMAGES.map((preset, idx) => (
+                                    <button
+                                        key={idx}
+                                        type="button"
+                                        onClick={() => setImageUrl(preset.url)}
+                                        className={`flex items-center gap-2 p-1.5 rounded-lg border text-left text-xs transition-all ${imageUrl === preset.url ? 'border-blue-500 bg-blue-50 font-bold text-blue-700 ring-1 ring-blue-300' : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700'}`}
+                                    >
+                                        <img src={preset.url} alt="" className="w-6 h-6 object-contain rounded bg-white p-0.5 border" />
+                                        <span className="truncate">{preset.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
 
                     {imageUrl && (
                         <div className="mt-3 h-40 w-full bg-white rounded-xl border border-gray-200 shadow-sm flex items-center justify-center overflow-hidden relative group">
-                            <img src={imageUrl} alt="Preview" className="h-full object-contain" />
+                            <img 
+                                src={resolveProductImage(imageUrl, { name, category })} 
+                                alt="Preview" 
+                                className="h-full object-contain" 
+                                onError={(e) => {
+                                    (e.currentTarget as HTMLImageElement).src = getDefaultProductImage({ name, category });
+                                }}
+                            />
                             <button 
                                 type="button"
                                 onClick={() => setImageUrl('')}

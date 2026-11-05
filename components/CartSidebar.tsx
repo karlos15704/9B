@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Product, CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
-import { formatCurrency } from '../utils';
+import { formatCurrency, resolveProductImage, getDefaultProductImage } from '../utils';
+
 import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, User as UserIcon, Globe, RefreshCw, Edit3, AlertCircle } from 'lucide-react';
 import { fetchPendingTransactions, updateTransactionStatus, authPromise } from '../services/supabase';
 
@@ -428,16 +429,26 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, products, users, onRemo
                               return (
                                   <div key={idx} className="bg-white rounded-sm overflow-hidden flex items-center justify-center border-[0.5px] border-gray-100">
                                       <img 
-                                          src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                          src={resolveProductImage(ingredient?.imageUrl, ingredient)} 
                                           alt="" 
                                           className="w-full h-full object-contain"
+                                          onError={(e) => {
+                                              (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                          }}
                                       />
                                   </div>
                               );
                           })}
                        </div>
                    ) : (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                      <img 
+                          src={resolveProductImage(item.imageUrl, item)} 
+                          alt={item.name} 
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(item);
+                          }}
+                      />
                    )}
                    {isOutOfStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center z-10"><AlertCircle className="text-red-600 shadow-sm" size={14}/></div>}
                  </div>

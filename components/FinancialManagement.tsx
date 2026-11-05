@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product, Expense, Transaction, Contribution } from '../types';
-import { generateId, formatCurrency } from '../utils';
+import { generateId, formatCurrency, resolveProductImage, getDefaultProductImage } from '../utils';
+
 import { 
   DollarSign, TrendingDown, TrendingUp, Package, Barcode, 
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
@@ -412,10 +413,37 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                 <tr key={product.id} className="hover:bg-blue-50/30 transition-colors">
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-10 h-10 bg-gray-100 rounded-lg flex-shrink-0 relative">
-                                                <img src={product.imageUrl} alt="" className="w-full h-full object-cover rounded-lg" />
+                                            <div className="w-10 h-10 bg-gray-50 rounded-lg flex-shrink-0 relative overflow-hidden border border-gray-100 p-0.5">
+                                                {isCombo && product.comboItems && product.comboItems.length > 0 ? (
+                                                    <div className="w-full h-full grid grid-cols-2 gap-0.5">
+                                                        {product.comboItems.slice(0, 4).map((ci, idx) => {
+                                                            const ingredient = products.find(p => p.id === ci.productId);
+                                                            return (
+                                                                <div key={idx} className="bg-white rounded-sm overflow-hidden flex items-center justify-center border-[0.5px] border-gray-100">
+                                                                    <img 
+                                                                        src={resolveProductImage(ingredient?.imageUrl, ingredient)} 
+                                                                        alt="" 
+                                                                        className="w-full h-full object-contain"
+                                                                        onError={(e) => {
+                                                                            (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(ingredient);
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <img 
+                                                        src={resolveProductImage(product.imageUrl, product)} 
+                                                        alt="" 
+                                                        className="w-full h-full object-contain rounded-lg" 
+                                                        onError={(e) => {
+                                                            (e.currentTarget as HTMLImageElement).src = getDefaultProductImage(product);
+                                                        }}
+                                                    />
+                                                )}
                                                 {isCombo && (
-                                                    <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full p-0.5 border border-white">
+                                                    <div className="absolute -bottom-1 -right-1 bg-purple-600 text-white rounded-full p-0.5 border border-white z-10">
                                                         <Layers size={10} />
                                                     </div>
                                                 )}
