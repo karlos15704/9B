@@ -68,7 +68,7 @@ export const updateKitchenStatus = async (id: string, kitchenStatus: 'pending' |
   await supabase.from('transactions').update({ kitchenStatus }).eq('id', id);
 };
 
-export const resetDatabase = async (): Promise<boolean> => {
+export const resetSalesDatabase = async (): Promise<boolean> => {
   const { error } = await supabase.from('transactions').delete().gte('timestamp', 0);
   if (error) { console.error('Error resetting transactions:', error); return false; }
   return true;

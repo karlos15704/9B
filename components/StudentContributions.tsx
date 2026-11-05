@@ -1,18 +1,17 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Contribution, User } from '../types';
 import { generateId, formatCurrency } from '../utils';
 import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2, Edit3, X } from 'lucide-react';
-import { createContribution, deleteContribution, fetchContributions, updateContribution, authPromise } from '../services/supabase';
+import { createContribution, deleteContribution, updateContribution } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
 interface StudentContributionsProps {
+  contributions: Contribution[];
   currentUser: User | null;
 }
 
-const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser }) => {
-  const [contributions, setContributions] = useState<Contribution[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+const StudentContributions: React.FC<StudentContributionsProps> = ({ contributions, currentUser }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editingContrib, setEditingContrib] = useState<Contribution | null>(null);
   
@@ -23,22 +22,6 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
   const [amount, setAmount] = useState('');
   const [monthReference, setMonthReference] = useState(MONTHS[new Date().getMonth()]);
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
-
-  const loadData = async () => {
-    setIsLoading(true);
-    try {
-        await authPromise;
-        const data = await fetchContributions();
-        setContributions(data);
-    } catch (err) {
-        console.error("Auth failed, cannot load contributions", err);
-    }
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    loadData();
-  }, []);
 
   const handleAddContribution = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,9 +47,9 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
 
     const success = await createContribution(newContrib);
     if (success) {
-        setContributions([newContrib, ...contributions]);
         setStudentName('');
         setAmount('');
+        // A atualização local acontece via subscription no App.tsx
         alert("Contribuição registrada!");
     } else {
         alert("Erro ao salvar contribuição.");
@@ -79,8 +62,8 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
 
     const success = await updateContribution(editingContrib);
     if (success) {
-        setContributions(prev => prev.map(c => c.id === editingContrib.id ? editingContrib : c));
         setEditingContrib(null);
+        // A atualização local acontece via subscription no App.tsx
         alert("Registro atualizado!");
     } else {
         alert("Erro ao atualizar registro.");
@@ -91,25 +74,24 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
       if (window.confirm("Tem certeza que deseja excluir este registro?")) {
           const success = await deleteContribution(id);
           if (success) {
-              setContributions(contributions.filter(c => c.id !== id));
+              // A atualização local acontece via subscription no App.tsx
           }
       }
   };
 
-  const filteredContributions = useMemo(() => {
+  const aggregatedContributions = useMemo(() => {
       // Agrupar por nome (case insensitive e trim)
       const groups = contributions.reduce((acc: { [key: string]: Contribution }, c) => {
           const nameKey = c.studentName.toLowerCase().trim();
           if (!acc[nameKey]) {
               acc[nameKey] = { 
                 ...c, 
-                studentName: c.studentName.trim(), // Preserva capitalização original do primeiro
+                studentName: c.studentName.trim(), 
                 amount: c.amount,
                 paymentDate: c.paymentDate
               };
           } else {
               acc[nameKey].amount += c.amount;
-              // Mantém a data mais atual
               if (c.paymentDate > acc[nameKey].paymentDate) {
                   acc[nameKey].paymentDate = c.paymentDate;
               }
@@ -242,12 +224,10 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {isLoading ? (
-                                    <tr><td colSpan={isProfessor ? 4 : 3} className="p-8 text-center text-gray-400">Carregando...</td></tr>
-                                ) : filteredContributions.length === 0 ? (
+                                {contributions.length === 0 ? (
                                     <tr><td colSpan={isProfessor ? 4 : 3} className="p-8 text-center text-gray-400">Nenhuma contribuição encontrada.</td></tr>
                                 ) : (
-                                    filteredContributions.map(contrib => (
+                                    aggregatedContributions.map(contrib => (
                                         <tr key={contrib.id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3 font-bold text-gray-700">{contrib.studentName}</td>
                                             <td className="px-4 py-3 text-gray-500 text-xs">

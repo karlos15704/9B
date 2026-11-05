@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_PRODUCTS, APP_NAME as DEFAULT_APP_NAME, MASCOT_URL as DEFAULT_MASCOT, STAFF_USERS as DEFAULT_STAFF, SCHOOL_LOGO_URL as DEFAULT_LOGO, SCHOOL_CLASS as DEFAULT_CLASS, DEFAULT_ROLE_PERMISSIONS } from './services/constants';
-import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules } from './types';
+import { Product, CartItem, Transaction, PaymentMethod, User, AppSettings, AppModules, Contribution, Expense } from './types';
 import { generateId, formatCurrency } from './utils';
 import ProductGrid from './components/ProductGrid';
 import CartSidebar from './components/CartSidebar';
@@ -31,9 +31,11 @@ import {
   createProduct,
   updateProduct as updateProductSupabase,
   deleteProduct as deleteProductSupabase,
-  resetDatabase,
+  resetSalesDatabase,
   fetchSettings,
   saveSettings,
+  fetchExpenses,
+  fetchContributions,
   authPromise,
   } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
@@ -102,6 +104,10 @@ const App: React.FC = () => {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [isBurning, setIsBurning] = useState(false);
+
+  // Financial Shared State
+  const [contributions, setContributions] = useState<Contribution[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
 
   // --- APLICAR TEMA DINÂMICO ---
   useEffect(() => {
@@ -209,6 +215,16 @@ const App: React.FC = () => {
       }
     } catch (e) {
       setUsers(DEFAULT_STAFF);
+    }
+
+    // --- CARREGAR FINANCEIRO ---
+    try {
+        const dbExpenses = await fetchExpenses();
+        setExpenses(dbExpenses || []);
+        const dbContributions = await fetchContributions();
+        setContributions(dbContributions || []);
+    } catch (e) {
+        console.error("Erro loading financial data", e);
     }
 
     // --- CARREGAR VENDAS ---
@@ -613,9 +629,9 @@ const App: React.FC = () => {
     setNextOrderNumber(1);
 
     if (isConnected) {
-        const success = await resetDatabase();
+        const success = await resetSalesDatabase();
         if (success) {
-            alert("Banco de dados reiniciado com sucesso.");
+            alert("Vendas apagadas com sucesso! As contribuições foram mantidas.");
             window.location.reload(); 
         } else {
             alert("Erro ao limpar banco de dados.");
@@ -934,13 +950,13 @@ const App: React.FC = () => {
                     ) : (
                         // WRAPPER GENÉRICO PARA OUTRAS VIEWS
                         <div className="h-full flex flex-col"> 
-                            {currentView === 'reports' && <Reports transactions={transactions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
+                            {currentView === 'reports' && <Reports transactions={transactions} expenses={expenses} contributions={contributions} onCancelTransaction={handleCancelTransaction} onResetSystem={handleResetSystem} currentUser={currentUser} />}
                             {currentView === 'kitchen' && <KitchenDisplay transactions={transactions} onUpdateStatus={handleUpdateKitchenStatus} />}
                             {currentView === 'users' && <UserManagement users={users} onAddUser={handleAddUser} onUpdateUser={handleUpdateUser} onDeleteUser={handleDeleteUser} currentUser={currentUser}/>}
                             {currentView === 'products' && <ProductManagement products={products} onAddProduct={handleAddProduct} onUpdateProduct={handleUpdateProduct} onDeleteProduct={handleDeleteProduct}/>}
                             {currentView === 'settings' && <SettingsManagement settings={appSettings} onSave={handleUpdateSettings}/>}
-                            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} onUpdateProduct={handleUpdateProduct}/>}
-                            {currentView === 'contributions' && <StudentContributions currentUser={currentUser} />}
+                            {currentView === 'financial' && <FinancialManagement products={products} transactions={transactions} expenses={expenses} contributions={contributions} onUpdateProduct={handleUpdateProduct}/>}
+                            {currentView === 'contributions' && <StudentContributions contributions={contributions} currentUser={currentUser} />}
                         </div>
                     )}
                 </div>

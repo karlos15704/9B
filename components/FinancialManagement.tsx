@@ -1,25 +1,25 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Product, Expense, Transaction } from '../types';
+import React, { useState, useMemo } from 'react';
+import { Product, Expense, Transaction, Contribution } from '../types';
 import { generateId, formatCurrency } from '../utils';
 import { 
   DollarSign, TrendingDown, TrendingUp, Package, Barcode, 
   Search, Plus, Save, Trash2, Calendar, Wallet, ShoppingBag, 
   ArrowRight, Filter, AlertCircle, Upload, FileText, Image as ImageIcon, Loader2, Layers, Minus
 } from 'lucide-react';
-import { createExpense, deleteExpense, fetchExpenses, uploadReceiptImage, authPromise } from '../services/supabase';
+import { createExpense, deleteExpense, uploadReceiptImage, resetSalesDatabase } from '../services/supabase';
 
 interface FinancialManagementProps {
   products: Product[];
-  transactions: Transaction[]; // Para calcular o faturamento total
+  transactions: Transaction[];
+  expenses: Expense[];
+  contributions: Contribution[];
   onUpdateProduct: (product: Product) => void;
 }
 
 type Tab = 'cashflow' | 'inventory';
 
-const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, transactions, onUpdateProduct }) => {
+const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, transactions, expenses, contributions, onUpdateProduct }) => {
   const [activeTab, setActiveTab] = useState<Tab>('cashflow');
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
 
   // --- STATES DE ESTOQUE ---
   const [stockSearch, setStockSearch] = useState('');
@@ -31,34 +31,22 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  // Carregar despesas ao montar
-  useEffect(() => {
-    const loadExpenses = async () => {
-      setIsLoading(true);
-      try {
-          await authPromise;
-          const data = await fetchExpenses();
-          setExpenses(data);
-      } catch (err) {
-          console.error("Auth failed, cannot load expenses", err);
-      }
-      setIsLoading(false);
-    };
-    loadExpenses();
-  }, []);
-
   // --- CÁLCULOS FINANCEIROS ---
   const financialSummary = useMemo(() => {
-    // Apenas transações concluídas e não canceladas contam como entrada
+    // Apenas transações concluídas contam como entrada de vendas
     const totalSales = transactions
       .filter(t => t.status === 'completed')
       .reduce((acc, t) => acc + t.total, 0);
 
+    // Contribuições também são entradas
+    const totalContributions = contributions.reduce((acc, c) => acc + c.amount, 0);
+    
+    const totalIncome = totalSales + totalContributions;
     const totalExpenses = expenses.reduce((acc, e) => acc + e.amount, 0);
-    const balance = totalSales - totalExpenses;
+    const balance = totalIncome - totalExpenses;
 
-    return { totalSales, totalExpenses, balance };
-  }, [transactions, expenses]);
+    return { totalSales, totalContributions, totalIncome, totalExpenses, balance };
+  }, [transactions, expenses, contributions]);
 
   // --- HANDLERS FINANCEIROS ---
   const handleAddExpense = async (e: React.FormEvent) => {
@@ -74,7 +62,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     setIsUploading(true);
     let receiptUrl = undefined;
 
-    // Upload da Nota Fiscal se houver
     if (receiptFile) {
         const url = await uploadReceiptImage(receiptFile);
         if (url) {
@@ -98,10 +85,9 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     setIsUploading(false);
 
     if (success) {
-      setExpenses([newExpense, ...expenses]);
       setDesc('');
       setAmount('');
-      setReceiptFile(null); // Limpa o arquivo
+      setReceiptFile(null); 
       alert("Despesa registrada com sucesso!");
     } else {
       alert("Erro ao salvar despesa.");
@@ -112,7 +98,7 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     if (window.confirm("Tem certeza que deseja excluir este registro?")) {
       const success = await deleteExpense(id);
       if (success) {
-        setExpenses(expenses.filter(e => e.id !== id));
+        // Atualização via subscription
       }
     }
   };
@@ -125,8 +111,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     }
 
     const stockVal = Math.max(0, newStock);
-    // CORREÇÃO: Se o estoque for maior que 0, força a disponibilidade para TRUE.
-    // Se for 0, força para FALSE (Esgotado).
     onUpdateProduct({ 
         ...product, 
         stock: stockVal,
@@ -138,7 +122,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     onUpdateProduct({ ...product, barcode: code });
   };
 
-  // Helper para calcular estoque virtual de combo
   const getDisplayStock = (product: Product) => {
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
@@ -156,14 +139,13 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
     return product.stock || 0;
   };
 
-  // --- ORDENAÇÃO ESTÁVEL PARA EVITAR PULO ---
   const filteredProducts = useMemo(() => {
     return products
       .filter(p => 
         p.name.toLowerCase().includes(stockSearch.toLowerCase()) ||
         (p.barcode && p.barcode.includes(stockSearch))
       )
-      .sort((a, b) => a.name.localeCompare(b.name)); // Ordena por nome SEMPRE
+      .sort((a, b) => a.name.localeCompare(b.name)); 
   }, [products, stockSearch]);
 
   return (
@@ -193,11 +175,10 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
             </button>
          </div>
          <button onClick={async () => {
-             if (window.confirm("ATENÇÃO: Deseja realmente apagar TODAS as vendas realizadas? Esta ação é irreversível.")) {
-                 const { resetDatabase } = await import('../services/supabase');
-                 const success = await resetDatabase();
+             if (window.confirm("ATENÇÃO: Deseja realmente apagar TODAS as vendas realizadas? \n\nIMPORTANTE: As contribuições dos alunos SERÃO MANTIDAS.")) {
+                 const success = await resetSalesDatabase();
                  if (success) {
-                     alert("Vendas apagadas com sucesso!");
+                     alert("Vendas apagadas com sucesso! Contribuições preservadas.");
                      window.location.reload();
                  } else {
                      alert("Erro ao apagar vendas.");
@@ -218,8 +199,9 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-6 rounded-xl shadow-sm border border-emerald-100 flex items-center justify-between">
                         <div>
-                            <p className="text-sm font-bold text-gray-400 uppercase">Entradas (Vendas)</p>
-                            <h3 className="text-3xl font-black text-emerald-600">{formatCurrency(financialSummary.totalSales)}</h3>
+                            <p className="text-sm font-bold text-gray-400 uppercase">Entradas (Vendas + Contrib)</p>
+                            <h3 className="text-3xl font-black text-emerald-600">{formatCurrency(financialSummary.totalIncome)}</h3>
+                            <p className="text-[10px] text-gray-400 mt-1 font-bold">Vendas: {formatCurrency(financialSummary.totalSales)} | Contrib: {formatCurrency(financialSummary.totalContributions)}</p>
                         </div>
                         <div className="bg-emerald-100 p-3 rounded-full text-emerald-600"><TrendingUp size={24}/></div>
                     </div>
@@ -264,7 +246,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                 </select>
                             </div>
                             
-                            {/* Input de Nota Fiscal */}
                             <div>
                                 <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Foto da Nota Fiscal</label>
                                 <div className="relative">
@@ -313,7 +294,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                     <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col">
                         <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                             <h3 className="font-bold text-gray-800">Histórico de Saídas</h3>
-                            <button onClick={() => {}} className="text-xs font-bold text-blue-600 flex items-center gap-1 hover:underline"><Filter size={12}/> Filtrar</button>
                         </div>
                         <div className="flex-1 overflow-y-auto max-h-[500px]">
                             {expenses.length === 0 ? (
@@ -450,7 +430,6 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                                             <div className="flex items-center justify-center gap-2">
                                                 <button onClick={() => handleUpdateStock(product, (product.stock || 0) - 1)} className="w-8 h-8 rounded-lg bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold text-lg active:scale-95 transition-transform"><Minus size={16}/></button>
                                                 
-                                                {/* INPUT DIRETO DE ESTOQUE */}
                                                 <input 
                                                     type="number" 
                                                     min="0"

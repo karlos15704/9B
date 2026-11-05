@@ -1,13 +1,15 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Transaction, User, Expense, Contribution } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus, HandCoins } from 'lucide-react';
 import { APP_NAME } from '../services/constants';
-import { fetchExpenses, fetchContributions, authPromise } from '../services/supabase';
+import { resetSalesDatabase } from '../services/supabase';
 
 interface ReportsProps {
   transactions: Transaction[];
+  expenses: Expense[];
+  contributions: Contribution[];
   onCancelTransaction: (transactionId: string) => void;
   onResetSystem: () => void;
   currentUser: User | null;
@@ -19,10 +21,7 @@ const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Jul
 type DateRangeType = 'day' | 'week' | 'month' | 'year' | 'custom';
 type ViewType = 'dashboard' | 'ledger';
 
-const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, onResetSystem, currentUser }) => {
-  // --- ESTADOS DE DADOS ---
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [contributions, setContributions] = useState<Contribution[]>([]);
+const Reports: React.FC<ReportsProps> = ({ transactions, expenses, contributions, onCancelTransaction, onResetSystem, currentUser }) => {
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
 
   // --- ESTADOS DE FILTRO ---
@@ -48,15 +47,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const [transactionToCancel, setTransactionToCancel] = useState<{id: string, number: string} | null>(null);
   const [cancelPassword, setCancelPassword] = useState('');
 
-  const isProfessor = currentUser?.id === '0';
-
-  // CARREGAR DADOS FINANCEIROS ADICIONAIS
-  useEffect(() => {
-    authPromise.then(() => {
-      fetchExpenses().then(data => setExpenses(data || []));
-      fetchContributions().then(data => setContributions(data || []));
-    }).catch(console.error);
-  }, []);
+  const isProfessor = currentUser?.id === '0' || currentUser?.role === 'admin';
 
   // --- HELPER: CALCULAR SEMANAS DO MÊS ---
   const weeksInMonth = useMemo(() => {
@@ -97,18 +88,13 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     return weeks;
   }, [selectedYear, selectedMonth]);
 
-  useEffect(() => {
-    setSelectedWeekIndex(0);
-  }, [selectedYear, selectedMonth]);
-
-
-  // --- LÓGICA DE FILTRAGEM UNIFICADA (VENDAS + DESPESAS + CONTRIBUIÇÕES) ---
+  // --- LÓGICA DE FILTRAGEM UNIFICADA ---
   const { filteredTransactions, filteredExpenses, filteredContributions, periodLabel } = useMemo(() => {
     let start: Date, end: Date;
     let label = "";
 
     if (dateRangeType === 'day') {
-      const dateParts = selectedDay.split('-'); // YYYY-MM-DD
+      const dateParts = selectedDay.split('-'); 
       start = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 0, 0, 0, 0);
       end = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 23, 59, 59, 999);
       label = `DIA ${start.toLocaleDateString('pt-BR')}`;
@@ -186,20 +172,17 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         originalRef: c
       }))
     ];
-    return entries.sort((a, b) => b.date - a.date); // Mais recente primeiro
+    return entries.sort((a, b) => b.date - a.date); 
   }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
     // --- ESTATÍSTICAS ---
   const stats = useMemo(() => {
     const activeTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
     
-    // Todas as transações ativas são financeiras agora (removidos pontos e prêmios)
-    const financialTransactions = activeTransactions;
-
     let salesIncome = 0;
     let donationIncome = 0;
 
-    financialTransactions.forEach(t => {
+    activeTransactions.forEach(t => {
         t.items.forEach(item => {
             const itemTotal = item.price * item.quantity;
             if (item.category === 'Doação') {
@@ -216,7 +199,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     const totalExpenses = filteredExpenses.reduce((acc, e) => acc + e.amount, 0);
     const balance = totalIncome - totalExpenses;
     
-    const averageTicket = financialTransactions.length > 0 ? (salesIncome + donationIncome) / financialTransactions.length : 0;
+    const averageTicket = activeTransactions.length > 0 ? (salesIncome + donationIncome) / activeTransactions.length : 0;
     
     // By Payment Method
     const byMethod = activeTransactions.reduce((acc, t) => {
@@ -224,7 +207,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       return acc;
     }, {} as Record<string, number>);
 
-    // Add Contributions to method breakdown (conceptually)
     if (contributionsIncome > 0) {
         byMethod['Contribuições'] = (byMethod['Contribuições'] || 0) + contributionsIncome;
     }
@@ -259,11 +241,17 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   }, [filteredTransactions, filteredExpenses, filteredContributions]);
 
   // --- ACTIONS ---
-  const handleSystemReset = () => {
+  const handleSystemReset = async () => {
     if (resetPassword === '0') {
-      onResetSystem();
-      setShowResetModal(false);
-      setResetPassword('');
+      const success = await resetSalesDatabase();
+      if (success) {
+          setShowResetModal(false);
+          setResetPassword('');
+          alert('Vendas apagadas com sucesso! As contribuições foram mantidas.');
+          window.location.reload();
+      } else {
+          alert('Erro ao apagar vendas.');
+      }
     } else {
       alert('Senha incorreta.');
     }
@@ -290,7 +278,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     
     let content = '';
 
-    // --- MODO EXTRATO DETALHADO (LIVRO CAIXA) ---
     if (currentView === 'ledger') {
         const rows = unifiedLedger.map(entry => {
             const color = entry.isCancelled ? '#999' : entry.type === 'IN' ? '#000' : '#d00';
@@ -334,7 +321,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           </table>
         `;
     } 
-    // --- MODO DASHBOARD (RESUMO GERENCIAL) ---
     else {
         const productRows = (Object.entries(stats.productSales) as [string, { quantity: number; total: number }][])
         .sort(([, a], [, b]) => b.quantity - a.quantity)
@@ -367,13 +353,12 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         content = `
             <h2>RELATÓRIO GERENCIAL</h2>
             <div class="summary-box">
-                <p>VENDAS: <strong>${formatCurrency(stats.salesIncome + stats.contributionsIncome)}</strong></p>
+                <p>TOTAL ENTRADAS: <strong>${formatCurrency(stats.totalIncome)}</strong></p>
                 <p>DOAÇÕES: <span style="color: #db2777;">${formatCurrency(stats.donationIncome)}</span></p>
+                <p>CONTRIBUIÇÕES: <span style="color: #059669;">${formatCurrency(stats.contributionsIncome)}</span></p>
                 <p>GASTOS: <span style="color: red;">-${formatCurrency(stats.totalExpenses)}</span></p>
                 <p class="total">LUCRO LÍQUIDO: ${formatCurrency(stats.balance)}</p>
             </div>
-
-            <p style="font-size:11px;">* Inclui ${formatCurrency(stats.contributionsIncome)} em contribuições escolares.</p>
 
             <h3>Ranking Vendedores</h3>
             <table><thead><tr style="border-bottom: 1px solid #000;"><th align="left">Nome</th><th align="center">Qtd</th><th align="right">Total</th></tr></thead><tbody>${sellerRows}</tbody></table>
@@ -427,7 +412,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   return (
     <div className="p-6 overflow-y-auto h-full space-y-6 relative bg-gray-50/50">
       
-      {/* MODAIS (RESET E CANCELAMENTO) */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -436,7 +420,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
               ZERAR BANCO DE DADOS?
             </h3>
             <p className="text-sm text-gray-500 mb-4 leading-relaxed bg-red-50 p-3 rounded-lg border border-red-100">
-              Isso apagará <strong>TODAS AS VENDAS</strong> do banco de dados online. Esta ação é irreversível.
+              Isso apagará <strong>TODAS AS VENDAS</strong> do banco de dados online. <br/><br/>
+              <span className="text-green-600 font-black uppercase tracking-tight">As Contribuições dos Alunos NÃO serão apagadas.</span>
             </p>
             <div className="mb-4">
                <label className="text-xs font-bold text-gray-500 uppercase">Senha do Professor</label>
@@ -556,59 +541,57 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-full text-green-600"><DollarSign size={24} /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Entradas (Vendas)</p><h3 className="text-2xl font-black text-gray-900">{formatCurrency(stats.salesIncome + stats.contributionsIncome)}</h3></div>
+                    <div className="p-3 bg-emerald-100 rounded-full text-emerald-600"><HandCoins size={24} /></div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400">Contribuições</p>
+                        <h3 className="text-xl font-black text-emerald-600">{formatCurrency(stats.contributionsIncome)}</h3>
+                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className="p-3 bg-pink-100 rounded-full text-pink-600"><HandCoins size={24} /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Doações</p><h3 className="text-2xl font-black text-pink-600">{formatCurrency(stats.donationIncome)}</h3></div>
+                    <div className="p-3 bg-blue-100 rounded-full text-blue-600"><ShoppingBag size={24} /></div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400">Vendas (Produtos)</p>
+                        <h3 className="text-xl font-black text-blue-600">{formatCurrency(stats.salesIncome)}</h3>
+                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className="p-3 bg-red-100 rounded-full text-red-600"><TrendingUp size={24} className="transform rotate-180" /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Saídas (Despesas)</p><h3 className="text-2xl font-black text-red-600">-{formatCurrency(stats.totalExpenses)}</h3></div>
+                    <div className="p-3 bg-red-100 rounded-full text-red-600"><TrendingUp size={24} className="transform rotate-180" /></div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400">Saídas (Gastos)</p>
+                        <h3 className="text-xl font-black text-red-600">-{formatCurrency(stats.totalExpenses)}</h3>
+                    </div>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
-                <div className={`p-3 rounded-full ${stats.balance >= 0 ? 'bg-blue-100 text-blue-600' : 'bg-red-100 text-red-600'}`}><ShoppingBag size={24} /></div>
-                <div><p className="text-xs font-bold uppercase text-gray-400">Saldo Líquido</p><h3 className={`text-2xl font-black ${stats.balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>{formatCurrency(stats.balance)}</h3></div>
+                    <div className={`p-3 rounded-full ${stats.balance >= 0 ? 'bg-orange-100 text-orange-600' : 'bg-red-100 text-red-600'}`}><DollarSign size={24} /></div>
+                    <div>
+                        <p className="text-[10px] font-black uppercase text-gray-400">Saldo Líquido</p>
+                        <h3 className={`text-xl font-black ${stats.balance >= 0 ? 'text-orange-600' : 'text-red-600'}`}>{formatCurrency(stats.balance)}</h3>
+                    </div>
                 </div>
             </div>
 
-            {/* Charts Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><CreditCard size={18} className="text-orange-500" />Origem das Receitas</h3>
-                <div className="h-64">
-                    {stats.chartData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                        <Pie data={stats.chartData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                            {stats.chartData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                        </Pie>
-                        <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                        <Legend verticalAlign="bottom" height={36}/>
-                        </PieChart>
-                    </ResponsiveContainer>
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-gray-400">Sem vendas no período</div>
-                    )}
-                </div>
+                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-center text-center">
+                    <p className="text-xs font-black uppercase text-gray-400 mb-1">Entradas Totais (Vendas + Contrib)</p>
+                    <h2 className="text-5xl font-black text-gray-900">{formatCurrency(stats.totalIncome)}</h2>
+                    <p className="text-[10px] text-gray-400 mt-2 font-bold italic">* As contribuições são preservadas mesmo ao limpar vendas.</p>
                 </div>
 
                 <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Users size={18} className="text-orange-500" />Ranking Vendedores</h3>
-                <div className="overflow-y-auto max-h-64 space-y-3">
-                    {Object.entries(stats.bySeller).length > 0 ? (
-                        (Object.entries(stats.bySeller) as [string, { count: number; total: number }][]).sort(([, a], [, b]) => b.total - a.total).map(([name, data], idx) => (
-                        <div key={name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
-                            <div className="flex items-center gap-3"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-600'}`}>{idx + 1}</span><div><p className="font-bold text-gray-800 text-sm">{name}</p><p className="text-xs text-gray-500">{data.count} vendas</p></div></div>
-                            <span className="font-bold text-gray-800">{formatCurrency(data.total)}</span>
-                        </div>
-                        ))
-                    ) : <div className="text-center py-8 text-gray-400 text-sm">Nenhuma venda registrada.</div>}
-                </div>
+                    <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2"><Users size={18} className="text-orange-500" />Ranking Vendedores</h3>
+                    <div className="overflow-y-auto max-h-64 space-y-3">
+                        {Object.entries(stats.bySeller).length > 0 ? (
+                            (Object.entries(stats.bySeller) as [string, { count: number; total: number }][]).sort(([, a], [, b]) => b.total - a.total).map(([name, data], idx) => (
+                            <div key={name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                <div className="flex items-center gap-3"><span className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-200 text-gray-600'}`}>{idx + 1}</span><div><p className="font-bold text-gray-800 text-sm">{name}</p><p className="text-xs text-gray-500">{data.count} vendas</p></div></div>
+                                <span className="font-bold text-gray-800">{formatCurrency(data.total)}</span>
+                            </div>
+                            ))
+                        ) : <div className="text-center py-8 text-gray-400 text-sm">Nenhuma venda registrada.</div>}
+                    </div>
                 </div>
             </div>
           </div>
