@@ -420,9 +420,26 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, products, users, onRemo
               <div key={item.id} className={`flex gap-2 bg-white border-b border-gray-50 last:border-0 p-2 hover:bg-gray-50 transition-colors group relative rounded-lg ${isOutOfStock ? 'bg-red-50 ring-1 ring-red-200' : ''}`}>
                  
                  {/* Imagem Menor */}
-                 <div className="w-10 h-10 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden relative border border-gray-200">
-                   <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                   {isOutOfStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertCircle className="text-red-600" size={16}/></div>}
+                 <div className="w-12 h-12 bg-gray-50 rounded-lg flex-shrink-0 overflow-hidden relative border border-gray-100 p-0.5">
+                   {item.comboItems && item.comboItems.length > 0 ? (
+                       <div className="w-full h-full grid grid-cols-2 gap-0.5">
+                          {item.comboItems.slice(0, 4).map((ci, idx) => {
+                              const ingredient = products.find(p => p.id === ci.productId);
+                              return (
+                                  <div key={idx} className="bg-white rounded-sm overflow-hidden flex items-center justify-center border-[0.5px] border-gray-100">
+                                      <img 
+                                          src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                          alt="" 
+                                          className="w-full h-full object-contain"
+                                      />
+                                  </div>
+                              );
+                          })}
+                       </div>
+                   ) : (
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                   )}
+                   {isOutOfStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center z-10"><AlertCircle className="text-red-600 shadow-sm" size={14}/></div>}
                  </div>
                  
                  <div className="flex-1 flex flex-col justify-center">

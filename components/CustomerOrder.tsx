@@ -635,7 +635,26 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 <div className="space-y-3">
                     {cart.map(item => (
                         <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-200 flex items-center gap-4 shadow-sm">
-                            <div className="w-16 h-16 rounded-xl bg-gray-50 p-1 flex-shrink-0"><img src={item.imageUrl} alt="" className="w-full h-full object-contain" /></div>
+                            <div className="w-20 h-20 rounded-xl bg-gray-50 p-1 flex-shrink-0 relative overflow-hidden border border-gray-100">
+                                {item.comboItems && item.comboItems.length > 0 ? (
+                                    <div className="w-full h-full grid grid-cols-2 gap-0.5">
+                                        {item.comboItems.slice(0, 4).map((ci, idx) => {
+                                            const ingredient = products.find(p => p.id === ci.productId);
+                                            return (
+                                                <div key={idx} className="bg-white rounded-md overflow-hidden flex items-center justify-center border-[0.5px] border-gray-100 shadow-sm">
+                                                    <img 
+                                                        src={ingredient?.imageUrl || '/images/placeholder.png'} 
+                                                        alt="" 
+                                                        className="w-full h-full object-contain"
+                                                    />
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                ) : (
+                                    <img src={item.imageUrl} alt="" className="w-full h-full object-contain" />
+                                )}
+                            </div>
                             <div className="flex-1 min-w-0">
                                 <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
                                 <p className="font-black text-orange-600">{formatCurrency(item.price * item.quantity)}</p>
