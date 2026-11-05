@@ -503,22 +503,19 @@ const App: React.FC = () => {
   };
 
   const updateCartQuantity = (productId: string, delta: number) => {
-    if (delta > 0) {
-        const product = products.find(p => p.id === productId);
-        const item = cart.find(i => i.id === productId);
-        
-        if (product && item) {
-             const availableStock = getCalculatedStock(product);
-             if ((item.quantity + delta) > availableStock) {
-                 alert(`Estoque limite atingido! Só existem ${availableStock} unidades disponíveis.`);
-                 return;
-             }
-        }
-    }
-
     setCart(prev => prev.map(item => {
       if (item.id === productId) {
         const newQuantity = Math.max(1, item.quantity + delta);
+        
+        // Validação de estoque ao aumentar
+        if (delta > 0) {
+             const availableStock = getCalculatedStock(item);
+             if (newQuantity > availableStock) {
+                 alert(`Estoque insuficiente! Só existem ${availableStock} unidades disponíveis.`);
+                 return item;
+             }
+        }
+        
         return { ...item, quantity: newQuantity };
       }
       return item;
@@ -1010,6 +1007,7 @@ const App: React.FC = () => {
                         <div className={`fixed inset-y-0 right-0 z-50 w-full md:fixed md:w-[420px] md:border-l md:border-gray-200 md:bg-white shadow-2xl md:shadow-none transform transition-transform duration-300 ease-in-out ${isMobileCartOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}`}>
                           <CartSidebar 
                             cart={cart} 
+                            products={products}
                             users={users} 
                             onRemoveItem={removeFromCart} 
                             onUpdateQuantity={updateCartQuantity} 

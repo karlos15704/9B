@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
+import { Product, CartItem, PaymentMethod, Transaction, User, AppSettings } from '../types';
 import { formatCurrency } from '../utils';
-import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, User as UserIcon, Globe, RefreshCw, Edit3 } from 'lucide-react';
+import { X, Trash2, ShoppingCart, CreditCard, Banknote, QrCode, Lock, Unlock, Plus, Minus, CheckCircle2, Calculator, User as UserIcon, Globe, RefreshCw, Edit3, AlertCircle } from 'lucide-react';
 import { fetchPendingTransactions, updateTransactionStatus, authPromise } from '../services/supabase';
 
 interface CartSidebarProps {
   cart: CartItem[];
-  users: User[]; // Novo: Lista de usuários para validar senha
+  products: Product[];
+  users: User[]; 
   onRemoveItem: (productId: string) => void;
   onUpdateQuantity: (productId: string, delta: number) => void;
   onClearCart: () => void;
@@ -15,10 +16,10 @@ interface CartSidebarProps {
   onUpdateNote?: (productId: string, note: string) => void;
   onLoadPendingOrder: (transaction: Transaction) => void;
   emptyCartImageUrl?: string; 
-  settings?: AppSettings; // Configurações visuais
+  settings?: AppSettings; 
 }
 
-const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder, emptyCartImageUrl, settings }) => {
+const CartSidebar: React.FC<CartSidebarProps> = ({ cart, products, users, onRemoveItem, onUpdateQuantity, onClearCart, onCheckout, onClose, onUpdateNote, onLoadPendingOrder, emptyCartImageUrl, settings }) => {
   const [discountValue, setDiscountValue] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
@@ -40,6 +41,47 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   // Cores dinâmicas
   const primaryColor = settings?.primaryColor || '#ea580c';
 
+  // Helper para calcular estoque (Lógica igual ao App.tsx)
+  const getItemAvailableStock = (item: CartItem): number => {
+    // 1. Caso especial: item genérico '4'
+    if (item.id === '4') {
+        const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+        return sodaFlavors.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
+    }
+
+    // 2. Se for um combo (item já possui comboItems)
+    if (item.comboItems && item.comboItems.length > 0) {
+        let minStock = 999999;
+        let hasLimitedIngredient = false;
+        for (const ci of item.comboItems) {
+            const ingredient = products.find(p => p.id === ci.productId);
+            if (!ingredient || ingredient.isAvailable === false) return 0;
+            
+            let ingredientStock = 999999;
+            if (ci.productId === '4') {
+                const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+                ingredientStock = sodaFlavors.reduce((acc, p) => acc + (Number(p.stock) || 0), 0);
+            } else if (ingredient.stock !== undefined && ingredient.stock !== null) {
+                ingredientStock = Number(ingredient.stock);
+            }
+
+            if (ingredientStock !== 999999) {
+                hasLimitedIngredient = true;
+                const possible = Math.floor(ingredientStock / ci.quantity);
+                if (possible < minStock) minStock = possible;
+            }
+        }
+        return hasLimitedIngredient ? minStock : 999999;
+    }
+
+    // 3. Se for um produto simples
+    const product = products.find(p => p.id === item.id);
+    if (!product) return 999999;
+    if (product.isAvailable === false) return 0;
+    if (product.stock !== undefined && product.stock !== null) return Number(product.stock);
+    return 999999;
+  };
+
   // Totais
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const discount = parseFloat(discountValue) || 0;
@@ -49,6 +91,10 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   const cashReceived = parseFloat(cashReceivedStr.replace(',', '.')) || 0;
   const cashChange = Math.max(0, cashReceived - total);
   const missingCash = Math.max(0, total - cashReceived);
+
+  // Verificação de Erros de Estoque no Carrinho
+  const stockErrors = cart.filter(item => item.quantity > getItemAvailableStock(item));
+  const hasStockErrors = stockErrors.length > 0;
 
   const PIX_QR_IMAGE = "/images/pix-qr-code.png";
   const EMPTY_CART_MASCOT = emptyCartImageUrl || "/images/empty-cart.png";
@@ -110,6 +156,11 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
   const handleCheckout = () => {
     if (!selectedMethod) return;
+
+    if (hasStockErrors) {
+        alert("Ops! Existem itens no carrinho com quantidade maior do que o estoque disponível. Ajuste antes de finalizar.");
+        return;
+    }
     
     // Validação de Nome
     if (!customerName.trim()) {
@@ -143,6 +194,11 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   };
 
   const handlePaymentSelect = (method: PaymentMethod) => {
+    if (hasStockErrors) {
+        alert("Ajuste as quantidades. Alguns itens excedem o estoque.");
+        return;
+    }
+
     setSelectedMethod(method);
     if (method === PaymentMethod.PIX) {
       setShowPixModal(true);
@@ -190,7 +246,7 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
               <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] flex flex-col overflow-hidden">
                   <div className="p-4 text-white flex justify-between items-center" style={{ backgroundColor: primaryColor }}>
                       <h3 className="font-bold flex items-center gap-2"><Globe size={20}/> Pedidos Online / App</h3>
-                      <button onClick={() => setShowPendingModal(false)} className="hover:bg-white/20 p-1 rounded-full"><X size={20}/></button>
+                      <button onClick={() => setShowPendingModal(false)} className="hover:bg-white/20 p-1 rounded-full transition-colors"><X size={20}/></button>
                   </div>
                   <div className="p-2 bg-gray-50 flex justify-end border-b">
                       <button onClick={loadPending} className="text-xs flex items-center gap-1 text-blue-600 font-bold px-3 py-1 rounded hover:bg-blue-100"><RefreshCw size={12}/> Atualizar</button>
@@ -356,48 +412,84 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
         {/* LISTA DE PRODUTOS COMPACTA E ORDENADA */}
         <div className="flex-1 overflow-y-auto p-4 space-y-2 pb-8">
-          {sortedCart.map((item) => (
-            <div key={item.id} className="flex gap-2 bg-white border-b border-gray-50 last:border-0 p-2 hover:bg-gray-50 transition-colors group relative rounded-lg">
-               
-               {/* Imagem Menor */}
-               <div className="w-10 h-10 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden relative border border-gray-200">
-                 <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-               </div>
-               
-               <div className="flex-1 flex flex-col justify-center">
-                  <div className="flex justify-between items-start">
-                     {/* Texto Menor e Compacto */}
-                     <h4 className="text-xs font-bold text-gray-800 leading-tight pr-6 line-clamp-2">{item.name}</h4>
-                     
-                     <div className="flex flex-col items-end">
-                        <p className="text-xs font-bold whitespace-nowrap" style={{ color: primaryColor }}>{formatCurrency(item.price * item.quantity)}</p>
-                     </div>
-                  </div>
-                  
-                  {item.notes && <p className="text-[9px] text-blue-600 truncate mt-0.5">Obs: {item.notes}</p>}
+          {sortedCart.map((item) => {
+            const availableStock = getItemAvailableStock(item);
+            const isOutOfStock = item.quantity > availableStock;
+            
+            return (
+              <div key={item.id} className={`flex gap-2 bg-white border-b border-gray-50 last:border-0 p-2 hover:bg-gray-50 transition-colors group relative rounded-lg ${isOutOfStock ? 'bg-red-50 ring-1 ring-red-200' : ''}`}>
+                 
+                 {/* Imagem Menor */}
+                 <div className="w-10 h-10 bg-gray-100 rounded-md flex-shrink-0 overflow-hidden relative border border-gray-200">
+                   <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
+                   {isOutOfStock && <div className="absolute inset-0 bg-red-500/20 flex items-center justify-center"><AlertCircle className="text-red-600" size={16}/></div>}
+                 </div>
+                 
+                 <div className="flex-1 flex flex-col justify-center">
+                    <div className="flex justify-between items-start">
+                       <div className="flex-1 min-w-0 pr-6">
+                           <h4 className="text-xs font-bold text-gray-800 leading-tight truncate">{item.name}</h4>
+                           {isOutOfStock && (
+                               <p className="text-[9px] font-black text-red-600 uppercase flex items-center gap-1 mt-0.5">
+                                   <AlertCircle size={8}/> Estoque Insuficiente ({availableStock})
+                               </p>
+                           )}
+                       </div>
+                       
+                       <div className="flex flex-col items-end">
+                          <p className="text-xs font-bold whitespace-nowrap" style={{ color: primaryColor }}>{formatCurrency(item.price * item.quantity)}</p>
+                       </div>
+                    </div>
+                    
+                    {item.notes && <p className="text-[9px] text-blue-600 truncate mt-0.5">Obs: {item.notes}</p>}
 
-                  <div className="flex items-center justify-between mt-1">
-                     {/* Controles Compactos */}
-                     <div className="flex items-center gap-2">
-                         <div className="flex items-center border border-gray-200 rounded-md bg-white shadow-sm h-6">
-                            <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-6 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600 disabled:opacity-50"><Minus size={10} /></button>
-                            <span className="text-xs font-bold w-5 text-center leading-none">{item.quantity}</span>
-                            <button onClick={() => onUpdateQuantity(item.id, 1)} className="w-6 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600"><Plus size={10} /></button>
-                         </div>
-                         
-                         {onUpdateNote && (
-                            <button onClick={() => handleAddNote(item)} className={`h-6 w-6 flex items-center justify-center rounded-md border transition-colors ${item.notes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-400 border-gray-200 hover:text-blue-500'}`} title="Adicionar observação"><Edit3 size={12} /></button>
-                        )}
-                     </div>
+                    <div className="flex items-center justify-between mt-1">
+                       {/* Controles Compactos */}
+                       <div className="flex items-center gap-2">
+                           <div className={`flex items-center border rounded-md bg-white shadow-sm h-7 ${isOutOfStock ? 'border-red-300' : 'border-gray-200'}`}>
+                              <button onClick={() => onUpdateQuantity(item.id, -1)} className="w-7 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600 disabled:opacity-50"><Minus size={12} /></button>
+                              <input 
+                                type="number" 
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    if (!isNaN(val)) {
+                                        onUpdateQuantity(item.id, val - item.quantity);
+                                    }
+                                }}
+                                className={`text-sm font-black w-10 text-center bg-transparent outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${isOutOfStock ? 'text-red-600' : 'text-gray-800'}`}
+                              />
+                              <button 
+                                onClick={() => onUpdateQuantity(item.id, 1)} 
+                                disabled={item.quantity >= availableStock}
+                                className={`w-7 h-full flex items-center justify-center hover:bg-gray-100 text-gray-500 hover:text-orange-600 disabled:opacity-20`}
+                              >
+                                  <Plus size={12} />
+                              </button>
+                           </div>
+                           
+                           {onUpdateNote && (
+                              <button onClick={() => handleAddNote(item)} className={`h-6 w-6 flex items-center justify-center rounded-md border transition-colors ${item.notes ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-white text-gray-400 border-gray-200 hover:text-blue-500'}`} title="Adicionar observação"><Edit3 size={12} /></button>
+                          )}
+                       </div>
 
-                     <button onClick={() => onRemoveItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Remover"><X size={14} /></button>
-                  </div>
-               </div>
-            </div>
-          ))}
+                       <button onClick={() => onRemoveItem(item.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Remover"><X size={14} /></button>
+                    </div>
+                 </div>
+              </div>
+            )})}
         </div>
 
         <div className="bg-white border-t border-gray-100 shadow-[0_-5px_15px_rgba(0,0,0,0.05)] p-4 space-y-4 flex-shrink-0 pb-6">
+           {/* ALERTA DE ESTOQUE GLOBAL */}
+           {hasStockErrors && (
+               <div className="bg-red-100 border border-red-200 rounded-lg p-3 flex items-center gap-3 animate-pulse">
+                   <AlertCircle className="text-red-600 shrink-0" size={20}/>
+                   <p className="text-[10px] font-black text-red-700 leading-tight uppercase">Existem itens sem estoque suficiente! Ajuste as quantidades para continuar.</p>
+               </div>
+           )}
+
            {/* Subtotal e Descontos */}
            <div className="space-y-2">
              <div className="flex justify-between text-gray-500 text-sm"><span>Subtotal</span><span>{formatCurrency(subtotal)}</span></div>
@@ -419,10 +511,10 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
 
            {/* BOTÕES DE PAGAMENTO */}
            <div className="grid grid-cols-2 gap-2 pt-2">
-              <button onClick={() => handlePaymentSelect(PaymentMethod.CREDIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Crédito</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.DEBIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Débito</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.PIX)} className="flex flex-col items-center justify-center rounded-xl border border-teal-100 bg-teal-50 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all active:scale-95 py-3"><QrCode size={20} className="mb-1" /><span className="text-xs font-bold">Pix</span></button>
-              <button onClick={() => handlePaymentSelect(PaymentMethod.CASH)} className="flex flex-col items-center justify-center rounded-xl border border-green-100 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 py-3"><Banknote size={20} className="mb-1" /><span className="text-xs font-bold">Dinheiro</span></button>
+              <button disabled={hasStockErrors} onClick={() => handlePaymentSelect(PaymentMethod.CREDIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3 disabled:opacity-50 disabled:grayscale"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Crédito</span></button>
+              <button disabled={hasStockErrors} onClick={() => handlePaymentSelect(PaymentMethod.DEBIT)} className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-gray-50 hover:bg-orange-50 hover:border-orange-200 transition-all active:scale-95 py-3 disabled:opacity-50 disabled:grayscale"><CreditCard size={20} className="mb-1" /><span className="text-xs font-bold">Débito</span></button>
+              <button disabled={hasStockErrors} onClick={() => handlePaymentSelect(PaymentMethod.PIX)} className="flex flex-col items-center justify-center rounded-xl border border-teal-100 bg-teal-50 text-teal-700 hover:bg-teal-100 hover:border-teal-300 transition-all active:scale-95 py-3 disabled:opacity-50 disabled:grayscale"><QrCode size={20} className="mb-1" /><span className="text-xs font-bold">Pix</span></button>
+              <button disabled={hasStockErrors} onClick={() => handlePaymentSelect(PaymentMethod.CASH)} className="flex flex-col items-center justify-center rounded-xl border border-green-100 bg-green-50 text-green-700 hover:bg-green-100 hover:border-green-300 transition-all active:scale-95 py-3 disabled:opacity-50 disabled:grayscale"><Banknote size={20} className="mb-1" /><span className="text-xs font-bold">Dinheiro</span></button>
            </div>
         </div>
       </div>
