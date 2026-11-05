@@ -53,7 +53,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 18.00, 
     category: 'Combos', 
     // Imagem: Combo (Balde + Lata)
-    imageUrl: 'https://i.ibb.co/GQYZ9hqb/Combo-T-Frito-Cl-ssico-Refri.png' 
+    imageUrl: '/images/combo-classico.png' 
   },
   { 
     id: '2', 
@@ -61,7 +61,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 15.00, 
     category: 'Porções', 
     // Imagem: Balde Grande
-    imageUrl: 'https://i.ibb.co/ksvNmYDD/T-Frito-Cl-ssico-150g-Molho.png' 
+    imageUrl: '/images/frito-classico.png' 
   },
   { 
     id: '3', 
@@ -69,7 +69,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 10.00, 
     category: 'Porções', 
     // Imagem: Balde Menor
-    imageUrl: 'https://i.ibb.co/cSdmLLMh/T-Frito-Junior-100g.png' 
+    imageUrl: '/images/frito-junior.png' 
   },
   { 
     id: '4', 
@@ -77,7 +77,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 5.00, 
     category: 'Bebidas', 
     // Imagem: Lata de Refri
-    imageUrl: 'https://i.ibb.co/HmnMHw3/Refrigerante-Lata-350ml.png' 
+    imageUrl: '/images/refrigerante.png' 
   },
   { 
     id: '5', 
@@ -85,7 +85,7 @@ export const MOCK_PRODUCTS: Product[] = [
     price: 3.00, 
     category: 'Bebidas', 
     // Imagem: Garrafa de Água
-    imageUrl: 'https://i.ibb.co/Kj9NWxhS/agua.png' 
+    imageUrl: '/images/agua.png' 
   },
 ];
 

@@ -264,7 +264,7 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                           {formData.customerHeroUrl ? (
                               <img src={formData.customerHeroUrl} className="h-32 w-full object-contain mt-2 border rounded-xl bg-gray-900" />
                           ) : (
-                              <img src="https://i.ibb.co/xt5zh5bR/logoo-Edited.png" className="h-32 w-full object-contain mt-2 border rounded-xl bg-gray-900 opacity-50" title="Imagem Padrão" />
+                              <img src="/images/logo.png" className="h-32 w-full object-contain mt-2 border rounded-xl bg-gray-900 opacity-50" title="Imagem Padrão" />
                           )}
                       </div>
                       <div>

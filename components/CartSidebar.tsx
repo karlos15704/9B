@@ -59,8 +59,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
   const cashChange = Math.max(0, cashReceived - total);
   const missingCash = Math.max(0, total - cashReceived);
 
-  const PIX_QR_IMAGE = "https://i.ibb.co/8LFWSQfx/Captura-de-tela-2026-01-20-181523.png";
-  const EMPTY_CART_MASCOT = emptyCartImageUrl || "https://i.ibb.co/jvHHy3Lq/Captura-de-tela-2026-01-23-120749.png";
+  const PIX_QR_IMAGE = "/images/pix-qr-code.png";
+  const EMPTY_CART_MASCOT = emptyCartImageUrl || "/images/empty-cart.png";
 
   // ORDENAÇÃO ALFABÉTICA DOS ITENS
   const sortedCart = useMemo(() => {
@@ -130,7 +130,8 @@ const CartSidebar: React.FC<CartSidebarProps> = ({ cart, users, onRemoveItem, on
     }
 
     if (selectedMethod === PaymentMethod.CASH) {
-       onCheckout(discount, selectedMethod, cashChange, cashReceived, customerName);
+       const proceed = window.confirm("Confirmar venda em Dinheiro?");
+     if (proceed) onCheckout(discount, selectedMethod, cashChange, cashReceived, customerName);
     } else if (selectedMethod === PaymentMethod.LOYALTY) {
        // Passa o ID do cliente para o checkout processar a dedução
        onCheckout(discount, selectedMethod, undefined, undefined, customerName, loyaltyCustomer?.id);
