@@ -192,6 +192,20 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
                 <Package size={16}/> Estoque
             </button>
          </div>
+         <button onClick={async () => {
+             if (window.confirm("ATENÇÃO: Deseja realmente apagar TODAS as vendas realizadas? Esta ação é irreversível.")) {
+                 const { resetDatabase } = await import('../services/supabase');
+                 const success = await resetDatabase();
+                 if (success) {
+                     alert("Vendas apagadas com sucesso!");
+                     window.location.reload();
+                 } else {
+                     alert("Erro ao apagar vendas.");
+                 }
+             }
+         }} className="ml-4 bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold text-xs hover:bg-red-100 flex items-center gap-2 transition-all">
+            <Trash2 size={16}/> Limpar Vendas
+         </button>
       </div>
 
       {/* CONTENT AREA */}

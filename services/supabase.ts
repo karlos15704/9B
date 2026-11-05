@@ -189,6 +189,15 @@ export const deleteContribution = async (id: string): Promise<boolean> => {
   return !error;
 };
 
+export const updateContribution = async (contribution: Contribution): Promise<boolean> => {
+  const { error } = await supabase.from('contributions').update({
+    studentName: contribution.studentName,
+    amount: contribution.amount,
+    paymentDate: contribution.paymentDate
+  }).eq('id', contribution.id);
+  return !error;
+};
+
 // --- SETTINGS ---
 export const fetchSettings = async (): Promise<AppSettings | null> => {
   const { data, error } = await supabase.from('settings').select('*').eq('id', 'global').single();

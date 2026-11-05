@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Contribution, User } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2 } from 'lucide-react';
-import { createContribution, deleteContribution, fetchContributions, authPromise } from '../services/supabase';
+import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2, Edit3 } from 'lucide-react';
+import { createContribution, deleteContribution, fetchContributions, updateContribution, authPromise } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
@@ -14,6 +14,7 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
   const [contributions, setContributions] = useState<Contribution[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [editingContrib, setEditingContrib] = useState<Contribution | null>(null);
   
   const isProfessor = currentUser?.id === '0' || currentUser?.role === 'admin';
 
@@ -72,6 +73,19 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
     }
   };
 
+  const handleEditContribution = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingContrib) return;
+    const success = await updateContribution(editingContrib);
+    if (success) {
+        setContributions(contributions.map(c => c.id === editingContrib.id ? editingContrib : c));
+        setEditingContrib(null);
+        alert("Contribuição atualizada!");
+    } else {
+        alert("Erro ao atualizar contribuição.");
+    }
+  };
+
   const handleDelete = async (id: string) => {
       if (window.confirm("Tem certeza que deseja excluir este registro?")) {
           const success = await deleteContribution(id);
@@ -82,7 +96,22 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
   };
 
   const filteredContributions = useMemo(() => {
-      return contributions.filter(c => 
+      const groups = contributions.reduce((acc, c) => {
+          const name = c.studentName.toLowerCase().trim();
+          if (!acc[name]) {
+              acc[name] = { ...c, studentName: c.studentName };
+          } else {
+              acc[name].amount += c.amount;
+              if (c.paymentDate > acc[name].paymentDate) {
+                  acc[name].paymentDate = c.paymentDate;
+              }
+          }
+          return acc;
+      }, {} as { [key: string]: Contribution });
+      
+      const aggregated = Object.values(groups) as Contribution[];
+      
+      return aggregated.sort((a, b) => a.studentName.localeCompare(b.studentName)).filter(c => 
           c.studentName.toLowerCase().includes(searchTerm.toLowerCase())
       );
   }, [contributions, searchTerm]);
@@ -225,6 +254,9 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                                             </td>
                                             {isProfessor && (
                                             <td className="px-4 py-3 text-center">
+                                                <button onClick={() => setEditingContrib(contrib)} className="text-gray-300 hover:text-blue-500 transition-colors p-1 mr-2">
+                                                    <Edit3 size={16} />
+                                                </button>
                                                 <button onClick={() => handleDelete(contrib.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
                                                     <Trash2 size={16} />
                                                 </button>
@@ -238,6 +270,23 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                     </div>
                 </div>
 
+                {/* Edit Modal */}
+                {editingContrib && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
+                            <h3 className="font-bold text-gray-800 mb-4">Editar Contribuição</h3>
+                            <form onSubmit={handleEditContribution} className="space-y-4">
+                                <input type="text" value={editingContrib.studentName} onChange={e => setEditingContrib({...editingContrib, studentName: e.target.value})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
+                                <input type="number" step="0.01" value={editingContrib.amount} onChange={e => setEditingContrib({...editingContrib, amount: parseFloat(e.target.value)})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
+                                <input type="date" value={new Date(editingContrib.paymentDate).toISOString().split('T')[0]} onChange={e => setEditingContrib({...editingContrib, paymentDate: new Date(e.target.value).getTime()})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
+                                <div className="flex justify-end gap-2">
+                                    <button type="button" onClick={() => setEditingContrib(null)} className="px-4 py-2 bg-gray-200 rounded-lg font-bold">Cancelar</button>
+                                    <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salvar</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     </div>

@@ -430,7 +430,10 @@ const ProductManagement: React.FC<ProductManagementProps> = ({ products, onAddPr
                                 type="number" 
                                 min="1" 
                                 value={subProductQty}
-                                onChange={e => setSubProductQty(parseInt(e.target.value))}
+                                onChange={e => {
+                                    const val = parseInt(e.target.value);
+                                    setSubProductQty(isNaN(val) ? 0 : val);
+                                }}
                                 className="w-16 text-sm border border-purple-200 rounded-lg p-2 focus:outline-none text-center" 
                             />
                             <button 
