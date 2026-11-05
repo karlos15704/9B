@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Transaction, PaymentMethod, User, Expense, Contribution } from '../types';
+import { Transaction, User, Expense, Contribution } from '../types';
 import { formatCurrency } from '../utils';
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import { TrendingUp, DollarSign, ShoppingBag, CreditCard, Trash2, AlertTriangle, FileText, XCircle, Ban, Users, Calendar, CalendarDays, CalendarRange, Filter, ArrowRight, ArrowDownCircle, ArrowUpCircle, Receipt, LayoutDashboard, ListPlus, HandCoins } from 'lucide-react';
@@ -193,8 +193,8 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   const stats = useMemo(() => {
     const activeTransactions = filteredTransactions.filter(t => t.status !== 'cancelled');
     
-    // Filtra transações financeiras (exclui trocas de pontos e prêmios do faturamento)
-    const financialTransactions = activeTransactions.filter(t => t.paymentMethod !== 'Pontos Fidelidade' && t.paymentMethod !== PaymentMethod.PRIZE);
+    // Todas as transações ativas são financeiras agora (removidos pontos e prêmios)
+    const financialTransactions = activeTransactions;
 
     let salesIncome = 0;
     let donationIncome = 0;
@@ -218,17 +218,15 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     
     const averageTicket = financialTransactions.length > 0 ? (salesIncome + donationIncome) / financialTransactions.length : 0;
     
-    // By Payment Method (Inclui Pontos para visualização, mas com valor 0 ou separado)
+    // By Payment Method
     const byMethod = activeTransactions.reduce((acc, t) => {
-      // Se for pontos ou prêmio, não soma no total financeiro, mas conta
-      const value = (t.paymentMethod === 'Pontos Fidelidade' || t.paymentMethod === PaymentMethod.PRIZE) ? 0 : t.total;
-      acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + value;
+      acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + t.total;
       return acc;
     }, {} as Record<string, number>);
 
     // Add Contributions to method breakdown (conceptually)
     if (contributionsIncome > 0) {
-        byMethod['Contribuições'] = contributionsIncome;
+        byMethod['Contribuições'] = (byMethod['Contribuições'] || 0) + contributionsIncome;
     }
 
     // By Seller
@@ -236,10 +234,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
       const seller = t.sellerName || 'N/A';
       if (!acc[seller]) acc[seller] = { count: 0, total: 0 };
       acc[seller].count += 1;
-      // Se for pontos ou prêmio, não soma no total financeiro do vendedor
-      if (t.paymentMethod !== 'Pontos Fidelidade' && t.paymentMethod !== PaymentMethod.PRIZE) {
-          acc[seller].total += t.total;
-      }
+      acc[seller].total += t.total;
       return acc;
     }, {} as Record<string, { count: number; total: number }>);
 
@@ -251,10 +246,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
           productSales[item.name] = { quantity: 0, total: 0 };
         }
         productSales[item.name].quantity += item.quantity;
-        // Se for pontos ou prêmio, o total financeiro é 0
-        if (t.paymentMethod !== 'Pontos Fidelidade' && t.paymentMethod !== PaymentMethod.PRIZE) {
-            productSales[item.name].total += item.price * item.quantity;
-        }
+        productSales[item.name].total += item.price * item.quantity;
       });
     });
 
@@ -344,7 +336,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
     } 
     // --- MODO DASHBOARD (RESUMO GERENCIAL) ---
     else {
-        // (Código de impressão do dashboard anterior...)
         const productRows = (Object.entries(stats.productSales) as [string, { quantity: number; total: number }][])
         .sort(([, a], [, b]) => b.quantity - a.quantity)
         .map(([name, data]) => `
@@ -436,7 +427,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
   return (
     <div className="p-6 overflow-y-auto h-full space-y-6 relative bg-gray-50/50">
       
-      {/* MODAIS (RESET E CANCELAMENTO) PERMANECEM IGUAIS */}
+      {/* MODAIS (RESET E CANCELAMENTO) */}
       {showResetModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full animate-in fade-in zoom-in duration-200">
@@ -449,7 +440,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             </p>
             <div className="mb-4">
                <label className="text-xs font-bold text-gray-500 uppercase">Senha do Professor</label>
-               <input type="password" className="w-full border-2 border-red-100 bg-red-50 p-2 rounded-lg mt-1 focus:outline-none focus:border-red-500" value={resetPassword} onChange={e => setResetPassword(e.target.value)} />
+               <input type="password" placeholder="Senha" className="w-full border-2 border-red-100 bg-red-50 p-2 rounded-lg mt-1 focus:outline-none focus:border-red-500" value={resetPassword} onChange={e => setResetPassword(e.target.value)} />
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setShowResetModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
@@ -468,7 +459,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
             </h3>
             <div className="mb-4">
                <label className="text-xs font-bold text-gray-500 uppercase">Senha Administrativa</label>
-               <input type="password" className="w-full border-2 border-red-100 bg-red-50 p-2 rounded-lg mt-1 focus:outline-none focus:border-red-500" value={cancelPassword} onChange={e => setCancelPassword(e.target.value)} autoFocus />
+               <input type="password" placeholder="Senha" className="w-full border-2 border-red-100 bg-red-50 p-2 rounded-lg mt-1 focus:outline-none focus:border-red-500" value={cancelPassword} onChange={e => setCancelPassword(e.target.value)} autoFocus />
             </div>
             <div className="flex gap-3 justify-end">
               <button onClick={() => { setShowCancelModal(false); setTransactionToCancel(null); setCancelPassword(''); }} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors">Cancelar</button>
@@ -502,7 +493,7 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
         </div>
       </div>
 
-      {/* --- BARRA DE FILTROS DE DATA (IGUAL PARA AMBAS AS VISÕES) --- */}
+      {/* --- BARRA DE FILTROS DE DATA --- */}
       <div className="bg-white p-3 rounded-xl border border-orange-100 shadow-sm space-y-3">
           <div className="flex flex-wrap items-center gap-2 border-b border-gray-100 pb-2 mb-2">
             <span className="text-xs font-bold text-gray-400 uppercase mr-2 flex items-center gap-1"><Filter size={12}/> Período:</span>
@@ -676,7 +667,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                                         <div className={`font-bold ${entry.isCancelled ? 'text-red-400 line-through' : 'text-gray-800'}`}>
                                             {entry.description}
                                         </div>
-                                        {/* Products Detail */}
                                         <div className={`text-xs mt-1 ${entry.isCancelled ? 'text-red-300' : 'text-gray-500'}`}>
                                             {entry.details}
                                         </div>
@@ -695,7 +685,6 @@ const Reports: React.FC<ReportsProps> = ({ transactions, onCancelTransaction, on
                                         {entry.isCancelled ? '' : entry.type === 'IN' ? '+' : '-'} {formatCurrency(entry.amount)}
                                     </td>
                                     <td className="px-6 py-4 text-center">
-                                        {/* Botão de Cancelar Apenas para Vendas (IN) não canceladas */}
                                         {entry.type === 'IN' && !entry.isCancelled && entry.category !== 'Contribuição Escolar' ? (
                                             <button 
                                                 onClick={() => {

@@ -3,9 +3,7 @@ export enum PaymentMethod {
   CREDIT = 'Crédito',
   DEBIT = 'Débito',
   CASH = 'Dinheiro',
-  PIX = 'Pix',
-  LOYALTY = 'Pontos Fidelidade', // Novo método de pagamento
-  PRIZE = 'Prêmio Roleta'
+  PIX = 'Pix'
 }
 
 export interface ComboItem {
@@ -26,30 +24,11 @@ export interface Product {
   barcode?: string;
   // Campo para Combos
   comboItems?: ComboItem[]; // Se existir e tiver itens, é um combo
-  // Fidelidade
-  pointsPrice?: number; // Preço em pontos (opcional)
 }
 
 export interface CartItem extends Product {
   quantity: number;
   notes?: string;
-  isPointRedemption?: boolean; // Indica se o item está sendo pago com pontos
-}
-
-export interface CustomerPrize {
-  id: string;
-  name: string;
-  dateWon: number;
-  redeemed: boolean;
-  redeemedDate?: number;
-}
-
-export interface Customer {
-  id: string;
-  phone: string;
-  name?: string;
-  points: number;
-  prizes?: CustomerPrize[];
 }
 
 export interface User {
@@ -75,11 +54,6 @@ export interface Transaction {
   sellerName?: string;
   status: 'completed' | 'cancelled' | 'pending_payment';
   kitchenStatus: 'pending' | 'done';
-  // Fidelidade
-  customerId?: string;
-  pointsEarned?: number;
-  pointsRedeemed?: number;
-  hasPlayedMiniGame?: boolean; // Indica se o cliente já jogou o mini-game nesta compra
   donationMessage?: string; // Mensagem de doação para o telão
 }
 
@@ -169,13 +143,4 @@ export interface AppSettings {
   customerHeroUrl?: string; 
   customerWelcomeTitle?: string; 
   marqueeText?: string; 
-  roulettePrizes?: RoulettePrize[];
-}
-
-export interface RoulettePrize {
-  label: string;
-  value: number;
-  type: 'points' | 'item' | 'none';
-  color: string;
-  weight: number;
 }

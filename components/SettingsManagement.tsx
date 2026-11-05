@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { AppSettings, AppModules, RoulettePrize } from '../types';
-import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud, Dices, Plus, Trash2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { AppSettings, AppModules } from '../types';
+import { Save, RefreshCw, Smartphone, Monitor, Palette, Image as ImageIcon, LayoutGrid, ChefHat, PackageSearch, BarChart3, Users, Wallet, Type, UploadCloud } from 'lucide-react';
 import { uploadGalleryImage } from '../services/supabase';
 
 interface SettingsManagementProps {
@@ -27,22 +27,6 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
       }));
   };
 
-  useEffect(() => {
-      if (!formData.roulettePrizes || formData.roulettePrizes.length === 0) {
-          setFormData(prev => ({
-              ...prev,
-              roulettePrizes: [
-                  { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
-                  { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
-                  { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
-                  { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
-                  { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
-                  { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
-              ]
-          }));
-      }
-  }, []);
-
   const handleGalleryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     
@@ -64,11 +48,9 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Ao salvar no modo simples, removemos o layout personalizado (customerLayout) 
-    // para que o sistema use as configurações simples (título, imagem, etc).
     const settingsToSave = {
         ...formData,
-        customerLayout: undefined // Reseta o layout visual para usar o padrão configurável
+        customerLayout: undefined 
     };
     await onSave(settingsToSave);
     setIsSaving(false);
@@ -125,98 +107,6 @@ const SettingsManagement: React.FC<SettingsManagementProps> = ({ settings, onSav
                               <option value="xl">Extra Grande</option>
                           </select>
                       </div>
-                  </div>
-              </div>
-
-              {/* CONFIGURAÇÃO DA ROLETA */}
-              <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                  <h3 className="font-bold text-gray-800 mb-4 flex items-center gap-2 border-b pb-2">
-                      <Dices className="text-purple-600"/> Configuração da Roleta
-                  </h3>
-                  
-                  <div className="space-y-4">
-                      <div className="grid grid-cols-12 gap-2 text-xs font-bold text-gray-500 uppercase mb-2 px-2">
-                          <div className="col-span-3">Nome do Prêmio</div>
-                          <div className="col-span-2">Tipo</div>
-                          <div className="col-span-2">Valor/Pontos</div>
-                          <div className="col-span-2">Peso (%)</div>
-                          <div className="col-span-2">Cor</div>
-                          <div className="col-span-1"></div>
-                      </div>
-
-                      {(formData.roulettePrizes || []).map((prize, index) => (
-                          <div key={index} className="grid grid-cols-12 gap-2 items-center bg-gray-50 p-2 rounded-lg border border-gray-100">
-                              <div className="col-span-3">
-                                  <input 
-                                      type="text" 
-                                      value={prize.label} 
-                                      onChange={e => {
-                                          const newPrizes = [...(formData.roulettePrizes || [])];
-                                          newPrizes[index].label = e.target.value;
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="w-full text-sm font-bold bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
-                                      placeholder="Ex: 50 Pontos"
-                                  />
-                              </div>
-                              <div className="col-span-2">
-                                  <select 
-                                      value={prize.type}
-                                      onChange={e => {
-                                          const newPrizes = [...(formData.roulettePrizes || [])];
-                                          newPrizes[index].type = e.target.value as any;
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="w-full text-xs bg-white border border-gray-200 rounded p-1"
-                                  >
-                                      <option value="points">Pontos</option>
-                                      <option value="item">Item</option>
-                                      <option value="none">Nada</option>
-                                  </select>
-                              </div>
-                              <div className="col-span-2">
-                                  <input 
-                                      type="number" 
-                                      value={prize.value} 
-                                      onChange={e => {
-                                          const newPrizes = [...(formData.roulettePrizes || [])];
-                                          newPrizes[index].value = parseInt(e.target.value) || 0;
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="w-full text-sm bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
-                                  />
-                              </div>
-                              <div className="col-span-2">
-                                  <input 
-                                      type="number" 
-                                      value={prize.weight} 
-                                      onChange={e => {
-                                          const newPrizes = [...(formData.roulettePrizes || [])];
-                                          newPrizes[index].weight = parseInt(e.target.value) || 0;
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="w-full text-sm bg-transparent border-b border-gray-300 focus:border-purple-500 outline-none"
-                                  />
-                              </div>
-                              <div className="col-span-2 flex items-center gap-2">
-                                  <input 
-                                      type="color" 
-                                      value={prize.color} 
-                                      onChange={e => {
-                                          const newPrizes = [...(formData.roulettePrizes || [])];
-                                          newPrizes[index].color = e.target.value;
-                                          setFormData(prev => ({ ...prev, roulettePrizes: newPrizes }));
-                                      }}
-                                      className="h-6 w-6 rounded cursor-pointer border-none bg-transparent"
-                                  />
-                              </div>
-                              <div className="col-span-1 flex justify-end">
-                                  {/* Botão de excluir removido conforme solicitação */}
-                              </div>
-                          </div>
-                      ))}
-
-                      {/* Botão de adicionar removido conforme solicitação */}
                   </div>
               </div>
 

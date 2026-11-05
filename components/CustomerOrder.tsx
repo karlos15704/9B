@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Product, CartItem, Transaction, AppSettings, LayoutBlock, Customer, PaymentMethod } from '../types';
+import { Product, CartItem, Transaction, AppSettings, LayoutBlock, PaymentMethod } from '../types';
 import { formatCurrency, generateId } from '../utils';
-import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, AlertOctagon, Gift, Trophy, Star, Dices, LogOut, Heart } from 'lucide-react';
+import { Search, ShoppingCart, Plus, Minus, X, ArrowLeft, Send, CheckCircle2, User, UtensilsCrossed, AlertTriangle, Clock, RefreshCw, ChefHat, PackageCheck, Banknote, BellRing, Ban, Heart } from 'lucide-react';
 import { createTransaction, fetchNextOrderNumber, fetchTransactionsByIds, subscribeToTransactions, authPromise } from '../services/supabase';
-import { getCustomerByPhone, createCustomer, addPoints, redeemPoints, savePrize, redeemPrize } from '../services/loyaltyService';
 
 interface CustomerOrderProps {
   products: Product[];
@@ -12,10 +11,8 @@ interface CustomerOrderProps {
   settings: AppSettings;
 }
 
-// Sons para notificação
 const SOUND_PAYMENT_CONFIRMED = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/glass_ting.mp3";
 const SOUND_ORDER_READY = "https://codeskulptor-demos.commondatastorage.googleapis.com/pang/paza-moduless.mp3";
-const SOUND_WIN = "https://codeskulptor-demos.commondatastorage.googleapis.com/assets/sound/reward.mp3";
 
 const THANK_YOU_MESSAGES = [
     "Obrigado por apoiar nosso sonho! 🎓✨",
@@ -31,9 +28,7 @@ const THANK_YOU_MESSAGES = [
 const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrderNumber, settings }) => {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-  const [customer, setCustomer] = useState<Customer | null>(null);
-  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders' | 'loyalty_login' | 'mini_game' | 'my_prizes'>('menu');
+  const [view, setView] = useState<'menu' | 'cart' | 'success' | 'orders'>('menu');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [lastOrderInfo, setLastOrderInfo] = useState<{number: string, name: string} | null>(null);
@@ -49,24 +44,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   const prevOrdersRef = useRef<Transaction[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Removed unused game state
-
-  const [playedOrders, setPlayedOrders] = useState<string[]>(() => {
-      const saved = localStorage.getItem('played_orders');
-      return saved ? JSON.parse(saved) : [];
-  });
-  const [activeGameOrderId, setActiveGameOrderId] = useState<string | null>(null);
-
-  const finishGame = () => {
-      if (activeGameOrderId) {
-          const newPlayed = [...playedOrders, activeGameOrderId];
-          setPlayedOrders(newPlayed);
-          localStorage.setItem('played_orders', JSON.stringify(newPlayed));
-      }
-      setActiveGameOrderId(null);
-      setView('orders');
-  };
-
   const handleAddDonation = (amount: number) => {
       const donationProduct: Product = {
           id: `donation-${Date.now()}`,
@@ -80,219 +57,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
       addToCart(donationProduct);
       setShowDonationModal(false);
       setCustomDonation('');
-      setView('cart'); // Go to cart to show it was added
+      setView('cart');
   };
 
-  
-  // --- MINI GAME: ROULETTE ---
-  // Removed Platformer State
-
-  // ROULETTE GAME STATE
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [rotation, setRotation] = useState(0);
-  const [prize, setPrize] = useState<string | null>(null);
-  const [wonPrizeObject, setWonPrizeObject] = useState<any>(null);
-  const [canPlay, setCanPlay] = useState(true);
-  
-  const PRIZES = useMemo(() => {
-      if (settings.roulettePrizes && settings.roulettePrizes.length > 0) {
-          return settings.roulettePrizes;
-      }
-      return [
-          { label: '50 Pontos', value: 50, type: 'points', color: '#fca5a5', weight: 15 },
-          { label: '1 Refrigerante', value: 0, type: 'item', color: '#bef264', weight: 5 },
-          { label: '10 Pontos', value: 10, type: 'points', color: '#93c5fd', weight: 35 },
-          { label: 'Tente Novamente', value: 0, type: 'none', color: '#e5e7eb', weight: 15 },
-          { label: '100 Pontos', value: 100, type: 'points', color: '#fcd34d', weight: 5 },
-          { label: '20 Pontos', value: 20, type: 'points', color: '#c4b5fd', weight: 25 },
-      ];
-  }, [settings.roulettePrizes]);
-
-  const spinWheel = () => {
-      if (isSpinning || !canPlay) return;
-      
-      setIsSpinning(true);
-      setPrize(null);
-      setWonPrizeObject(null);
-      
-      // RIGGED LOGIC FOR SPECIAL CUSTOMER
-      let activePrizes = [...PRIZES];
-      const specialPhone = '13991937526';
-      const cleanPhone = customer?.phone?.replace(/\D/g, '') || '';
-
-      if (cleanPhone.includes(specialPhone)) {
-          // Boost chances for best prizes (Item or Points >= 50)
-          activePrizes = activePrizes.map(p => {
-              if (p.type === 'item' || p.value >= 50) {
-                  return { ...p, weight: p.weight * 50 }; // Massively increase weight
-              }
-              return p;
-          });
-      }
-
-      // Weighted Random Selection
-      const totalWeight = activePrizes.reduce((sum, p) => sum + p.weight, 0);
-      let randomValue = Math.random() * totalWeight;
-      let randomSegment = 0;
-      
-      for (let i = 0; i < activePrizes.length; i++) {
-          if (randomValue < activePrizes[i].weight) {
-              randomSegment = i;
-              break;
-          }
-          randomValue -= activePrizes[i].weight;
-      }
-
-      // Random rotation (at least 5 full spins + random segment)
-      const segmentAngle = 360 / PRIZES.length;
-      // Add random offset within the segment to make it look more natural
-      const randomOffset = Math.random() * (segmentAngle - 2) + 1; 
-      
-      // Calculate rotation to land on the selected segment
-      // The wheel rotates clockwise. To land on segment i, we need to rotate such that segment i is at the pointer (top).
-      // If 0 deg is at 3 o'clock (standard CSS), and items are distributed counter-clockwise or clockwise?
-      // Assuming standard distribution: index 0 starts at 0deg.
-      // To bring index i to the top (270deg or -90deg), we need to rotate.
-      // Let's stick to the previous logic which seemed to work:
-      // const extraRotation = 360 * 5 + (360 - (randomSegment * segmentAngle)); 
-      
-      const extraRotation = 360 * 5 + (360 - (randomSegment * segmentAngle)); 
-      
-      const newRotation = rotation + extraRotation;
-      setRotation(newRotation);
-
-      setTimeout(() => {
-          setIsSpinning(false);
-          const wonPrize = PRIZES[randomSegment]; // Use original PRIZES to get the correct label/data
-          setPrize(wonPrize.label);
-          setWonPrizeObject(wonPrize);
-          setCanPlay(false);
-      }, 5000); // 5 seconds spin
-  };
-
-  // --- AUTH & PERSISTENCE ---
-  useEffect(() => {
-      const savedPhone = localStorage.getItem('customer_phone');
-      if (savedPhone) {
-          handleLogin(savedPhone);
-      } else {
-          setView('loyalty_login');
-      }
-  }, []);
-
-  const handleLogin = async (phone: string) => {
-      setIsLoadingOrders(true);
-      const found = await getCustomerByPhone(phone);
-      if (found) {
-          setCustomer(found);
-          localStorage.setItem('customer_phone', found.phone);
-          setView('menu');
-      } else {
-          // If not found, maybe create? For now, just set phone and let them create in UI
-          setCustomerPhone(phone);
-          setView('loyalty_login');
-      }
-      setIsLoadingOrders(false);
-  };
-
-  const handleLogout = () => {
-      localStorage.removeItem('customer_phone');
-      setCustomer(null);
-      setView('loyalty_login');
-  };
-
-  const handleSavePrize = async () => {
-      if (!wonPrizeObject || !customer) return;
-      
-      const success = await savePrize(customer.id, wonPrizeObject.label);
-      if (success) {
-          alert("Prêmio salvo com sucesso! Você pode resgatá-lo depois em 'Meus Prêmios'.");
-          // Update local customer state to include new prize
-          const updated = await getCustomerByPhone(customer.phone);
-          if (updated) setCustomer(updated);
-      } else {
-          alert("Erro ao salvar prêmio.");
-      }
-      finishGame();
-  };
-
-  const handleRedeemPrizeNow = async () => {
-      if (!wonPrizeObject || !customer) return;
-
-      if (wonPrizeObject.type === 'points') {
-          await addPoints(customer.id, wonPrizeObject.value);
-          // Update local state
-          const updated = await getCustomerByPhone(customer.phone);
-          if (updated) setCustomer(updated);
-          alert(`Parabéns! Você recebeu ${wonPrizeObject.value} pontos!`);
-      } else if (wonPrizeObject.type === 'item') {
-          // Create transaction for the item
-          const transactionId = generateId();
-          let orderNumber = (nextOrderNumber || 1).toString();
-          const freshNumber = await fetchNextOrderNumber();
-          if (freshNumber) orderNumber = freshNumber.toString();
-
-          const newTransaction: Transaction = {
-              id: transactionId,
-              orderNumber,
-              customerName: customer.name || 'Cliente',
-              timestamp: Date.now(),
-              items: [{
-                  id: 'prize-' + Date.now(),
-                  name: wonPrizeObject.label, 
-                  price: 0,
-                  quantity: 1,
-                  category: 'Prêmios',
-                  imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png',
-                  isAvailable: true
-              }],
-              subtotal: 0,
-              discount: 0,
-              total: 0,
-              paymentMethod: PaymentMethod.PRIZE,
-              status: 'completed',
-              kitchenStatus: 'pending',
-              customerId: customer.id,
-              pointsEarned: 0
-          };
-          
-          const success = await createTransaction(newTransaction);
-          if (success) {
-              alert(`Prêmio resgatado! Sua senha é #${orderNumber}. Retire no balcão.`);
-          } else {
-              alert("Erro ao resgatar prêmio. Chame um atendente.");
-          }
-      }
-      finishGame();
-  };
-
-
-
-
-
-
-  useEffect(() => {
-      if (view === 'mini_game') {
-          setCanPlay(true);
-          setPrize(null);
-          setWonPrizeObject(null);
-          setIsSpinning(false);
-      }
-  }, [view]);
-
-  const displayLayout: LayoutBlock[] = [
-      { 
-          id: 'h1', 
-          type: 'hero', 
-          title: settings.customerWelcomeTitle || 'Bem-vindo', 
-          // Prioriza a configuração, mas se não houver, usa a imagem solicitada
-          imageUrl: settings.customerHeroUrl || settings.mascotUrl, 
-          style: { height: 'medium', alignment: 'center' } 
-      },
-      { id: 'p1', type: 'products' }
-  ];
-
-  // ... (Lógica de som e notificações permanece igual) ...
   const stopNotificationSound = () => {
     if (audioRef.current) {
         audioRef.current.pause();
@@ -375,73 +142,45 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   }, []);
 
   const categories = useMemo(() => {
-      const cats = ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
-      // Adiciona categoria Prêmios se houver produtos com preço em pontos
-      if (products.some(p => p.pointsPrice && p.pointsPrice > 0)) {
-          cats.push('Prêmios');
-      }
-      return cats;
+      return ['Todos', ...Array.from(new Set(products.map(p => p.category)))];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
       return products.filter(p => {
           const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
           if (selectedCategory === 'Todos') return matchesSearch;
-          if (selectedCategory === 'Prêmios') return matchesSearch && (p.pointsPrice || 0) > 0;
           return matchesSearch && p.category === selectedCategory;
       });
   }, [products, searchTerm, selectedCategory]);
 
-  // --- LÓGICA DE CÁLCULO DE ESTOQUE (INCLUINDO COMBOS) ---
   const calculateMaxStock = (product: Product): number => {
-    // 1. Se estiver indisponível manualmente
     if (product.isAvailable === false) return 0;
-
-    // 2. Se for Combo
     if (product.comboItems && product.comboItems.length > 0) {
         let minCombos = 999999;
-        let hasIngredients = false;
-
         for (const item of product.comboItems) {
             const ingredient = products.find(p => p.id === item.productId);
-            
-            // Ingrediente não existe ou indisponível => Combo Esgotado
             if (!ingredient || ingredient.isAvailable === false) return 0;
-            
-            hasIngredients = true;
-
-            // Ingrediente com estoque controlado
             if (ingredient.stock !== undefined && ingredient.stock !== null) {
                 const possible = Math.floor(ingredient.stock / item.quantity);
                 if (possible < minCombos) minCombos = possible;
             }
         }
-        // Se calculou e deu um número válido, retorna. Se não teve limitação, retorna "infinito"
         return minCombos === 999999 ? 999999 : minCombos; 
     }
-
-    // 3. Produto Simples com Estoque
-    if (product.stock !== undefined && product.stock !== null) {
-        return product.stock;
-    }
-
-    // 4. Sem limite
+    if (product.stock !== undefined && product.stock !== null) return product.stock;
     return 999999;
   };
 
   const addToCart = (product: Product) => {
     const maxStock = calculateMaxStock(product);
-    if (maxStock === 0) return; // Esgotado
-
+    if (maxStock === 0) return;
     const existingItem = cart.find(item => item.id === product.id);
     const currentQty = existingItem ? existingItem.quantity : 0;
-    
     if ((currentQty + 1) > maxStock) {
         const isCombo = !!product.comboItems?.length;
         alert(`Ops! ${isCombo ? 'Ingredientes insuficientes' : 'Estoque insuficiente'}. Só temos ${maxStock} unidades de "${product.name}".`);
         return;
     }
-
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) return prev.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item);
@@ -450,11 +189,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
 
   const updateQuantity = (id: string, delta: number) => {
-    // --- VALIDAÇÃO DE ESTOQUE (Apenas ao aumentar) ---
     if (delta > 0) {
         const product = products.find(p => p.id === id);
         const item = cart.find(i => i.id === id);
-        
         if (product && item) {
              const maxStock = calculateMaxStock(product);
              if ((item.quantity + delta) > maxStock) {
@@ -463,61 +200,28 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
              }
         }
     }
-
     setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter(item => item.quantity > 0));
   };
 
   const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const cartCount = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  // --- FIDELIDADE ---
-  const handleLoginLoyalty = async () => {
-      if (!customerPhone.trim() || customerPhone.length < 8) {
-          alert("Digite um telefone válido.");
-          return;
-      }
-      
-      let cust = await getCustomerByPhone(customerPhone);
-      if (!cust) {
-          // Cria novo cliente se não existir
-          cust = await createCustomer(customerPhone, customerName || 'Cliente');
-      }
-      
-      if (cust) {
-          setCustomer(cust);
-          setCustomerName(cust.name || customerName);
-          setView('menu'); // Vai para o menu
-      } else {
-          alert("Erro ao acessar sistema de fidelidade.");
-      }
-  };
-
   const [donationNote, setDonationNote] = useState('');
   const [showDonationNoteModal, setShowDonationNoteModal] = useState(false);
 
   const finishOrderProcess = async () => {
     setIsSending(true);
-    
-    // CHECK FOR DONATION
     const isPureDonation = cart.every(item => item.category === 'Doação');
     const hasDonation = cart.some(item => item.category === 'Doação');
-
     let orderNumber = "";
-
     if (isPureDonation) {
-        // Generate a random code for donation identification (Not a sequential kitchen ticket)
         orderNumber = "D-" + Math.floor(1000 + Math.random() * 9000);
     } else {
         orderNumber = nextOrderNumber.toString();
         const freshNumber = await fetchNextOrderNumber();
         if (freshNumber) orderNumber = freshNumber;
     }
-
     const transactionId = generateId();
-    
-    // Calcula pontos ganhos (R$ 1 = 100 pontos)
-    const pointsEarned = Math.floor(total * 100);
-
     const newTransaction: Transaction = {
         id: transactionId, 
         orderNumber, 
@@ -530,31 +234,23 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
         paymentMethod: 'Aguardando', 
         status: 'pending_payment', 
         kitchenStatus: 'pending',
-        customerId: customer?.id,
-        pointsEarned: customer ? pointsEarned : 0,
         donationMessage: hasDonation ? donationNote : undefined
     };
-
     const success = await createTransaction(newTransaction);
-    
     if (success) {
         setIsPureDonationOrder(isPureDonation);
-
         if (hasDonation) {
             const randomMsg = THANK_YOU_MESSAGES[Math.floor(Math.random() * THANK_YOU_MESSAGES.length)];
             setDonationMessage(randomMsg);
         } else {
             setDonationMessage(null);
         }
-
         setIsSending(false);
         saveOrderId(transactionId); 
         setLastOrderInfo({ number: orderNumber, name: customerName }); 
         setCart([]); 
-        setDonationNote(''); // Reset note
-        requestNotificationPermission(); 
+        setDonationNote('');
         loadMyOrders();
-        
         setView('success');
     } else {
         setIsSending(false);
@@ -564,173 +260,13 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const handleFinishOrder = async () => {
     if (!customerName.trim()) { alert("Por favor, digite seu nome."); return; }
-    
-    // Se não estiver logado na fidelidade, pede login antes de finalizar (opcional, mas bom para pontuar)
-    if (!customer) {
-        if (confirm("Quer ganhar pontos com essa compra? Clique em OK para se identificar ou Cancelar para continuar sem pontos.")) {
-            setView('loyalty_login');
-            return;
-        }
-    }
-
-    // Check if there is a donation and we haven't asked for a message yet
     const hasDonation = cart.some(item => item.category === 'Doação');
     if (hasDonation && !donationNote && !showDonationNoteModal) {
         setShowDonationNoteModal(true);
         return;
     }
-
     await finishOrderProcess();
   };
-
-  const handleRedeemPoints = async (product: Product) => {
-      if (!customer) return;
-      if (!product.pointsPrice) return;
-      
-      if (customer.points < product.pointsPrice) {
-          alert(`Você precisa de ${product.pointsPrice} pontos. Seu saldo: ${customer.points}`);
-          return;
-      }
-
-      if (!confirm(`Trocar ${product.pointsPrice} pontos por ${product.name}?`)) return;
-
-      setIsSending(true);
-      
-      // Deduz pontos
-      const successRedeem = await redeemPoints(customer.id, product.pointsPrice);
-      
-      if (successRedeem) {
-          // Cria transação de resgate
-          let orderNumber = nextOrderNumber.toString();
-          const freshNumber = await fetchNextOrderNumber();
-          if (freshNumber) orderNumber = freshNumber;
-          const transactionId = generateId();
-
-          const newTransaction: Transaction = {
-            id: transactionId, 
-            orderNumber, 
-            customerName, 
-            timestamp: Date.now(), 
-            items: [{...product, quantity: 1}], 
-            subtotal: 0, 
-            discount: 0, 
-            total: 0, 
-            paymentMethod: PaymentMethod.LOYALTY, // Identifica como troca
-            status: 'completed', // Já nasce pago/completado pois é troca
-            kitchenStatus: 'pending',
-            customerId: customer.id,
-            pointsRedeemed: product.pointsPrice
-          };
-
-          const successTrans = await createTransaction(newTransaction);
-          
-          if (successTrans) {
-              // Atualiza saldo local
-              setCustomer(prev => prev ? ({...prev, points: prev.points - (product.pointsPrice || 0)}) : null);
-              alert(`Resgate realizado com sucesso! Sua senha é #${orderNumber}`);
-              saveOrderId(transactionId);
-              loadMyOrders();
-              setView('orders');
-          } else {
-              alert("Erro ao criar pedido de troca.");
-              // Idealmente faria rollback dos pontos aqui, mas simplificando...
-          }
-      } else {
-          alert("Erro ao deduzir pontos.");
-      }
-      setIsSending(false);
-  };
-
-  // Removed playMiniGame
-
-
-  const handleRedeemSavedPrize = async (prizeId: string, prizeName: string) => {
-      if (!customer) return;
-      
-      if (!confirm(`Deseja resgatar o prêmio "${prizeName}" agora?`)) return;
-
-      const transactionId = generateId();
-      let orderNumber = (nextOrderNumber || 1).toString();
-      const freshNumber = await fetchNextOrderNumber();
-      if (freshNumber) orderNumber = freshNumber.toString();
-
-      const newTransaction: Transaction = {
-          id: transactionId,
-          orderNumber,
-          customerName: customer.name || 'Cliente',
-          timestamp: Date.now(),
-          items: [{
-              id: 'prize-' + Date.now(),
-              name: prizeName, 
-              price: 0,
-              quantity: 1,
-              category: 'Prêmios',
-              imageUrl: 'https://cdn-icons-png.flaticon.com/512/2405/2405479.png',
-              isAvailable: true
-          }],
-          subtotal: 0,
-          discount: 0,
-          total: 0,
-          paymentMethod: PaymentMethod.PRIZE,
-          status: 'completed',
-          kitchenStatus: 'pending',
-          customerId: customer.id,
-          pointsEarned: 0
-      };
-      
-      const successTrans = await createTransaction(newTransaction);
-      if (successTrans) {
-          const successRedeem = await redeemPrize(customer.id, prizeId);
-          if (successRedeem) {
-              // Update local state
-              const updated = await getCustomerByPhone(customer.phone);
-              if (updated) setCustomer(updated);
-              alert(`Prêmio resgatado! Sua senha é #${orderNumber}. Retire no balcão.`);
-          } else {
-              alert("Erro ao atualizar status do prêmio.");
-          }
-      } else {
-          alert("Erro ao criar pedido de resgate.");
-      }
-  };
-
-  if (view === 'my_prizes') {
-      const pendingPrizes = customer?.prizes?.filter(p => !p.redeemed) || [];
-      
-      return (
-          <div className="h-full bg-slate-50 flex flex-col relative overflow-hidden">
-              <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm flex-shrink-0">
-                  <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={24} /></button>
-                  <h2 className="font-bold text-lg text-gray-800">Meus Prêmios</h2>
-                  <div className="w-10"></div>
-              </div>
-              
-              <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-                  {pendingPrizes.length === 0 ? (
-                      <div className="text-center py-10 text-gray-400 flex flex-col items-center">
-                          <Gift size={48} className="mb-4 opacity-50"/>
-                          <p>Você não tem prêmios guardados.</p>
-                      </div>
-                  ) : (
-                      pendingPrizes.map(p => (
-                          <div key={p.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
-                              <div>
-                                  <h3 className="font-bold text-gray-800">{p.name}</h3>
-                                  <p className="text-xs text-gray-500">Ganho em {new Date(p.dateWon).toLocaleDateString()}</p>
-                              </div>
-                              <button 
-                                  onClick={() => handleRedeemSavedPrize(p.id, p.name)}
-                                  className="bg-green-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-600 transition-colors shadow-sm"
-                              >
-                                  RESGATAR
-                              </button>
-                          </div>
-                      ))
-                  )}
-              </div>
-          </div>
-      );
-  }
 
   const renderReadyModal = () => {
     if (!readyOrderModal) return null;
@@ -747,7 +283,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
     );
   };
 
-  // --- COMPONENTE: PRODUTOS (NOVO DESIGN) ---
   const renderDonationNoteModal = () => (
       showDonationNoteModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -761,7 +296,6 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                     Sua mensagem aparecerá no telão da formatura para os alunos no final do ano. ❤️
                 </p>
             </div>
-
             <textarea
                 value={donationNote}
                 onChange={(e) => setDonationNote(e.target.value)}
@@ -769,26 +303,9 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 className="w-full h-32 p-4 bg-gray-50 border-2 border-gray-200 rounded-xl mb-6 focus:outline-none focus:border-pink-500 focus:ring-4 focus:ring-pink-100 transition-all resize-none text-gray-700 font-medium"
                 maxLength={150}
             />
-            
             <div className="flex gap-3">
-                <button 
-                    onClick={() => {
-                        setShowDonationNoteModal(false);
-                        finishOrderProcess();
-                    }}
-                    className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors"
-                >
-                    Pular
-                </button>
-                <button 
-                    onClick={() => {
-                        setShowDonationNoteModal(false);
-                        finishOrderProcess();
-                    }}
-                    className="flex-1 py-3 px-4 bg-pink-600 text-white font-bold rounded-xl hover:bg-pink-700 shadow-lg shadow-pink-200 transition-colors"
-                >
-                    Enviar Mensagem
-                </button>
+                <button onClick={() => { setShowDonationNoteModal(false); finishOrderProcess(); }} className="flex-1 py-3 px-4 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition-colors">Pular</button>
+                <button onClick={() => { setShowDonationNoteModal(false); finishOrderProcess(); }} className="flex-1 py-3 px-4 bg-pink-600 text-white font-bold rounded-xl hover:bg-pink-700 shadow-lg shadow-pink-200 transition-colors">Enviar Mensagem</button>
             </div>
           </div>
         </div>
@@ -797,16 +314,11 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
 
   const renderProductGrid = () => (
     <div className="p-4 md:p-6 pb-32">
-        
-        {/* DONATION NOTE MODAL */}
         {renderDonationNoteModal()}
-
-      {/* MODAL DE DOAÇÃO */}
         {showDonationModal && (
             <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-                <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-in zoom-in-95 relative">
+                <div className="bg-white rounded-3xl shadow-2xl max-sm w-full p-6 animate-in zoom-in-95 relative">
                     <button onClick={() => setShowDonationModal(false)} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
-                    
                     <div className="text-center mb-6">
                         <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-4 text-pink-500 shadow-inner">
                             <Heart size={40} fill="currentColor" className="animate-pulse" />
@@ -815,124 +327,29 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                         <p className="text-gray-500 font-medium mt-2">Sua contribuição é muito importante para nós.</p>
                         <p className="text-xs text-gray-400 mt-1 font-bold uppercase bg-gray-100 inline-block px-2 py-1 rounded">Pagamento via Pix ou Dinheiro no Caixa</p>
                     </div>
-
                     <div className="grid grid-cols-3 gap-3 mb-4">
                         {[2, 5, 10].map(val => (
-                            <button 
-                                key={val}
-                                onClick={() => handleAddDonation(val)}
-                                className="py-4 rounded-2xl border-2 border-pink-100 bg-pink-50 text-pink-600 font-black text-lg hover:bg-pink-100 hover:border-pink-300 transition-all active:scale-95 shadow-sm"
-                            >
-                                {formatCurrency(val)}
-                            </button>
+                            <button key={val} onClick={() => handleAddDonation(val)} className="py-4 rounded-2xl border-2 border-pink-100 bg-pink-50 text-pink-600 font-black text-lg hover:bg-pink-100 hover:border-pink-300 transition-all active:scale-95 shadow-sm">{formatCurrency(val)}</button>
                         ))}
                     </div>
-
                     <div className="relative mb-6">
                         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">R$</span>
-                        <input 
-                            type="number" 
-                            placeholder="Outro valor..." 
-                            value={customDonation}
-                            onChange={e => setCustomDonation(e.target.value)}
-                            className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-pink-500 focus:outline-none font-bold text-gray-800 text-lg bg-gray-50 focus:bg-white transition-colors"
-                        />
+                        <input type="number" placeholder="Outro valor..." value={customDonation} onChange={e => setCustomDonation(e.target.value)} className="w-full pl-10 pr-4 py-4 rounded-2xl border-2 border-gray-200 focus:border-pink-500 focus:outline-none font-bold text-gray-800 text-lg bg-gray-50 focus:bg-white transition-colors" />
                     </div>
-
-                    <button 
-                        onClick={() => {
-                            const val = parseFloat(customDonation);
-                            if (val > 0) handleAddDonation(val);
-                        }}
-                        disabled={!customDonation || parseFloat(customDonation) <= 0}
-                        className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black py-4 rounded-2xl hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"
-                    >
-                        <CheckCircle2 size={24} /> CONFIRMAR DOAÇÃO
-                    </button>
+                    <button onClick={() => { const val = parseFloat(customDonation); if (val > 0) handleAddDonation(val); }} disabled={!customDonation || parseFloat(customDonation) <= 0} className="w-full bg-gradient-to-r from-pink-600 to-rose-600 text-white font-black py-4 rounded-2xl hover:shadow-lg hover:shadow-pink-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all active:scale-95 flex items-center justify-center gap-2 text-lg"><CheckCircle2 size={24} /> CONFIRMAR DOAÇÃO</button>
                 </div>
             </div>
         )}
-
-        {/* HERO SECTION INTEGRADA */}
         <div className="relative w-full h-48 md:h-64 rounded-3xl overflow-hidden mb-8 shadow-xl group bg-gray-900">
-            
-            {/* Background Desfocado para preencher o espaço */}
-            <div 
-                className="absolute inset-0 opacity-40 blur-2xl scale-110 transition-opacity duration-700"
-                style={{ 
-                    backgroundImage: `url(${settings.customerHeroUrl || settings.mascotUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center'
-                }}
-            ></div>
-
-            {/* Gradiente para garantir leitura do texto */}
+            <div className="absolute inset-0 opacity-40 blur-2xl scale-110" style={{ backgroundImage: `url(${settings.customerHeroUrl || settings.mascotUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }}></div>
             <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/50 to-transparent z-10"></div>
-            
-            {/* Imagem Principal (Sem cortar) */}
-            <img 
-                src={settings.customerHeroUrl || settings.mascotUrl} 
-                className="relative z-10 w-full h-full object-contain p-2 md:p-4 origin-right md:origin-center transform group-hover:scale-105 transition-transform duration-700" 
-                alt="Hero" 
-            />
-            
+            <img src={settings.customerHeroUrl || settings.mascotUrl} className="relative z-10 w-full h-full object-contain p-2 md:p-4 origin-right md:origin-center transform group-hover:scale-105 transition-transform duration-700" alt="Hero" />
             <div className="absolute bottom-0 left-0 p-6 md:p-8 z-20 max-w-lg">
                 <h2 className="text-white font-black text-3xl md:text-5xl drop-shadow-lg mb-2 leading-tight">{settings.customerWelcomeTitle || 'Bem-vindo'}</h2>
                 <p className="text-white/90 font-medium text-sm md:text-lg drop-shadow-md">Escolha o que você quer comer e receba rapidinho!</p>
             </div>
         </div>
-
-        {/* BARRA DE FIDELIDADE (NOVO) */}
-        <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl p-4 mb-6 shadow-lg text-white flex justify-between items-center relative overflow-hidden">
-            <div className="relative z-10 flex items-center gap-4">
-                {customer ? (
-                    <div>
-                        <p className="text-xs font-bold opacity-80 uppercase">Olá, {customer.name}</p>
-                        <div className="flex items-baseline gap-2">
-                            <span className="text-3xl font-black">{customer.points}</span>
-                            <span className="text-sm font-bold">pontos</span>
-                        </div>
-                    </div>
-                ) : (
-                    <div>
-                        <p className="font-black text-lg">Ganhe Pontos!</p>
-                        <p className="text-xs opacity-90">R$ 1,00 = 100 pontos</p>
-                    </div>
-                )}
-            </div>
-            <div className="relative z-10 flex gap-2">
-                {customer ? (
-                    <>
-                        <button 
-                            onClick={() => setView('my_prizes')} 
-                            className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-                        >
-                            <Gift size={16} />
-                            <span className="hidden md:inline">Meus Prêmios</span>
-                        </button>
-                        <button 
-                            onClick={handleLogout} 
-                            className="bg-red-500/80 hover:bg-red-600/90 px-3 py-2 rounded-lg text-xs font-bold transition-colors flex items-center gap-1"
-                        >
-                            <LogOut size={16} />
-                            <span className="hidden md:inline">Sair</span>
-                        </button>
-                    </>
-                ) : (
-                    <button onClick={() => setView('loyalty_login')} className="bg-white text-purple-600 px-6 py-2 rounded-xl font-black shadow-lg hover:scale-105 transition-transform">
-                        ENTRAR
-                    </button>
-                )}
-            </div>
-            {/* Decor */}
-            <Star className="absolute -right-4 -bottom-4 text-white/10 w-24 h-24 rotate-12" />
-        </div>
-
-        {/* BANNER DE DOAÇÃO */}
-        <div 
-            onClick={() => setShowDonationModal(true)}
-            className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-4 mb-6 shadow-lg shadow-pink-200 text-white flex items-center justify-between relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-95 transition-all"
-        >
+        <div onClick={() => setShowDonationModal(true)} className="bg-gradient-to-r from-pink-500 to-rose-500 rounded-2xl p-4 mb-6 shadow-lg shadow-pink-200 text-white flex items-center justify-between relative overflow-hidden cursor-pointer hover:scale-[1.02] active:scale-95 transition-all">
             <div className="relative z-10">
                 <div className="flex items-center gap-2 mb-1">
                     <Heart className="fill-white animate-pulse" size={20} />
@@ -941,583 +358,220 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                 <h3 className="font-black text-xl md:text-2xl leading-tight mb-1">Faça uma doação!</h3>
                 <p className="text-white/90 text-xs md:text-sm font-medium max-w-[200px]">Ajude nossa turma a realizar este sonho.</p>
             </div>
-            <div className="relative z-10 bg-white text-pink-600 px-4 py-2 rounded-xl font-black shadow-md text-sm whitespace-nowrap">
-                CONTRIBUIR
-            </div>
-            {/* Decor */}
+            <div className="relative z-10 bg-white text-pink-600 px-4 py-2 rounded-xl font-black shadow-md text-sm whitespace-nowrap">CONTRIBUIR</div>
             <Heart className="absolute -right-6 -bottom-6 text-white/10 w-32 h-32 rotate-12" />
-            <Heart className="absolute left-1/3 -top-8 text-white/10 w-20 h-20 -rotate-12" />
         </div>
-
-        {/* BUSCA E FILTROS */}
         <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-30 py-4 -mx-4 px-4 md:mx-0 md:px-0 mb-6 space-y-4">
              <div className="relative group">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-500 transition-colors" size={20} />
-                <input 
-                    type="text" 
-                    placeholder="O que você quer comer hoje?" 
-                    className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border-2 border-transparent focus:border-orange-200 focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700 shadow-sm group-hover:shadow-md" 
-                    value={searchTerm} 
-                    onChange={e => setSearchTerm(e.target.value)} 
-                />
+                <input type="text" placeholder="O que você quer comer hoje?" className="w-full pl-12 pr-4 py-4 rounded-2xl bg-white border-2 border-transparent focus:border-orange-200 focus:ring-4 focus:ring-orange-100 transition-all font-bold text-gray-700 shadow-sm group-hover:shadow-md" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
              </div>
-             
              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide snap-x">
                 {categories.map(cat => (
-                    <button 
-                        key={cat} 
-                        onClick={() => setSelectedCategory(cat)} 
-                        className={`snap-start flex-shrink-0 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wide transition-all transform hover:scale-105 active:scale-95 ${selectedCategory === cat ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-400 hover:bg-gray-100'}`}
-                    >
-                        {cat}
-                    </button>
+                    <button key={cat} onClick={() => setSelectedCategory(cat)} className={`snap-start flex-shrink-0 px-6 py-3 rounded-xl text-sm font-black uppercase tracking-wide transition-all transform hover:scale-105 active:scale-95 ${selectedCategory === cat ? 'bg-orange-600 text-white shadow-lg shadow-orange-200' : 'bg-white text-gray-400 hover:bg-gray-100'}`}>{cat}</button>
                 ))}
              </div>
         </div>
-
-        {/* GRID DE PRODUTOS */}
         {filteredProducts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400 animate-in fade-in zoom-in duration-500">
-                <div className="bg-gray-200 p-6 rounded-full mb-4">
-                    <UtensilsCrossed size={48} className="opacity-50" />
-                </div>
+                <div className="bg-gray-200 p-6 rounded-full mb-4"><UtensilsCrossed size={48} className="opacity-50" /></div>
                 <p className="font-bold text-lg">Nenhum produto encontrado.</p>
-                <p className="text-sm">Tente buscar por outra coisa.</p>
             </div>
         ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-6">
                 {filteredProducts.map(product => {
-                    const inCart = cart.find(i => i.id === product.id);
+                    const cartItem = cart.find(item => item.id === product.id);
+                    const qty = cartItem ? cartItem.quantity : 0;
                     const maxStock = calculateMaxStock(product);
                     const isSoldOut = maxStock === 0;
-                    const canRedeem = customer && product.pointsPrice && customer.points >= product.pointsPrice;
-
                     return (
-                        <div key={product.id} className={`group bg-white rounded-2xl md:rounded-3xl p-2 md:p-4 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-orange-100 transition-all duration-300 flex flex-col relative overflow-hidden ${isSoldOut ? 'opacity-60 grayscale' : ''}`}>
-                                
-                                {/* Imagem com Zoom no Hover */}
-                                <div className="h-28 md:h-48 bg-gray-50 rounded-xl md:rounded-2xl mb-2 md:mb-4 relative overflow-hidden">
-                                    <img 
-                                        src={product.imageUrl} 
-                                        alt={product.name} 
-                                        className="w-full h-full object-contain p-2 md:p-4 transform group-hover:scale-110 transition-transform duration-500" 
-                                    />
-                                    {isSoldOut && (
-                                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
-                                            <span className="bg-red-600 text-white font-black uppercase px-2 md:px-4 py-1 md:py-2 text-[10px] md:text-sm rounded-lg transform -rotate-6 shadow-lg border-2 border-white">Esgotado</span>
-                                        </div>
-                                    )}
-                                    {/* Badge de Quantidade no Card */}
-                                    {inCart && !isSoldOut && (
-                                        <div className="absolute top-1 right-1 md:top-2 md:right-2 bg-orange-600 text-white w-6 h-6 md:w-8 md:h-8 flex items-center justify-center rounded-full font-black text-xs md:text-base shadow-lg animate-in zoom-in">
-                                            {inCart.quantity}
-                                        </div>
-                                    )}
-                                    {/* Preço em Pontos */}
-                                    {product.pointsPrice && (
-                                        <div className="absolute bottom-1 left-1 bg-purple-600 text-white px-2 py-1 rounded-md text-[10px] font-bold shadow-md">
-                                            {product.pointsPrice} pts
-                                        </div>
-                                    )}
+                        <div key={product.id} onClick={() => !isSoldOut && addToCart(product)} className={`bg-white rounded-3xl shadow-sm border-2 transition-all duration-300 relative overflow-hidden flex flex-col group ${isSoldOut ? 'border-red-100 opacity-70 grayscale' : qty > 0 ? 'border-orange-500 shadow-orange-100 shadow-xl -translate-y-1' : 'border-transparent hover:border-orange-200 hover:shadow-lg hover:-translate-y-1 active:scale-95'}`}>
+                            <div className="relative h-40 md:h-56 w-full p-4 bg-white flex items-center justify-center">
+                                <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain transform transition-transform group-hover:scale-110" />
+                                {isSoldOut && <div className="absolute inset-0 bg-white/40 flex items-center justify-center"><div className="bg-red-600 text-white font-black text-xs px-3 py-1 rounded-lg transform -rotate-12">ESGOTADO</div></div>}
+                                {qty > 0 && <div className="absolute top-3 right-3 bg-orange-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-black shadow-lg animate-in zoom-in">{qty}</div>}
+                            </div>
+                            <div className="p-4 bg-white flex-1 flex flex-col justify-between">
+                                <h3 className="font-bold text-gray-800 text-sm md:text-base line-clamp-2 leading-tight mb-2">{product.name}</h3>
+                                <div className="flex items-center justify-between">
+                                    <span className="font-black text-orange-600 text-lg">{formatCurrency(product.price)}</span>
+                                    {!isSoldOut && <div className="w-8 h-8 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors"><Plus size={20} strokeWidth={3} /></div>}
                                 </div>
-
-                                <div className="flex-1 flex flex-col">
-                                    <div className="mb-2 md:mb-4">
-                                        <h3 className="font-black text-gray-800 text-xs md:text-lg leading-tight mb-1 group-hover:text-orange-600 transition-colors line-clamp-2">{product.name}</h3>
-                                        <p className="text-[10px] md:text-sm text-gray-400 line-clamp-2 font-medium hidden md:block">{product.description || product.category}</p>
-                                    </div>
-                                    
-                                    <div className="mt-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-2 md:gap-0">
-                                        <span className="text-sm md:text-2xl font-black text-gray-900">{formatCurrency(product.price)}</span>
-                                        
-                                        {isSoldOut ? (
-                                            <button disabled className="w-full md:w-auto bg-gray-100 text-gray-400 px-2 md:px-4 py-1 md:py-2 rounded-lg md:rounded-xl font-bold text-[10px] md:text-xs uppercase tracking-wider cursor-not-allowed">Esgotado</button>
-                                        ) : (
-                                            <div className="flex flex-col gap-2 w-full md:w-auto">
-                                                {/* Botão de Adicionar ao Carrinho (Dinheiro) */}
-                                                {!inCart ? (
-                                                    <button 
-                                                        onClick={() => addToCart(product)} 
-                                                        className="w-full md:w-auto h-8 md:h-10 bg-orange-100 text-orange-700 hover:bg-orange-600 hover:text-white rounded-lg md:rounded-xl flex items-center justify-center transition-all duration-300 shadow-sm hover:shadow-orange-300 hover:shadow-lg active:scale-90 px-3"
-                                                    >
-                                                        <span className="text-[10px] md:text-xs font-black uppercase mr-1">Comprar</span>
-                                                        <Plus size={14} className="md:w-4 md:h-4" strokeWidth={3} />
-                                                    </button>
-                                                ) : (
-                                                    <div className="w-full md:w-auto flex items-center justify-between bg-gray-900 text-white rounded-lg md:rounded-xl p-1 shadow-lg h-8 md:h-10">
-                                                        <button onClick={() => updateQuantity(product.id, -1)} className="w-8 h-full flex items-center justify-center hover:bg-white/20 rounded-md transition-colors"><Minus size={14}/></button>
-                                                        <span className="font-black w-6 text-center text-xs md:text-sm">{inCart.quantity}</span>
-                                                        <button onClick={() => updateQuantity(product.id, 1)} className="w-8 h-full flex items-center justify-center hover:bg-white/20 rounded-md transition-colors"><Plus size={14}/></button>
-                                                    </div>
-                                                )}
-
-                                                {/* Botão de Trocar por Pontos (Se disponível) */}
-                                                {product.pointsPrice && product.pointsPrice > 0 && (
-                                                    <button 
-                                                        onClick={() => {
-                                                            if (!customer) {
-                                                                if(confirm("Faça login para usar seus pontos! Deseja entrar agora?")) setView('loyalty_login');
-                                                            } else {
-                                                                handleRedeemPoints(product);
-                                                            }
-                                                        }}
-                                                        disabled={customer ? customer.points < (product.pointsPrice || 0) : false}
-                                                        className={`w-full md:w-auto h-8 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center gap-1 transition-all duration-300 shadow-sm px-3
-                                                            ${customer && customer.points < (product.pointsPrice || 0) 
-                                                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                                                : 'bg-purple-100 text-purple-700 hover:bg-purple-600 hover:text-white'
-                                                            }`}
-                                                        title={customer ? `Saldo: ${customer.points}` : "Faça login para trocar"}
-                                                    >
-                                                        <Gift size={14} className="md:w-4 md:h-4" />
-                                                        <span className="text-[10px] md:text-xs font-black uppercase">
-                                                            {product.pointsPrice} pts
-                                                        </span>
-                                                    </button>
-                                                )}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                            </div>
                         </div>
-                    );
+                    )
                 })}
             </div>
         )}
     </div>
   );
 
-  // --- RENDERIZADOR DE BLOCOS (SIMPLIFICADO PARA O NOVO DESIGN) ---
-  const renderLayout = () => {
-     // Ignora o layout configurado e usa o fixo com o novo design
-     return renderProductGrid();
-  };
-
-  if (view === 'loyalty_login') {
-      return (
-          <div className="h-full bg-slate-900 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-              {/* Background Image with Overlay */}
-              <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-40 blur-sm scale-110"
-                  style={{ 
-                      backgroundImage: `url(${settings.customerHeroUrl || settings.mascotUrl})` 
-                  }}
-              ></div>
-              <div className="absolute inset-0 bg-gradient-to-b from-slate-900/80 via-slate-900/90 to-slate-900"></div>
-              
-              <div className="relative z-10 w-full max-w-md bg-white/10 backdrop-blur-xl p-8 md:p-10 rounded-3xl border border-white/20 shadow-2xl animate-in zoom-in duration-500">
-                  <div className="mb-6 flex justify-center">
-                      <div className="bg-gradient-to-br from-purple-500 to-indigo-600 p-1 rounded-full shadow-lg shadow-purple-500/50">
-                          <div className="bg-slate-900 rounded-full p-4 w-24 h-24 flex items-center justify-center overflow-hidden border-4 border-white/10">
-                              {settings.mascotUrl ? (
-                                  <img src={settings.mascotUrl} alt="Mascote" className="w-full h-full object-contain" />
-                              ) : (
-                                  <Trophy size={40} className="text-purple-400" />
-                              )}
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <h2 className="text-3xl md:text-4xl font-black text-white mb-2 tracking-tight">Clube {settings.appName}</h2>
-                  <p className="text-purple-200 mb-8 text-sm md:text-base font-medium">Identifique-se para ganhar pontos e trocar por prêmios incríveis!</p>
-                  
-                  <div className="space-y-4">
-                      <div className="text-left">
-                          <label className="text-xs font-bold text-purple-300 uppercase ml-1 mb-1 block">Seu Telefone (WhatsApp)</label>
-                          <div className="relative">
-                              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-400">
-                                  <User size={20} />
-                              </div>
-                              <input 
-                                  type="tel" 
-                                  placeholder="(00) 00000-0000" 
-                                  className="w-full pl-12 pr-4 py-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20 shadow-inner"
-                                  value={customerPhone}
-                                  onChange={e => setCustomerPhone(e.target.value)}
-                              />
-                          </div>
-                      </div>
-                      
-                      {!customer && (
-                          <div className="text-left animate-in fade-in slide-in-from-top-2">
-                              <label className="text-xs font-bold text-purple-300 uppercase ml-1 mb-1 block">Seu Nome (Opcional)</label>
-                              <input 
-                                  type="text" 
-                                  placeholder="Como quer ser chamado?" 
-                                  className="w-full px-4 py-4 rounded-xl bg-white/5 border border-purple-500/30 text-white font-bold text-lg focus:outline-none focus:border-purple-400 focus:bg-white/10 transition-all placeholder:text-white/20 shadow-inner"
-                                  value={customerName}
-                                  onChange={e => setCustomerName(e.target.value)}
-                              />
-                          </div>
-                      )}
-
-                      <button 
-                          onClick={handleLoginLoyalty}
-                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-black py-4 rounded-xl shadow-lg shadow-purple-900/50 transform active:scale-95 transition-all flex items-center justify-center gap-2 mt-6 text-lg"
-                      >
-                          <Star size={24} fill="currentColor" className="text-yellow-300" />
-                          ACESSAR CLUBE
-                      </button>
-                      
-                      <div className="pt-4 border-t border-white/10 mt-6">
-                          <p className="text-white/40 text-xs mb-3 font-medium">Apenas quer fazer um pedido rápido?</p>
-                          <button 
-                              onClick={() => setView('menu')}
-                              className="w-full bg-white/5 hover:bg-white/10 text-white/80 hover:text-white font-bold py-3 rounded-xl border border-white/10 transition-all text-sm uppercase tracking-wide flex items-center justify-center gap-2 group"
-                          >
-                              <span>NÃO QUERO ME IDENTIFICAR</span>
-                              <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform rotate-180" />
-                          </button>
-                      </div>
-                  </div>
-              </div>
-              
-              {/* Footer Branding */}
-              <div className="absolute bottom-4 text-white/20 text-xs font-medium">
-                  {settings.appName} • Fidelidade
-              </div>
-          </div>
-      );
-  }
-
-  if (view === 'mini_game') {
-      return (
-          <div className="h-full bg-slate-900 flex flex-col items-center justify-center relative overflow-hidden">
-              {/* Background Effects */}
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-purple-900 via-slate-900 to-black opacity-80"></div>
-              <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20 animate-pulse"></div>
-
-              {/* Header */}
-              <div className="z-10 text-center mb-8 animate-in slide-in-from-top duration-700 relative">
-                  <h2 className="text-4xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 drop-shadow-lg uppercase tracking-tighter">
-                      Roleta da Sorte
-                  </h2>
-                  <p className="text-purple-200 font-bold text-lg mt-2">Gire e ganhe prêmios incríveis!</p>
-                  
-                  {/* Points Display */}
-                  {customer && (
-                      <div className="absolute top-0 right-0 md:-right-20 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-3 flex flex-col items-center animate-pulse">
-                          <span className="text-xs font-bold text-purple-200 uppercase">Seus Pontos</span>
-                          <span className="text-2xl font-black text-yellow-400">{customer.points}</span>
-                      </div>
-                  )}
-              </div>
-
-              {/* Wheel Container */}
-              <div className="relative z-10 mb-8 flex flex-col items-center justify-center">
-                  {/* Pointer */}
-                  <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-4 z-20 w-0 h-0 border-l-[20px] border-l-transparent border-r-[20px] border-r-transparent border-t-[40px] border-t-red-600 drop-shadow-xl"></div>
-
-                  {/* Wheel */}
-                  <div 
-                      className="w-[340px] h-[340px] md:w-[500px] md:h-[500px] rounded-full border-8 border-yellow-500 shadow-[0_0_50px_rgba(234,179,8,0.3)] relative overflow-hidden transition-transform duration-[8000ms] cubic-bezier(0.2, 0.8, 0.2, 1)"
-                      style={{ transform: `rotate(${rotation}deg)` }}
-                  >
-                      {PRIZES.map((p, i) => {
-                          const angle = 360 / PRIZES.length;
-                          const rotate = angle * i;
-                          return (
-                              <div 
-                                  key={i}
-                                  className="absolute top-0 left-1/2 w-1/2 h-1/2 origin-bottom-left flex items-center justify-center"
-                                  style={{ 
-                                      transform: `rotate(${rotate}deg) skewY(-${90 - angle}deg)`,
-                                      backgroundColor: p.color,
-                                      boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
-                                  }}
-                              >
-                                  <div 
-                                      className="absolute bottom-1/2 left-1/2 -translate-x-1/2 translate-y-1/2 text-center w-48 flex flex-col items-center justify-center gap-1"
-                                      style={{ transform: `skewY(${90 - angle}deg) rotate(${angle/2}deg) translate(110px) md:translate(160px)` }}
-                                  >
-                                      {p.type === 'item' && <Gift size={24} className="text-white drop-shadow-md mb-1" />}
-                                      {p.type === 'points' && <Star size={20} className="text-yellow-300 drop-shadow-md mb-1" />}
-                                      
-                                      <span className="text-white font-black text-sm md:text-xl uppercase leading-none block drop-shadow-md px-1 break-words w-full" style={{ textShadow: '2px 2px 0px rgba(0,0,0,0.5)' }}>
-                                          {p.label}
-                                      </span>
-                                  </div>
-                              </div>
-                          );
-                      })}
-                  </div>
-                  
-                  {/* Center Cap */}
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-16 bg-gradient-to-br from-yellow-300 to-yellow-600 rounded-full shadow-lg border-4 border-white flex items-center justify-center z-10">
-                      <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center">
-                          <Trophy size={24} className="text-yellow-600" />
-                      </div>
-                  </div>
-              </div>
-
-              {/* Controls */}
-              <div className="z-10 flex flex-col items-center gap-4">
-                  <button 
-                      onClick={spinWheel}
-                      disabled={isSpinning || !canPlay}
-                      className="bg-gradient-to-b from-yellow-400 to-orange-500 text-white font-black text-2xl py-4 px-12 rounded-full shadow-[0_10px_0_rgb(194,65,12)] active:shadow-none active:translate-y-[10px] transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:translate-y-0 disabled:active:shadow-[0_10px_0_rgb(194,65,12)] uppercase tracking-widest border-4 border-yellow-300"
-                  >
-                      {isSpinning ? 'Girando...' : 'GIRAR AGORA!'}
-                  </button>
-                  
-                  <button onClick={finishGame} className="text-gray-400 hover:text-white font-bold underline text-sm">
-                      Voltar para meus pedidos
-                  </button>
-              </div>
-
-              {/* Prize Modal */}
-              {prize && (
-                  <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
-                      <div className="bg-white p-8 rounded-3xl max-w-sm w-full mx-4 text-center relative overflow-hidden animate-in zoom-in duration-300 border-4 border-yellow-400 shadow-2xl">
-                          <div className="absolute top-0 left-0 w-full h-32 bg-gradient-to-b from-yellow-300 to-transparent opacity-50"></div>
-                          <Trophy size={64} className="text-yellow-500 mx-auto mb-4 relative z-10 animate-bounce" />
-                          
-                          <h3 className="text-3xl font-black text-slate-800 mb-2 uppercase relative z-10">Parabéns!</h3>
-                          <p className="text-gray-500 font-bold mb-6 relative z-10">Você ganhou:</p>
-                          
-                          <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-6 mb-8 relative z-10 transform rotate-1">
-                              <span className="text-4xl font-black text-orange-600 uppercase leading-none block">
-                                  {prize}
-                              </span>
-                          </div>
-
-                          <div className="flex flex-col gap-3 relative z-10">
-                              {wonPrizeObject?.type !== 'none' ? (
-                                  <>
-                                      {wonPrizeObject.type === 'item' ? (
-                                          <>
-                                              <button 
-                                                  onClick={handleRedeemPrizeNow}
-                                                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-lg transition-all uppercase tracking-wide flex items-center justify-center gap-2"
-                                              >
-                                                  <CheckCircle2 size={20} /> RESGATAR AGORA
-                                              </button>
-                                              <button 
-                                                  onClick={handleSavePrize}
-                                                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-black py-3 rounded-xl shadow-lg transition-all uppercase tracking-wide flex items-center justify-center gap-2"
-                                              >
-                                                  <Gift size={20} /> GUARDAR PARA DEPOIS
-                                              </button>
-                                          </>
-                                      ) : (
-                                          <button 
-                                              onClick={handleRedeemPrizeNow}
-                                              className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide animate-bounce"
-                                          >
-                                              RESGATAR PRÊMIO
-                                          </button>
-                                      )}
-                                  </>
-                              ) : (
-                                  <button 
-                                      onClick={finishGame}
-                                      className="w-full bg-gray-500 hover:bg-gray-600 text-white font-black py-4 rounded-xl shadow-lg transition-all uppercase tracking-wide"
-                                  >
-                                      Voltar
-                                  </button>
-                              )}
-                          </div>
-                      </div>
-                      {/* Confetti Effect (Simple CSS dots) */}
-                      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                          {[...Array(20)].map((_, i) => (
-                              <div 
-                                  key={i}
-                                  className="absolute w-3 h-3 rounded-full animate-ping"
-                                  style={{
-                                      top: `${Math.random() * 100}%`,
-                                      left: `${Math.random() * 100}%`,
-                                      backgroundColor: ['#fcd34d', '#f87171', '#60a5fa', '#4ade80'][Math.floor(Math.random() * 4)],
-                                      animationDelay: `${Math.random() * 2}s`,
-                                      animationDuration: '1s'
-                                  }}
-                              ></div>
-                          ))}
-                      </div>
-                  </div>
-              )}
-          </div>
-      );
-  }
-
-  if (view === 'success') {
-      return (
-        <div className="h-full bg-orange-50 flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
-            {renderReadyModal()}
-            
-            {/* MENSAGEM DE AGRADECIMENTO PELA DOAÇÃO */}
-            {donationMessage && (
-                <div className="absolute inset-0 z-50 bg-pink-600 flex flex-col items-center justify-center p-8 animate-in fade-in duration-500 text-white">
-                    <div className="w-32 h-32 bg-white rounded-full flex items-center justify-center mb-8 shadow-2xl animate-bounce">
-                        <Heart size={64} className="text-pink-500 fill-current" />
+  const renderCart = () => (
+    <div className="h-full flex flex-col bg-slate-50">
+        <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between shadow-sm sticky top-0 z-10">
+            <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={24} /></button>
+            <h2 className="font-black text-xl text-gray-800 uppercase tracking-tight">Seu Carrinho</h2>
+            <div className="w-10"></div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {cart.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400"><UtensilsCrossed size={64} className="mb-4 opacity-20" /><p className="font-bold">Carrinho vazio</p></div>
+            ) : (
+                <>
+                <div className="bg-white p-6 rounded-3xl border-2 border-orange-100 shadow-sm mb-4">
+                    <label className="text-xs font-black text-orange-600 uppercase tracking-widest mb-3 block">Identificação</label>
+                    <div className="relative">
+                        <User className="absolute left-4 top-1/2 -translate-y-1/2 text-orange-400" size={24} />
+                        <input type="text" placeholder="Qual o seu nome?" className="w-full pl-12 pr-4 py-4 bg-orange-50 border-2 border-transparent focus:border-orange-500 focus:bg-white rounded-2xl outline-none transition-all font-black text-gray-800 text-lg" value={customerName} onChange={e => setCustomerName(e.target.value)} autoFocus />
                     </div>
-                    <h1 className="text-3xl md:text-5xl font-black mb-6 leading-tight drop-shadow-md">
-                        {donationMessage}
-                    </h1>
-                    <p className="text-pink-200 text-lg font-medium mb-12 max-w-md">
-                        Sua doação foi registrada com sucesso!
-                    </p>
-                    <button 
-                        onClick={() => setDonationMessage(null)}
-                        className="bg-white text-pink-600 font-black py-4 px-12 rounded-full shadow-xl hover:scale-105 transition-transform text-xl"
-                    >
-                        CONTINUAR
-                    </button>
-                    
-                    {/* Confetti */}
-                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                        {[...Array(30)].map((_, i) => (
-                            <div 
-                                key={i}
-                                className="absolute w-4 h-4 rounded-full animate-ping"
-                                style={{
-                                    top: `${Math.random() * 100}%`,
-                                    left: `${Math.random() * 100}%`,
-                                    backgroundColor: ['#fff', '#fbcfe8', '#f472b6'][Math.floor(Math.random() * 3)],
-                                    animationDelay: `${Math.random() * 2}s`,
-                                    animationDuration: '1.5s'
-                                }}
-                            ></div>
-                        ))}
+                    <p className="text-[10px] text-gray-400 mt-2 font-medium">Precisamos do seu nome para chamar sua senha no telão.</p>
+                </div>
+                <div className="space-y-3">
+                    {cart.map(item => (
+                        <div key={item.id} className="bg-white p-4 rounded-2xl border border-gray-200 flex items-center gap-4 shadow-sm">
+                            <div className="w-16 h-16 rounded-xl bg-gray-50 p-1 flex-shrink-0"><img src={item.imageUrl} alt="" className="w-full h-full object-contain" /></div>
+                            <div className="flex-1 min-w-0">
+                                <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
+                                <p className="font-black text-orange-600">{formatCurrency(item.price * item.quantity)}</p>
+                            </div>
+                            <div className="flex items-center gap-3 bg-gray-100 rounded-xl p-1">
+                                <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600"><Minus size={16} /></button>
+                                <span className="font-black text-gray-800 w-4 text-center">{item.quantity}</span>
+                                <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600"><Plus size={16} /></button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                </>
+            )}
+        </div>
+        <div className="p-4 bg-white border-t border-gray-200 space-y-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+            <div className="flex justify-between items-end">
+                <span className="text-gray-400 font-bold uppercase text-xs tracking-widest">Total a pagar</span>
+                <span className="text-4xl font-black text-gray-800">{formatCurrency(total)}</span>
+            </div>
+            <button onClick={handleFinishOrder} disabled={cart.length === 0 || isSending} className="w-full bg-orange-600 text-white font-black py-5 rounded-2xl text-xl shadow-lg shadow-orange-200 transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center gap-3">
+                {isSending ? <RefreshCw className="animate-spin" /> : <><Send size={24} /> ENVIAR PEDIDO</>}
+            </button>
+        </div>
+    </div>
+  );
+
+  const renderSuccess = () => (
+    <div className="h-full flex flex-col items-center justify-center p-6 text-center bg-white relative overflow-hidden">
+        {isPureDonationOrder ? (
+            <div className="relative z-10 animate-in fade-in zoom-in duration-700">
+                <div className="w-32 h-32 bg-pink-100 rounded-full flex items-center justify-center mx-auto mb-8 shadow-xl shadow-pink-100">
+                    <Heart size={64} className="text-pink-600 fill-current animate-pulse" />
+                </div>
+                <h2 className="text-4xl font-black text-gray-800 mb-4 tracking-tighter uppercase">Gratidão Eterna!</h2>
+                <div className="bg-pink-50 border-2 border-pink-200 rounded-2xl p-6 mb-8 transform rotate-1">
+                    <p className="text-xl font-bold text-pink-700 italic">"{donationMessage || 'Obrigado por sua generosidade!'}"</p>
+                </div>
+                <p className="text-gray-500 font-medium text-lg mb-8 max-w-xs mx-auto">Sua contribuição foi registrada. Verifique as instruções de pagamento no caixa.</p>
+                <button onClick={() => setView('menu')} className="w-full bg-gray-900 text-white font-black py-5 rounded-2xl text-xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">Voltar ao Cardápio</button>
+            </div>
+        ) : (
+            <div className="relative z-10 animate-in fade-in zoom-in duration-700">
+                <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg"><CheckCircle2 size={48} className="text-green-600" /></div>
+                <h2 className="text-3xl font-black text-gray-800 mb-2 uppercase tracking-tighter">Pedido Enviado!</h2>
+                <p className="text-gray-500 font-bold mb-8">Pague no caixa para liberar seu pedido.</p>
+                <div className="bg-orange-100 border-4 border-dashed border-orange-200 rounded-3xl p-8 mb-10 transform -rotate-1 shadow-inner">
+                    <span className="text-sm font-black text-orange-600 uppercase tracking-widest block mb-1">Sua Senha</span>
+                    <span className="text-8xl font-black text-orange-600 tracking-tighter">#{lastOrderInfo?.number}</span>
+                </div>
+                <div className="space-y-4">
+                    <button onClick={() => setView('orders')} className="w-full bg-orange-600 text-white font-black py-5 rounded-2xl text-xl shadow-xl shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-tight">Ver Meus Pedidos</button>
+                    <button onClick={() => setView('menu')} className="w-full py-4 text-gray-400 font-bold hover:text-gray-600 transition-colors uppercase text-sm">Novo Pedido</button>
+                </div>
+            </div>
+        )}
+        <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-50 rounded-full blur-3xl opacity-50"></div>
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-50"></div>
+    </div>
+  );
+
+  const renderMyOrders = () => (
+    <div className="h-full flex flex-col bg-slate-50">
+        <div className="p-4 bg-white border-b border-gray-200 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+            <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={24} /></button>
+            <h2 className="font-black text-xl text-gray-800 uppercase tracking-tight">Meus Pedidos</h2>
+            <button onClick={loadMyOrders} className="p-2 text-orange-600"><RefreshCw size={24} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {isLoadingOrders ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400"><RefreshCw className="animate-spin mb-4" size={48} /><p className="font-bold">Buscando seus pedidos...</p></div>
+            ) : myOrders.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400 text-center"><ChefHat size={64} className="mb-4 opacity-20" /><p className="font-bold">Nenhum pedido encontrado.</p><button onClick={() => setView('menu')} className="mt-4 text-orange-600 font-bold">Fazer meu primeiro pedido</button></div>
+            ) : (
+                myOrders.map(order => (
+                    <div key={order.id} className={`bg-white rounded-3xl border-2 shadow-sm overflow-hidden transition-all ${order.kitchenStatus === 'done' ? 'border-green-200' : 'border-gray-100'}`}>
+                        <div className="p-5 flex justify-between items-start">
+                            <div>
+                                <span className={`text-[10px] font-black uppercase px-2 py-1 rounded-lg mb-2 inline-block ${order.status === 'pending_payment' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}`}>{order.status === 'pending_payment' ? 'Aguardando Pagamento' : 'Pago / Na Cozinha'}</span>
+                                <h3 className="text-4xl font-black text-gray-800 tracking-tighter">#{order.orderNumber}</h3>
+                                <p className="text-xs text-gray-400 font-bold uppercase mt-1">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+                            </div>
+                            <div className="text-right">
+                                <p className="font-black text-xl text-gray-800">{formatCurrency(order.total)}</p>
+                                <p className="text-[10px] text-gray-400 font-bold uppercase">{order.items.length} itens</p>
+                            </div>
+                        </div>
+                        <div className="px-5 pb-5 pt-2 flex items-center gap-4 border-t border-gray-50">
+                            {order.status === 'pending_payment' ? (
+                                <div className="flex-1 flex items-center gap-3 text-amber-600 bg-amber-50 p-3 rounded-2xl"><Banknote size={24}/><div className="flex-1 text-xs font-bold leading-tight uppercase">Pague no caixa para liberar para a cozinha</div></div>
+                            ) : order.kitchenStatus === 'pending' ? (
+                                <div className="flex-1 flex items-center gap-3 text-orange-600 bg-orange-50 p-3 rounded-2xl"><ChefHat size={24} className="animate-bounce"/><div className="flex-1 text-xs font-bold leading-tight uppercase tracking-tight">Sendo preparado com carinho! Aguarde.</div></div>
+                            ) : (
+                                <div className="flex-1 flex items-center gap-3 text-green-600 bg-green-50 p-3 rounded-2xl"><PackageCheck size={24} className="animate-pulse"/><div className="flex-1 text-xs font-black leading-tight uppercase">Pedido Pronto! Pode retirar no balcão agora.</div></div>
+                            )}
+                        </div>
                     </div>
+                ))
+            )}
+        </div>
+    </div>
+  );
+
+  return (
+    <div className="h-screen w-screen bg-slate-50 flex flex-col font-sans overflow-hidden">
+        {renderReadyModal()}
+        <div className="flex-1 overflow-hidden relative">
+            {view === 'menu' && (
+                <div className="h-full flex flex-col">
+                    <div className="bg-white p-4 border-b border-gray-200 flex items-center justify-between shadow-sm flex-shrink-0">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center p-2"><img src={settings.mascotUrl} alt="" className="w-full h-full object-contain" /></div>
+                            <div>
+                                <h1 className="font-black text-gray-800 leading-none tracking-tighter text-xl uppercase italic">TÔ FRITO!</h1>
+                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{settings.schoolClass}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <button onClick={() => setView('orders')} className="p-3 bg-gray-50 rounded-2xl text-gray-600 hover:bg-gray-100 relative transition-all active:scale-95"><Clock size={24} />{myOrders.some(o => o.kitchenStatus === 'done' || o.status === 'pending_payment') && <span className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></span>}</button>
+                             <button onClick={onExit} className="p-3 bg-gray-900 rounded-2xl text-white hover:bg-black transition-all active:scale-95"><ArrowLeft size={24} /></button>
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto no-scrollbar">{renderProductGrid()}</div>
                 </div>
             )}
-
-            <div className={`w-28 h-28 ${isPureDonationOrder ? 'bg-pink-100 shadow-pink-200' : 'bg-green-100 shadow-green-200'} rounded-full flex items-center justify-center mb-6 shadow-xl animate-in zoom-in duration-500`}>
-                {isPureDonationOrder ? (
-                    <Heart size={64} className="text-pink-600 animate-pulse fill-current" />
-                ) : (
-                    <CheckCircle2 size={64} className="text-green-600 animate-in spin-in-90 duration-700" />
-                )}
-            </div>
-            
-            <h1 className="text-4xl font-black text-gray-800 mb-2">
-                {isPureDonationOrder ? 'Doação Iniciada!' : 'Pedido Recebido!'}
-            </h1>
-            
-            <div className={`my-6 ${isPureDonationOrder ? 'bg-pink-50 border-pink-500' : 'bg-red-100 border-red-500'} border-l-4 p-4 rounded-r-lg max-w-md w-full animate-pulse`}>
-                <div className="flex items-center gap-3 mb-1">
-                    <Banknote size={28} className={isPureDonationOrder ? 'text-pink-600' : 'text-red-600'} />
-                    <h3 className={`font-black ${isPureDonationOrder ? 'text-pink-700' : 'text-red-700'} text-lg uppercase`}>
-                        Atenção, {lastOrderInfo?.name}!
-                    </h3>
+            {view === 'cart' && renderCart()}
+            {view === 'success' && renderSuccess()}
+            {view === 'orders' && renderMyOrders()}
+        </div>
+        {view === 'menu' && (
+            <div className="p-4 bg-white border-t border-gray-200 flex items-center gap-4 shadow-[0_-4px_20px_rgba(0,0,0,0.05)] sticky bottom-0 z-40">
+                <div className="relative">
+                    <button onClick={() => setView('cart')} className="p-5 bg-gray-900 rounded-2xl text-white shadow-xl shadow-gray-200 transform transition-transform active:scale-95"><ShoppingCart size={28} /></button>
+                    {cartCount > 0 && <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-black w-7 h-7 rounded-full flex items-center justify-center border-4 border-white animate-in zoom-in">{cartCount}</span>}
                 </div>
-                <p className={`${isPureDonationOrder ? 'text-pink-800' : 'text-red-800'} font-bold leading-tight text-left`}>
-                    {isPureDonationOrder 
-                        ? "Dirija-se ao CAIXA para efetuar o pagamento da sua doação (Pix ou Dinheiro)." 
-                        : "Dirija-se ao CAIXA agora para realizar o pagamento e liberar seu pedido para a cozinha."}
-                </p>
+                <div className="flex-1">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Carrinho atual</p>
+                    <p className="font-black text-2xl text-gray-800">{formatCurrency(total)}</p>
+                </div>
+                <button onClick={() => setView('cart')} disabled={cart.length === 0} className="bg-orange-600 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-orange-100 transition-all active:scale-95 disabled:opacity-50 uppercase tracking-tight text-sm">Ver Carrinho</button>
             </div>
-
-            <div className="bg-white p-8 rounded-3xl shadow-2xl border border-orange-100 w-full max-w-sm mb-8 relative overflow-hidden transform hover:scale-105 transition-transform duration-300">
-                <div className={`absolute top-0 left-0 w-full h-3 bg-gradient-to-r ${isPureDonationOrder ? 'from-pink-400 to-pink-600' : 'from-orange-400 to-orange-600'}`}></div>
-                <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
-                    {isPureDonationOrder ? 'Código de Identificação' : 'Sua Senha'}
-                </p>
-                <p className={`text-7xl font-black ${isPureDonationOrder ? 'text-pink-600' : 'text-orange-600'} tracking-tighter mb-4 drop-shadow-sm`}>
-                    #{lastOrderInfo?.number}
-                </p>
-                <div className="text-xs text-gray-400 flex items-center justify-center gap-1"><Clock size={12}/> Registrado às {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-            </div>
-            
-            <div className="flex flex-col gap-3 w-full max-w-sm">
-                {!isPureDonationOrder && (
-                    <button onClick={() => setView('orders')} className="bg-white text-orange-600 border-2 border-orange-100 font-bold py-4 px-8 rounded-xl hover:bg-orange-50 transition-colors flex items-center justify-center gap-2"><Clock size={20} /> ACOMPANHAR PEDIDO</button>
-                )}
-                <button onClick={() => { setView('menu'); setCustomerName(''); setLastOrderInfo(null); setIsPureDonationOrder(false); }} className="bg-gray-900 text-white font-bold py-4 px-8 rounded-xl shadow-lg hover:bg-orange-600 transition-colors">
-                    {isPureDonationOrder ? 'VOLTAR AO INÍCIO' : 'FAZER NOVO PEDIDO'}
-                </button>
-            </div>
-        </div>
-      );
-  }
-
-  if (view === 'orders') {
-      // ... same orders view code ...
-      return (
-        <div className="h-full bg-slate-50 flex flex-col relative overflow-hidden">
-            {renderReadyModal()}
-            <div className="p-4 bg-white border-b border-gray-200 sticky top-0 z-10 flex items-center justify-between shadow-sm flex-shrink-0">
-                <button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={24} /></button>
-                <h2 className="font-bold text-lg text-gray-800">Meus Pedidos</h2>
-                <button onClick={loadMyOrders} className={`p-2 text-blue-600 hover:bg-blue-50 rounded-full ${isLoadingOrders ? 'animate-spin' : ''}`}><RefreshCw size={24} /></button>
-            </div>
-            <div className="bg-blue-50 px-4 py-2 text-xs text-blue-700 flex items-center justify-center gap-2 border-b border-blue-100 flex-shrink-0"><BellRing size={14} className="animate-pulse" /><span>Nós te avisaremos aqui quando estiver pronto!</span></div>
-            <div className="p-4 space-y-4 flex-1 overflow-y-auto">
-                {isLoadingOrders ? <div className="text-center py-10 text-gray-400">Carregando seus pedidos...</div> : myOrders.length === 0 ? <div className="text-center py-10 text-gray-400 flex flex-col items-center"><Clock size={48} className="mb-4 opacity-50"/><p>Você ainda não fez nenhum pedido.</p></div> : myOrders.map(order => (
-                    <div key={order.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="flex justify-between items-start mb-3"><div><span className="text-xs font-bold text-gray-400 uppercase">Senha</span><p className="text-3xl font-black text-gray-800 leading-none">#{order.orderNumber}</p></div><span className="text-xs text-gray-500 font-medium bg-gray-100 px-2 py-1 rounded">{new Date(order.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>
-                        <div className={`flex items-center gap-2 p-3 rounded-lg mb-3 ${order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800') : order.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}`}><span className="font-bold text-sm uppercase">{order.status === 'completed' ? (order.kitchenStatus === 'done' ? 'PRONTO! RETIRE' : 'Em Preparo') : order.status === 'cancelled' ? 'Cancelado' : 'Aguardando Pagto'}</span></div>
-                        
-                        {/* BOTÃO JOGAR SE PAGO E AINDA NÃO JOGOU */}
-                        {order.status === 'completed' && customer && !playedOrders.includes(order.id) && (
-                            <button 
-                                onClick={() => {
-                                    setActiveGameOrderId(order.id);
-                                    setView('mini_game');
-                                }} 
-                                className="w-full mb-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-black py-3 rounded-xl shadow-lg flex items-center justify-center gap-2 animate-pulse hover:scale-105 transition-transform"
-                            >
-                                <Trophy size={20} className="text-yellow-300" />
-                                JOGAR E GANHAR BÔNUS!
-                            </button>
-                        )}
-
-                        <div className="border-t border-gray-100 pt-3"><p className="text-sm text-gray-600 line-clamp-2">{order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}</p><p className="text-right font-black text-gray-900 mt-2">{formatCurrency(order.total)}</p></div>
-                    </div>
-                ))}
-            </div>
-        </div>
-      );
-  }
-
-  if (view === 'cart') {
-    // ... same cart view code ...
-    return (
-        <div className="h-full bg-white flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden">
-            {renderReadyModal()}
-            {renderDonationNoteModal()}
-            <div className="p-4 border-b border-gray-100 flex items-center gap-4 bg-white sticky top-0 z-10 flex-shrink-0"><button onClick={() => setView('menu')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={24} className="text-gray-700" /></button><h2 className="text-xl font-bold text-gray-800">Seu Carrinho</h2></div>
-            <div className="flex-1 p-4 overflow-y-auto">
-                <div className="mb-6"><label className="text-xs font-bold text-gray-500 uppercase ml-1">Seu Nome</label><div className="relative mt-1"><User className="absolute left-3 top-3 text-orange-500" size={20} /><input type="text" placeholder="Digite seu nome..." className="w-full pl-10 pr-4 py-3 bg-orange-50 border-2 border-orange-100 rounded-xl focus:border-orange-500 focus:outline-none font-bold text-gray-800" value={customerName} onChange={(e) => setCustomerName(e.target.value)} autoFocus /></div></div>
-                {cart.length === 0 ? <div className="text-center py-10 text-gray-400"><ShoppingCart size={48} className="mx-auto mb-2 opacity-50" /><p>Seu carrinho está vazio.</p></div> : <div className="space-y-4">{cart.map(item => (<div key={item.id} className="flex gap-3 items-center bg-white border border-gray-100 p-3 rounded-xl shadow-sm"><img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-contain rounded-lg bg-gray-50" /><div className="flex-1"><h3 className="font-bold text-gray-800 text-sm">{item.name}</h3><p className="text-orange-600 font-bold">{formatCurrency(item.price * item.quantity)}</p></div><div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1"><button onClick={() => updateQuantity(item.id, -1)} className="p-1 text-gray-500 hover:text-orange-600"><Minus size={16} /></button><span className="font-bold text-sm w-4 text-center">{item.quantity}</span><button onClick={() => updateQuantity(item.id, 1)} className="p-1 text-gray-500 hover:text-orange-600"><Plus size={16} /></button></div></div>))}</div>}
-            </div>
-            <div className="p-4 bg-white border-t border-gray-100 shadow-[0_-5px_20px_rgba(0,0,0,0.05)] flex-shrink-0"><div className="flex justify-between items-center mb-4"><span className="text-gray-500">Total</span><span className="text-2xl font-black text-gray-900">{formatCurrency(total)}</span></div><button onClick={handleFinishOrder} disabled={cart.length === 0 || !customerName.trim() || isSending} className="w-full bg-orange-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-xl shadow-lg shadow-orange-200 flex items-center justify-center gap-2 active:scale-95 transition-all">{isSending ? <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div> : <><Send size={20} /> ENVIAR PEDIDO</>}</button></div>
-        </div>
-    );
-  }
-
-  // --- MENU VIEW (AGORA BASEADA EM LAYOUT DINÂMICO) ---
-  return (
-    <div className="h-full bg-slate-50 flex flex-col relative overflow-hidden">
-      {renderReadyModal()}
-      
-      {/* Static App Header */}
-      <div className="bg-white p-4 shadow-sm sticky top-0 z-20 flex justify-between items-center flex-shrink-0">
-         <div className="flex items-center gap-2">
-             <img src={settings.mascotUrl} alt="Logo" className="w-8 h-8 object-contain" />
-             <h1 className="font-black text-gray-800 tracking-tight">{settings.appName}</h1>
-         </div>
-         <div className="flex items-center gap-3">
-             <button onClick={() => setView('orders')} className="flex flex-col items-center justify-center text-gray-500 hover:text-orange-600 transition-colors"><Clock size={20} /><span className="text-[10px] font-bold">Meus Pedidos</span></button>
-             <button onClick={onExit} className="text-xs text-gray-400 underline ml-2">Sair</button>
-         </div>
-      </div>
-
-      {/* RENDER LAYOUT DINÂMICO - Alterado para usar h-full e flex-1 */}
-      <div className="flex-1 overflow-y-auto pb-24 safe-area-scroll">
-        {renderLayout()}
-      </div>
-
-      {/* Floating Cart Button */}
-      {cartCount > 0 && (
-         <div className="fixed bottom-6 left-0 w-full px-6 z-30">
-             <button onClick={() => setView('cart')} className="w-full bg-orange-600 text-white py-4 px-6 rounded-2xl shadow-xl shadow-orange-600/30 flex items-center justify-between font-bold animate-in slide-in-from-bottom-4 duration-300">
-                 <div className="flex items-center gap-3"><div className="bg-white/20 w-8 h-8 rounded-full flex items-center justify-center text-sm">{cartCount}</div><span>Ver Carrinho</span></div>
-                 <span>{formatCurrency(total)}</span>
-             </button>
-         </div>
-      )}
+        )}
     </div>
   );
 };

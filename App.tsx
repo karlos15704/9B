@@ -34,9 +34,8 @@ import {
   resetDatabase,
   fetchSettings,
   saveSettings,
-  authPromise
-} from './services/supabase';
-import { addPoints, redeemPoints } from './services/loyaltyService';
+  authPromise,
+  } from './services/supabase';
 import { LayoutGrid, BarChart3, Flame, CheckCircle2, ChefHat, WifiOff, LogOut, UserCircle2, Users as UsersIcon, UploadCloud, ShoppingCart, Printer, PackageSearch, Settings, Wallet, Menu, HandCoins, Heart } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -467,27 +466,11 @@ const App: React.FC = () => {
     setIsMobileCartOpen(true);
   };
 
-  const handleCheckout = async (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string, customerId?: string) => {
+  const handleCheckout = async (discount: number, method: PaymentMethod, change?: number, amountPaid?: number, customerName?: string) => {
     try {
       const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
       const total = Math.max(0, subtotal - discount);
       
-      // LOYALTY REDEMPTION CHECK
-      let pointsRedeemed = 0;
-      if (method === PaymentMethod.LOYALTY) {
-          if (!customerId) {
-              alert("Erro: Cliente não identificado para pagamento com pontos.");
-              return;
-          }
-          const pointsNeeded = Math.ceil(total * 100);
-          const success = await redeemPoints(customerId, pointsNeeded);
-          if (!success) {
-              alert("Erro ao processar pagamento com pontos. Verifique o saldo.");
-              return;
-          }
-          pointsRedeemed = pointsNeeded;
-      }
-
       const productsCopy = [...products]; 
       const deductions = new Map<string, number>();
 
@@ -533,7 +516,6 @@ const App: React.FC = () => {
       const isPureDonation = cart.every(item => item.category === 'Doação');
       
       let transactionToSave: Transaction;
-      const pointsEarned = method !== PaymentMethod.LOYALTY ? Math.floor(total * 100) : 0;
 
       if (currentPendingOrderId) {
          const original = transactions.find(t => t.id === currentPendingOrderId) || { orderNumber: (nextOrderNumber || 1).toString(), timestamp: Date.now() };
@@ -551,55 +533,42 @@ const App: React.FC = () => {
             amountPaid,
             change,
             sellerName: currentUser?.name || 'Caixa',
+             status: 'completed',
+             kitchenStatus: isPureDonation ? 'done' : 'pending'
+          };
+
+          if (isConnected) await confirmTransactionPayment(transactionToSave);
+
+          setTransactions(prev => [...prev.filter(t => t.id !== currentPendingOrderId), transactionToSave]);
+
+       } else {
+          let safeOrderNumber = "";
+          
+          if (isPureDonation) {
+              safeOrderNumber = "D-" + Math.floor(1000 + Math.random() * 9000);
+          } else {
+              safeOrderNumber = (nextOrderNumber || 1).toString();
+              setNextOrderNumber(prev => (prev || 1) + 1);
+          }
+
+          const id = generateId();
+    
+          transactionToSave = {
+            id,
+            orderNumber: safeOrderNumber,
+            customerName: customerName || '',
+            timestamp: Date.now(),
+            items: [...cart],
+            subtotal,
+            discount,
+            total,
+            paymentMethod: method,
+            amountPaid,
+            change,
+            sellerName: currentUser?.name || 'Caixa',
             status: 'completed',
-            kitchenStatus: isPureDonation ? 'done' : 'pending', // Doações já nascem prontas
-            customerId: customerId || original.customerId,
-            pointsEarned: pointsEarned,
-            pointsRedeemed: pointsRedeemed
-         };
-
-         if (isConnected) await confirmTransactionPayment(transactionToSave);
-         
-         // AWARD LOYALTY POINTS
-         if (transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
-             await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
-         }
-
-         setTransactions(prev => [...prev.filter(t => t.id !== currentPendingOrderId), transactionToSave]);
-
-      } else {
-         let safeOrderNumber = "";
-         
-         if (isPureDonation) {
-             // Generate Donation Code
-             safeOrderNumber = "D-" + Math.floor(1000 + Math.random() * 9000);
-         } else {
-             safeOrderNumber = (nextOrderNumber || 1).toString();
-             // Increment Order Number ONLY if not a donation
-             setNextOrderNumber(prev => (prev || 1) + 1);
-         }
-
-         const id = generateId();
-   
-         transactionToSave = {
-           id,
-           orderNumber: safeOrderNumber,
-           customerName: customerName || '',
-           timestamp: Date.now(),
-           items: [...cart],
-           subtotal,
-           discount,
-           total,
-           paymentMethod: method,
-           amountPaid,
-           change,
-           sellerName: currentUser?.name || 'Caixa',
-           status: 'completed',
-           kitchenStatus: isPureDonation ? 'done' : 'pending', // Doações já nascem prontas
-           customerId: customerId,
-           pointsEarned: pointsEarned,
-           pointsRedeemed: pointsRedeemed
-         };
+            kitchenStatus: isPureDonation ? 'done' : 'pending'
+          };
    
          const updatedTransactions = [...transactions, transactionToSave];
          setTransactions(updatedTransactions);
@@ -608,11 +577,6 @@ const App: React.FC = () => {
          if (isConnected) {
            const success = await createTransaction(transactionToSave);
            if (!success) setIsConnected(false); 
-           
-           // AWARD LOYALTY POINTS
-           if (success && transactionToSave.customerId && transactionToSave.pointsEarned > 0) {
-               await addPoints(transactionToSave.customerId, transactionToSave.pointsEarned);
-           }
          }
       }
 

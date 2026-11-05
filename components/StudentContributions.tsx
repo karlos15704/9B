@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Contribution, User } from '../types';
 import { generateId, formatCurrency } from '../utils';
-import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2, Edit3 } from 'lucide-react';
+import { Plus, Trash2, Search, Calendar, User as UserIcon, DollarSign, HandCoins, CheckCircle2, Edit3, X } from 'lucide-react';
 import { createContribution, deleteContribution, fetchContributions, updateContribution, authPromise } from '../services/supabase';
 
 const MONTHS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -73,37 +73,17 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
     }
   };
 
-  const handleEditContribution = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingContrib) return;
 
-    // 1. Find all contributions for this student
-    const studentContribs = contributions.filter(c => c.studentName.toLowerCase().trim() === editingContrib.studentName.toLowerCase().trim());
-    
-    // 2. Keep the most recent one to update, delete the rest
-    const sorted = studentContribs.sort((a,b) => b.paymentDate - a.paymentDate);
-    const toUpdate = sorted[0];
-    const toDelete = sorted.slice(1);
-    
-    // 3. Update the most recent one
-    const updatedEntry = { ...toUpdate, amount: editingContrib.amount, paymentDate: editingContrib.paymentDate };
-    const success = await updateContribution(updatedEntry);
-
-    // 4. Delete the rest
-    for (const c of toDelete) {
-        await deleteContribution(c.id);
-    }
-
-    // 5. Update local state
+    const success = await updateContribution(editingContrib);
     if (success) {
-        setContributions(prev => {
-            const filtered = prev.filter(c => c.studentName.toLowerCase().trim() !== editingContrib.studentName.toLowerCase().trim());
-            return [...filtered, updatedEntry];
-        });
+        setContributions(prev => prev.map(c => c.id === editingContrib.id ? editingContrib : c));
         setEditingContrib(null);
-        alert("Contribuição atualizada!");
+        alert("Registro atualizado!");
     } else {
-        alert("Erro ao atualizar contribuição.");
+        alert("Erro ao atualizar registro.");
     }
   };
 
@@ -117,29 +97,36 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
   };
 
   const filteredContributions = useMemo(() => {
-      const groups = contributions.reduce((acc, c) => {
-          const name = c.studentName.toLowerCase().trim();
-          if (!acc[name]) {
-              acc[name] = { ...c, studentName: c.studentName };
+      // Agrupar por nome (case insensitive e trim)
+      const groups = contributions.reduce((acc: { [key: string]: Contribution }, c) => {
+          const nameKey = c.studentName.toLowerCase().trim();
+          if (!acc[nameKey]) {
+              acc[nameKey] = { 
+                ...c, 
+                studentName: c.studentName.trim(), // Preserva capitalização original do primeiro
+                amount: c.amount,
+                paymentDate: c.paymentDate
+              };
           } else {
-              acc[name].amount += c.amount;
-              if (c.paymentDate > acc[name].paymentDate) {
-                  acc[name].paymentDate = c.paymentDate;
+              acc[nameKey].amount += c.amount;
+              // Mantém a data mais atual
+              if (c.paymentDate > acc[nameKey].paymentDate) {
+                  acc[nameKey].paymentDate = c.paymentDate;
               }
           }
           return acc;
-      }, {} as { [key: string]: Contribution });
+      }, {});
       
       const aggregated = Object.values(groups) as Contribution[];
       
-      return aggregated.sort((a, b) => a.studentName.localeCompare(b.studentName)).filter(c => 
-          c.studentName.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      return aggregated
+        .sort((a, b) => a.studentName.localeCompare(b.studentName, 'pt', { sensitivity: 'base' }))
+        .filter(c => c.studentName.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [contributions, searchTerm]);
 
   const totalCollected = useMemo(() => {
-      return filteredContributions.reduce((acc, c) => acc + c.amount, 0);
-  }, [filteredContributions]);
+      return contributions.reduce((acc, c) => acc + c.amount, 0);
+  }, [contributions]);
 
   return (
     <div className="h-full bg-slate-100 flex flex-col overflow-hidden">
@@ -231,7 +218,7 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                 {/* Lista */}
                 <div className={`flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 ${isProfessor ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
                     <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                        <h3 className="font-bold text-gray-800">Histórico de Pagamentos</h3>
+                        <h3 className="font-bold text-gray-800">Resumo por Aluno (Ordem Alfabética)</h3>
                         <div className="relative w-48">
                             <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
                             <input 
@@ -249,24 +236,20 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                             <thead className="bg-gray-50 text-gray-500 sticky top-0">
                                 <tr>
                                     <th className="px-4 py-3 font-bold">Aluno</th>
-                                    <th className="px-4 py-3 font-bold">Referência</th>
-                                    <th className="px-4 py-3 font-bold">Data Pagto</th>
-                                    <th className="px-4 py-3 font-bold text-right">Valor</th>
-                                    {isProfessor && <th className="px-4 py-3 font-bold text-center">Ação</th>}
+                                    <th className="px-4 py-3 font-bold">Último Pagto</th>
+                                    <th className="px-4 py-3 font-bold text-right">Total Acumulado</th>
+                                    {isProfessor && <th className="px-4 py-3 font-bold text-center">Ações</th>}
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {isLoading ? (
-                                    <tr><td colSpan={isProfessor ? 5 : 4} className="p-8 text-center text-gray-400">Carregando...</td></tr>
+                                    <tr><td colSpan={isProfessor ? 4 : 3} className="p-8 text-center text-gray-400">Carregando...</td></tr>
                                 ) : filteredContributions.length === 0 ? (
-                                    <tr><td colSpan={isProfessor ? 5 : 4} className="p-8 text-center text-gray-400">Nenhuma contribuição encontrada.</td></tr>
+                                    <tr><td colSpan={isProfessor ? 4 : 3} className="p-8 text-center text-gray-400">Nenhuma contribuição encontrada.</td></tr>
                                 ) : (
                                     filteredContributions.map(contrib => (
                                         <tr key={contrib.id} className="hover:bg-gray-50">
                                             <td className="px-4 py-3 font-bold text-gray-700">{contrib.studentName}</td>
-                                            <td className="px-4 py-3">
-                                                <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold uppercase">{contrib.monthReference}</span>
-                                            </td>
                                             <td className="px-4 py-3 text-gray-500 text-xs">
                                                 {new Date(contrib.paymentDate).toLocaleDateString()}
                                             </td>
@@ -275,10 +258,10 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
                                             </td>
                                             {isProfessor && (
                                             <td className="px-4 py-3 text-center">
-                                                <button onClick={() => setEditingContrib(contrib)} className="text-gray-300 hover:text-blue-500 transition-colors p-1 mr-2">
+                                                <button onClick={() => setEditingContrib(contrib)} className="text-gray-300 hover:text-blue-500 transition-colors p-1 mr-2" title="Editar este registro">
                                                     <Edit3 size={16} />
                                                 </button>
-                                                <button onClick={() => handleDelete(contrib.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1">
+                                                <button onClick={() => handleDelete(contrib.id)} className="text-gray-300 hover:text-red-500 transition-colors p-1" title="Excluir este registro">
                                                     <Trash2 size={16} />
                                                 </button>
                                             </td>
@@ -293,19 +276,33 @@ const StudentContributions: React.FC<StudentContributionsProps> = ({ currentUser
 
                 {/* Edit Modal */}
                 {editingContrib && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-                        <div className="bg-white p-6 rounded-xl shadow-xl w-full max-w-sm">
-                            <h3 className="font-bold text-gray-800 mb-4">Editar Contribuição</h3>
-                            <form onSubmit={handleEditContribution} className="space-y-4">
-                                <input type="text" value={editingContrib.studentName} onChange={e => setEditingContrib({...editingContrib, studentName: e.target.value})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
-                                <input type="number" step="0.01" value={editingContrib.amount} onChange={e => {
-                                    const val = parseFloat(e.target.value);
-                                    setEditingContrib({...editingContrib, amount: isNaN(val) ? 0 : val});
-                                }} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
-                                <input type="date" value={new Date(editingContrib.paymentDate).toISOString().split('T')[0]} onChange={e => setEditingContrib({...editingContrib, paymentDate: new Date(e.target.value).getTime()})} className="w-full border-2 border-gray-200 rounded-lg p-2.5 text-sm font-bold" />
-                                <div className="flex justify-end gap-2">
-                                    <button type="button" onClick={() => setEditingContrib(null)} className="px-4 py-2 bg-gray-200 rounded-lg font-bold">Cancelar</button>
-                                    <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-bold">Salvar</button>
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+                        <div className="bg-white p-6 rounded-2xl shadow-2xl w-full max-w-sm relative">
+                            <button onClick={() => setEditingContrib(null)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><X size={20}/></button>
+                            <h3 className="font-bold text-gray-800 mb-6 text-lg">Editar Contribuição</h3>
+                            <form onSubmit={handleUpdate} className="space-y-4">
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Nome do Aluno</label>
+                                    <input type="text" value={editingContrib.studentName} onChange={e => setEditingContrib({...editingContrib, studentName: e.target.value})} className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-emerald-500" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Valor (R$)</label>
+                                    <input type="number" step="0.01" value={editingContrib.amount} onChange={e => {
+                                        const val = parseFloat(e.target.value);
+                                        setEditingContrib({...editingContrib, amount: isNaN(val) ? 0 : val});
+                                    }} className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-emerald-500" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Data do Pagamento</label>
+                                    <input type="date" value={new Date(editingContrib.paymentDate).toISOString().split('T')[0]} onChange={e => {
+                                        const dateParts = e.target.value.split('-');
+                                        const ts = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]), 12, 0, 0).getTime();
+                                        setEditingContrib({...editingContrib, paymentDate: ts});
+                                    }} className="w-full border-2 border-gray-200 rounded-xl p-3 text-sm font-bold outline-none focus:border-emerald-500" />
+                                </div>
+                                <div className="flex gap-2 pt-2">
+                                    <button type="button" onClick={() => setEditingContrib(null)} className="flex-1 py-3 bg-gray-100 text-gray-600 rounded-xl font-bold hover:bg-gray-200 transition-colors">Cancelar</button>
+                                    <button type="submit" className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-200">Salvar Alterações</button>
                                 </div>
                             </form>
                         </div>
