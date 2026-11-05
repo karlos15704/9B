@@ -135,17 +135,33 @@ const FinancialManagement: React.FC<FinancialManagementProps> = ({ products, tra
 
     if (product.comboItems && product.comboItems.length > 0) {
         let minStock = 999999;
+        let hasLimitedIngredient = false;
+        
         product.comboItems.forEach(item => {
             const ingredient = products.find(p => p.id === item.productId);
-            if (ingredient) {
-                const stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : (ingredient.stock || 0);
-                const possibleCombos = Math.floor(stockVal / item.quantity);
-                if (possibleCombos < minStock) minStock = possibleCombos;
-            } else {
-                minStock = 0;
+            let stockVal = 999999;
+
+            if (item.productId === '4') {
+                // Caso especial: Refrigerante dentro do combo (soma todos os sabores)
+                const sodaFlavors = products.filter(p => p.id.startsWith('soda-'));
+                stockVal = sodaFlavors.reduce((acc, p) => {
+                    const sVal = typeof p.stock === 'string' ? parseInt(p.stock) : (p.stock || 0);
+                    return acc + (isNaN(sVal) ? 0 : sVal);
+                }, 0);
+                hasLimitedIngredient = true;
+            } else if (ingredient && (ingredient.stock !== undefined && ingredient.stock !== null)) {
+                stockVal = typeof ingredient.stock === 'string' ? parseInt(ingredient.stock) : ingredient.stock;
+                hasLimitedIngredient = true;
+            } else if (!ingredient) {
+                stockVal = 0;
+                hasLimitedIngredient = true;
             }
+
+            const possibleCombos = Math.floor(stockVal / item.quantity);
+            if (possibleCombos < minStock) minStock = possibleCombos;
         });
-        return minStock === 999999 ? 0 : minStock;
+        
+        return hasLimitedIngredient ? minStock : 999999;
     }
     const stockVal = typeof product.stock === 'string' ? parseInt(product.stock) : (product.stock || 0);
     return isNaN(stockVal) ? 0 : stockVal;

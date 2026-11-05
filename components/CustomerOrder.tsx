@@ -291,15 +291,14 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
   };
 
   const updateQuantity = (id: string, delta: number) => {
+    const item = cart.find(i => i.id === id);
+    if (!item) return;
+
     if (delta > 0) {
-        const product = products.find(p => p.id === id);
-        const item = cart.find(i => i.id === id);
-        if (product && item) {
-             const maxStock = calculateMaxStock(product);
-             if ((item.quantity + delta) > maxStock) {
-                 alert(`Ops! Limite de estoque atingido. Só temos ${maxStock} disponíveis.`);
-                 return;
-             }
+        const availableStock = calculateMaxStock(item);
+        if ((item.quantity + delta) > availableStock) {
+             alert(`Ops! Limite de estoque atingido. Só temos ${availableStock} disponíveis.`);
+             return;
         }
     }
     setCart(prev => prev.map(item => item.id === id ? { ...item, quantity: Math.max(0, item.quantity + delta) } : item).filter(item => item.quantity > 0));
@@ -659,10 +658,21 @@ const CustomerOrder: React.FC<CustomerOrderProps> = ({ products, onExit, nextOrd
                                 <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
                                 <p className="font-black text-orange-600">{formatCurrency(item.price * item.quantity)}</p>
                             </div>
-                            <div className="flex items-center gap-3 bg-gray-100 rounded-xl p-1">
-                                <button onClick={() => updateQuantity(item.id, -1)} className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600"><Minus size={16} /></button>
-                                <span className="font-black text-gray-800 w-4 text-center">{item.quantity}</span>
-                                <button onClick={() => updateQuantity(item.id, 1)} className="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600"><Plus size={16} /></button>
+                            <div className="flex items-center gap-3 bg-gray-100 rounded-2xl p-1.5 border border-gray-200 shadow-inner">
+                                <button onClick={() => updateQuantity(item.id, -1)} className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600 active:scale-95 transition-all"><Minus size={18} strokeWidth={3} /></button>
+                                <input 
+                                     type="number" 
+                                     min="1"
+                                     value={item.quantity}
+                                     onChange={(e) => {
+                                         const val = parseInt(e.target.value);
+                                         if (!isNaN(val)) {
+                                             updateQuantity(item.id, val - item.quantity);
+                                         }
+                                     }}
+                                     className="w-12 text-center bg-transparent border-none outline-none font-black text-xl text-gray-800 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                />
+                                <button onClick={() => updateQuantity(item.id, 1)} className="w-10 h-10 rounded-xl bg-white shadow-sm flex items-center justify-center text-gray-600 hover:text-orange-600 active:scale-95 transition-all"><Plus size={18} strokeWidth={3} /></button>
                             </div>
                         </div>
                     ))}
