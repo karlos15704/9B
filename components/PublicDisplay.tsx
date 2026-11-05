@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Transaction, AppSettings } from '../types';
-import { ChefHat, CheckCircle2, AlertTriangle, Heart } from 'lucide-react';
+import { ChefHat, CheckCircle2, AlertTriangle, Heart, Maximize2, Minimize2, Volume2, VolumeX } from 'lucide-react';
 
 interface PublicDisplayProps {
   transactions: Transaction[];
@@ -13,6 +13,7 @@ const DONATION_SOUND_URL = "https://codeskulptor-demos.commondatastorage.googlea
 
 const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Estado para controlar a animação de celebração (Pedido Atualmente na Tela)
   const [celebratingOrder, setCelebratingOrder] = useState<Transaction | null>(null);
@@ -26,6 +27,38 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
   const processedOrderIdsRef = useRef<Set<string>>(new Set());
   const processedDonationIdsRef = useRef<Set<string>>(new Set());
   const isFirstLoadRef = useRef<boolean>(true);
+
+  // Alternar tela cheia nativa para TVs / Monitores
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => {
+        console.warn("Fullscreen request error:", err);
+      });
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(err => console.warn(err));
+        setIsFullscreen(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  // Atalho de teclado 'F' ou 'F11' para tela cheia na TV
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'f' || e.key === 'F') {
+        toggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -311,7 +344,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
     ];
 
     return (
-        <div className="absolute inset-0 z-[150] bg-black flex flex-col items-center justify-between animate-in fade-in duration-700 overflow-hidden p-6 md:p-8">
+        <div className="absolute inset-0 z-[150] bg-black flex flex-col items-center justify-between animate-in fade-in duration-700 overflow-hidden p-[clamp(0.5rem,1.5vmin,1.5rem)]">
             {/* Fundo com efeito de chamas */}
             <div className="absolute inset-0 opacity-20 pointer-events-none">
                 <div className="fire-container scale-[3] origin-bottom opacity-30">
@@ -321,19 +354,19 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             </div>
 
             {/* BARRA SUPERIOR DO COMERCIAL */}
-            <div className="relative z-20 w-full flex items-center justify-between px-4 py-2 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10">
+            <div className="relative z-20 w-full flex items-center justify-between px-4 py-1.5 md:py-2 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                    <img src={settings.mascotUrl} className="h-10 w-10 object-contain drop-shadow" alt="Logo" />
+                    <img src={settings.mascotUrl} className="h-8 w-8 md:h-10 md:w-10 object-contain drop-shadow" alt="Logo" />
                     <div>
-                        <span className="font-black text-white text-base tracking-tight uppercase flex items-center gap-2">
+                        <span className="font-black text-white text-xs md:text-base tracking-tight uppercase flex items-center gap-2">
                             {settings.appName}
-                            <span className="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Comercial</span>
+                            <span className="bg-orange-500 text-white text-[9px] md:text-[10px] font-black px-2 py-0.5 rounded-full uppercase">Comercial</span>
                         </span>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{settings.schoolClass} • Feira Cultural</p>
+                        <p className="text-[9px] md:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{settings.schoolClass} • Feira Cultural</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                     {/* Botão de Som para o Vídeo */}
                     {commercialPhase === 'video' && (
                         <button 
@@ -357,7 +390,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
                             e.stopPropagation();
                             returnToStatus();
                         }}
-                        className="bg-orange-600 hover:bg-orange-500 text-white px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 flex items-center gap-1.5"
+                        className="bg-orange-600 hover:bg-orange-500 text-white px-3 md:px-4 py-1.5 rounded-xl font-black text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 flex items-center gap-1.5"
                     >
                         <span>Ver Pedidos</span>
                         <span>➔</span>
@@ -366,11 +399,11 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             </div>
 
             {/* CONTEÚDO PRINCIPAL: VÍDEO OU SHOWCASE DE LANCHES */}
-            <div className="relative z-10 flex-1 w-full flex items-center justify-center my-3">
+            <div className="relative z-10 flex-1 w-full flex items-center justify-center my-1 md:my-2 min-h-0 overflow-hidden">
                 {commercialPhase === 'video' ? (
                     /* ETAPA 1: O VÍDEO CHAMARIS */
                     <div className="flex flex-col items-center justify-center w-full h-full max-w-5xl animate-in zoom-in-95 duration-500">
-                        <div className="relative w-full max-h-[66vh] aspect-video rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(234,88,12,0.6)] border-4 border-yellow-400 ring-4 ring-orange-500/50 bg-black flex items-center justify-center">
+                        <div className="relative w-full max-h-[min(65vh,calc(100vh-130px))] aspect-video rounded-2xl md:rounded-3xl overflow-hidden shadow-[0_0_80px_rgba(234,88,12,0.6)] border-2 md:border-4 border-yellow-400 ring-2 md:ring-4 ring-orange-500/50 bg-black flex items-center justify-center">
                             <video 
                                 ref={videoRef}
                                 src={PROMO_VIDEO_URL}
@@ -383,51 +416,53 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
                             />
                         </div>
 
-                        <div className="mt-4 flex items-center gap-3 bg-gradient-to-r from-orange-600 to-red-600 px-8 py-2.5 rounded-full shadow-lg border-2 border-yellow-300 animate-pulse">
-                            <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">
+                        <div className="mt-2 md:mt-3 flex items-center gap-3 bg-gradient-to-r from-orange-600 to-red-600 px-4 md:px-8 py-1.5 md:py-2.5 rounded-full shadow-lg border-2 border-yellow-300 animate-pulse flex-shrink-0">
+                            <span className="text-xs sm:text-base md:text-xl lg:text-2xl font-black text-white uppercase tracking-tighter">
                                 🔥 CORRA PRO BALCÃO OU PEÇA PELO TOTEM! 🔥
                             </span>
                         </div>
                     </div>
                 ) : (
                     /* ETAPA 2: SHOWCASE DE LANCHES E COMBOS */
-                    <div className="flex flex-col items-center justify-center text-center w-full max-w-6xl animate-in fade-in zoom-in-95 duration-700">
-                        <div className="mb-4">
-                            <h2 className="text-4xl md:text-6xl font-black text-white leading-none tracking-tighter uppercase drop-shadow-lg">
+                    <div className="flex flex-col items-center justify-center text-center w-full max-w-6xl animate-in fade-in zoom-in-95 duration-700 h-full">
+                        <div className="mb-2 md:mb-3 flex-shrink-0">
+                            <h2 className="text-2xl sm:text-3xl md:text-5xl font-black text-white leading-none tracking-tighter uppercase drop-shadow-lg">
                                 BATEU AQUELA <span className="text-orange-500">FOME?</span>
                             </h2>
-                            <p className="text-sm md:text-lg font-bold text-gray-300 uppercase tracking-widest mt-1">
+                            <p className="text-xs sm:text-sm md:text-base font-bold text-gray-300 uppercase tracking-widest mt-1">
                                 Experimente nossos lanches quentinhos e crocantes feitos na hora!
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 w-full px-4">
+                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 w-full px-2 sm:px-4 flex-1 min-h-0 items-center">
                             {snacks.map((snack, idx) => (
                                 <div 
                                     key={idx} 
-                                    className="bg-white/5 border-2 border-white/10 hover:border-orange-500/50 p-4 rounded-3xl flex flex-col items-center transform hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden group"
+                                    className="h-full max-h-[38vh] bg-white/5 border-2 border-white/10 hover:border-orange-500/50 p-2 sm:p-3 md:p-4 rounded-2xl md:rounded-3xl flex flex-col items-center justify-between transform hover:scale-105 transition-all duration-300 shadow-xl relative overflow-hidden group"
                                 >
-                                    <span className="absolute top-2 left-2 bg-orange-600/90 text-white text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                                    <span className="absolute top-2 left-2 bg-orange-600/90 text-white text-[8px] sm:text-[9px] font-black px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-tighter">
                                         {snack.tag}
                                     </span>
 
-                                    <div className="h-32 md:h-40 w-full mb-3 relative flex items-center justify-center">
+                                    <div className="flex-1 w-full relative flex items-center justify-center min-h-0 my-1">
                                         <div className="absolute inset-0 bg-orange-500 blur-2xl opacity-20 rounded-full group-hover:opacity-40 transition-opacity"></div>
-                                        <img src={snack.img} alt={snack.name} className="w-full h-full object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-300" />
+                                        <img src={snack.img} alt={snack.name} className="w-full h-full max-h-24 sm:max-h-32 md:max-h-40 object-contain relative z-10 drop-shadow-2xl group-hover:scale-110 transition-transform duration-300" />
                                     </div>
 
-                                    <h3 className="text-base font-black text-white uppercase mb-0.5 line-clamp-1">{snack.name}</h3>
-                                    <p className="text-xs text-gray-400 font-medium mb-3 line-clamp-1">{snack.desc}</p>
-                                    
-                                    <span className="bg-orange-600 text-white px-4 py-1 rounded-xl font-black text-xl shadow-md border border-orange-400">
-                                        {snack.price}
-                                    </span>
+                                    <div className="w-full flex flex-col items-center flex-shrink-0">
+                                        <h3 className="text-xs sm:text-sm md:text-base font-black text-white uppercase mb-0.5 line-clamp-1">{snack.name}</h3>
+                                        <p className="text-[10px] sm:text-xs text-gray-400 font-medium mb-1.5 sm:mb-2 line-clamp-1">{snack.desc}</p>
+                                        
+                                        <span className="bg-orange-600 text-white px-3 sm:px-4 py-0.5 sm:py-1 rounded-xl font-black text-sm sm:text-lg md:text-xl shadow-md border border-orange-400">
+                                            {snack.price}
+                                        </span>
+                                    </div>
                                 </div>
                             ))}
                         </div>
 
-                        <div className="mt-5 bg-gradient-to-r from-orange-600 to-red-600 px-8 py-3 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.5)] border-2 border-yellow-400 animate-bounce">
-                            <span className="text-xl md:text-2xl font-black text-white uppercase tracking-tighter">
+                        <div className="mt-2 md:mt-4 bg-gradient-to-r from-orange-600 to-red-600 px-4 sm:px-8 py-1.5 sm:py-2.5 rounded-full shadow-[0_0_40px_rgba(234,88,12,0.5)] border-2 border-yellow-400 animate-bounce flex-shrink-0">
+                            <span className="text-xs sm:text-base md:text-xl lg:text-2xl font-black text-white uppercase tracking-tighter">
                                 Peça já! Vem pro TÔ FRITO! 🍟🔥
                             </span>
                         </div>
@@ -436,16 +471,16 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             </div>
 
             {/* RODAPÉ DO COMERCIAL COM INDICAÇÃO DE RETORNO AOS PEDIDOS */}
-            <div className="relative z-20 w-full flex items-center justify-between px-6 py-2 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 text-xs">
+            <div className="relative z-20 w-full flex items-center justify-between px-4 sm:px-6 py-1.5 bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 text-[10px] sm:text-xs flex-shrink-0">
                 <div className="flex items-center gap-2 text-orange-300 font-bold">
-                    <span className="w-2.5 h-2.5 rounded-full bg-orange-500 animate-ping"></span>
+                    <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
                     <span>{commercialPhase === 'video' ? 'Exibindo Vídeo Chamaris' : 'Exibindo Cardápio em Destaque'}</span>
                     <span className="text-gray-500">•</span>
                     <span className="text-gray-400">Retornando aos pedidos em instantes</span>
                 </div>
 
                 {readyOrders.length > 0 && (
-                    <div className="flex items-center gap-2 bg-green-500/20 px-3 py-1 rounded-lg border border-green-500/40 text-green-300 font-mono font-bold text-xs">
+                    <div className="flex items-center gap-2 bg-green-500/20 px-2.5 py-0.5 rounded-lg border border-green-500/40 text-green-300 font-mono font-bold text-[10px] sm:text-xs">
                         <span>PRONTOS NO BALCÃO:</span>
                         <span className="font-black text-green-400">#{readyOrders.map(o => o.orderNumber).slice(0, 4).join(', #')}</span>
                     </div>
@@ -456,7 +491,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
   };
 
   return (
-    <div className="h-screen w-screen bg-[#0a0500] flex items-center justify-center overflow-hidden relative font-sans text-white p-6 md:p-8 lg:p-12">
+    <div className="h-screen w-screen bg-[#0a0500] flex items-center justify-center overflow-hidden relative font-sans text-white p-[clamp(0.25rem,1.2vmin,1rem)] select-none">
       
       {/* === BACKGROUND FIRE ATMOSPHERE === */}
       {/* Background Glow */}
@@ -467,10 +502,8 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
       <div className="absolute bottom-20 right-20 w-3 h-3 bg-red-500 rounded-full blur-[4px] animate-bounce"></div>
       <div className="absolute top-1/2 left-5 w-1 h-1 bg-yellow-500 rounded-full blur-[1px]"></div>
 
-
-      {/* === MOLDURA PRINCIPAL (SAFE ZONE) === */}
-      {/* Container reduzido e centralizado com Borda de Fogo */}
-      <div className="relative w-full h-full max-w-[1800px] max-h-[1000px] bg-black/80 rounded-3xl overflow-hidden flex flex-col shadow-[0_0_60px_rgba(234,88,12,0.4)] border-[6px] border-orange-900/50 ring-4 ring-orange-500/20 backdrop-blur-sm z-10">
+      {/* === MOLDURA PRINCIPAL (SAFE ZONE ADAPTÁVEL PARA QUALQUER TV) === */}
+      <div className="relative w-full h-full bg-black/85 rounded-[clamp(0.75rem,2vmin,1.5rem)] overflow-hidden flex flex-col shadow-[0_0_60px_rgba(234,88,12,0.4)] border-[clamp(2px,0.4vmin,5px)] border-orange-900/60 ring-2 ring-orange-500/20 backdrop-blur-sm z-10">
         
         {/* Fire Border Animation Overlay */}
         <div className="absolute inset-0 rounded-2xl border-2 border-orange-500/30 pointer-events-none animate-pulse z-20"></div>
@@ -480,7 +513,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
 
         {/* === OVERLAY DE DOAÇÃO (PRIORIDADE MÁXIMA) === */}
         {celebratingDonation && (
-            <div className="absolute inset-0 z-[250] flex flex-col items-center justify-center bg-pink-900/95 backdrop-blur-xl animate-in zoom-in-90 duration-500">
+            <div className="absolute inset-0 z-[250] flex flex-col items-center justify-center bg-pink-900/95 backdrop-blur-xl animate-in zoom-in-90 duration-500 p-4">
                  {/* Background Effects */}
                  <div className="absolute inset-0 overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-pink-500/30 via-transparent to-transparent animate-pulse"></div>
@@ -491,8 +524,8 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
                             style={{
                                 top: `${Math.random() * 100}%`,
                                 left: `${Math.random() * 100}%`,
-                                width: `${Math.random() * 100 + 50}px`,
-                                height: `${Math.random() * 100 + 50}px`,
+                                width: `${Math.random() * 80 + 30}px`,
+                                height: `${Math.random() * 80 + 30}px`,
                                 animationDuration: `${Math.random() * 3 + 2}s`,
                                 animationDelay: `${Math.random()}s`
                             }}
@@ -501,26 +534,26 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
                     ))}
                  </div>
 
-                 <div className="relative z-10 flex flex-col items-center text-center p-8 max-w-5xl">
-                    <div className="w-40 h-40 bg-white rounded-full flex items-center justify-center mb-8 shadow-[0_0_60px_rgba(236,72,153,0.6)] animate-bounce">
-                        <Heart size={80} className="text-pink-600 fill-current" />
+                 <div className="relative z-10 flex flex-col items-center text-center p-4 max-w-4xl">
+                    <div className="w-[clamp(4.5rem,10vw,7.5rem)] h-[clamp(4.5rem,10vw,7.5rem)] bg-white rounded-full flex items-center justify-center mb-4 md:mb-6 shadow-[0_0_60px_rgba(236,72,153,0.6)] animate-bounce">
+                        <Heart className="w-[clamp(2.5rem,5vw,4rem)] h-[clamp(2.5rem,5vw,4rem)] text-pink-600 fill-current" />
                     </div>
                     
-                    <h1 className="text-[5vw] leading-none font-black text-white mb-6 drop-shadow-lg uppercase tracking-tight">
+                    <h1 className="text-[clamp(1.75rem,4.5vw,4.5rem)] leading-none font-black text-white mb-3 md:mb-5 drop-shadow-lg uppercase tracking-tight">
                         NOVA DOAÇÃO!
                     </h1>
 
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-8 rounded-3xl shadow-2xl transform rotate-1">
-                        <p className="text-[4vw] font-black text-pink-200 uppercase leading-tight mb-4">
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 p-4 md:p-6 rounded-2xl md:rounded-3xl shadow-2xl transform rotate-1">
+                        <p className="text-[clamp(1.5rem,3.8vw,3.5rem)] font-black text-pink-200 uppercase leading-tight mb-2">
                             {celebratingDonation.customerName || 'AMIGO'}
                         </p>
-                        <p className="text-[2.5vw] font-bold text-white uppercase leading-tight">
+                        <p className="text-[clamp(0.9rem,2.2vw,2rem)] font-bold text-white uppercase leading-tight">
                             MUITO OBRIGADO POR AJUDAR COM A NOSSA FORMATURA!
                         </p>
                     </div>
                     
-                    <div className="mt-12 flex items-center gap-4 bg-pink-600/50 px-8 py-4 rounded-full border border-pink-400/30">
-                        <span className="text-2xl font-bold text-white uppercase tracking-widest">TURMA 2026 AGRADECE ❤️</span>
+                    <div className="mt-6 md:mt-8 flex items-center gap-3 bg-pink-600/50 px-6 py-2.5 rounded-full border border-pink-400/30">
+                        <span className="text-sm md:text-xl font-bold text-white uppercase tracking-widest">TURMA 2026 AGRADECE ❤️</span>
                     </div>
                  </div>
             </div>
@@ -528,7 +561,7 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
 
         {/* === OVERLAY DE CELEBRAÇÃO GIGANTE PARA TV === */}
         {celebratingOrder && !celebratingDonation && (
-            <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl animate-in zoom-in-90 duration-300">
+            <div className="absolute inset-0 z-[200] flex flex-col items-center justify-center bg-black/95 backdrop-blur-xl animate-in zoom-in-90 duration-300 p-4">
             
             {/* Fundo de Fogo */}
             <div className="absolute inset-0 opacity-60 overflow-hidden pointer-events-none">
@@ -540,21 +573,21 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             </div>
 
             <div className="relative z-10 flex flex-col items-center text-center p-4 w-full">
-                <h1 className="text-[6vw] leading-none font-black text-white mb-8 drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] uppercase tracking-tighter animate-pulse">
+                <h1 className="text-[clamp(2rem,5.5vw,5rem)] leading-none font-black text-white mb-4 md:mb-6 drop-shadow-[0_10px_10px_rgba(0,0,0,0.8)] uppercase tracking-tighter animate-pulse">
                     TÁ FRITOOOOO!!!!
                 </h1>
 
                 {/* Box da Senha */}
-                <div className="bg-gradient-to-br from-orange-600 to-red-600 px-20 py-8 rounded-[3rem] shadow-[0_0_100px_rgba(234,88,12,0.8)] border-[6px] border-yellow-400 animate-cta-bounce transform rotate-[-2deg]">
-                    <span className="block text-4xl text-yellow-200 font-bold uppercase tracking-[0.5em] mb-2">SENHA</span>
-                    <span className="block text-[12vw] leading-none font-black text-white drop-shadow-xl">
+                <div className="bg-gradient-to-br from-orange-600 to-red-600 px-[clamp(2.5rem,6vw,5.5rem)] py-[clamp(1.2rem,3vw,2.5rem)] rounded-[clamp(1.5rem,4vmin,3rem)] shadow-[0_0_100px_rgba(234,88,12,0.8)] border-[clamp(3px,0.5vmin,6px)] border-yellow-400 animate-cta-bounce transform rotate-[-2deg]">
+                    <span className="block text-[clamp(1rem,2.2vw,2rem)] text-yellow-200 font-bold uppercase tracking-[0.4em] mb-1">SENHA</span>
+                    <span className="block text-[clamp(4.5rem,12vw,10.5rem)] leading-none font-black text-white drop-shadow-xl">
                         #{celebratingOrder.orderNumber}
                     </span>
                 </div>
 
-                <div className="mt-12 flex items-center gap-4 animate-in slide-in-from-bottom-20 duration-1000">
-                    <img src={settings.mascotUrl} className="h-32 w-32 object-contain animate-bounce" alt="Mascote" />
-                    <p className="text-4xl text-white font-bold bg-white/10 px-6 py-3 rounded-full border border-white/20">
+                <div className="mt-6 md:mt-10 flex items-center gap-3 animate-in slide-in-from-bottom-20 duration-1000">
+                    <img src={settings.mascotUrl} className="h-[clamp(3rem,7vw,6.5rem)] w-[clamp(3rem,7vw,6.5rem)] object-contain animate-bounce" alt="Mascote" />
+                    <p className="text-base sm:text-2xl md:text-3xl text-white font-bold bg-white/10 px-5 py-2.5 rounded-full border border-white/20">
                         Retire no balcão agora!
                     </p>
                 </div>
@@ -562,79 +595,88 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
             </div>
         )}
 
-        {/* HEADER - CENTRALIZADO */}
-        <header className="h-28 bg-gradient-to-b from-gray-900 to-black border-b border-gray-800 flex items-center justify-center px-8 z-10 relative shadow-xl flex-shrink-0">
+        {/* HEADER - RESPONSIVO E ADAPTÁVEL */}
+        <header className="h-[clamp(3.5rem,8.5vh,5.75rem)] bg-gradient-to-b from-gray-900 via-gray-950 to-black border-b border-gray-800 flex items-center justify-between px-[clamp(0.75rem,2vw,2rem)] z-10 relative shadow-xl flex-shrink-0">
             
-            {/* GRUPO CENTRAL (Logo + Título) */}
-            <div className="flex items-center gap-6">
-                <div className="relative">
+            {/* GRUPO ESQUERDA/CENTRO (Logo + Título) */}
+            <div className="flex items-center gap-3 sm:gap-4 md:gap-5 min-w-0">
+                <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 bg-orange-500 blur-xl opacity-20 animate-pulse"></div>
-                    <img src={settings.mascotUrl} alt="Logo" className="h-20 w-20 object-contain relative z-10" />
+                    <img src={settings.mascotUrl} alt="Logo" className="h-[clamp(2.5rem,6vh,4.25rem)] w-[clamp(2.5rem,6vh,4.25rem)] object-contain relative z-10 drop-shadow" />
                 </div>
-                <div className="flex flex-col justify-center">
-                    <h1 className="text-5xl font-black tracking-tighter text-white uppercase drop-shadow-md leading-none" style={{ textShadow: '2px 2px 0 #ea580c' }}>
+                <div className="flex flex-col justify-center min-w-0">
+                    <h1 className="text-[clamp(1.25rem,3.2vh,2.5rem)] font-black tracking-tighter text-white uppercase drop-shadow-md leading-none truncate" style={{ textShadow: '2px 2px 0 #ea580c' }}>
                         {settings.appName}
                     </h1>
-                    <p className="text-gray-400 text-base font-bold tracking-[0.2em] uppercase flex items-center justify-center gap-2 mt-1">
-                        <ChefHat size={16} className="text-orange-500" />
-                        Feira Cultural • {settings.schoolClass}
+                    <p className="text-gray-400 text-[clamp(0.65rem,1.4vh,0.95rem)] font-bold tracking-[0.15em] uppercase flex items-center gap-1.5 mt-0.5 truncate">
+                        <ChefHat className="w-3.5 h-3.5 text-orange-500 flex-shrink-0" />
+                        <span>Feira Cultural • {settings.schoolClass}</span>
                     </p>
                 </div>
             </div>
 
-            {/* RELÓGIO (Posicionado Absolutamente à Direita) */}
-            <div className="absolute right-8 top-1/2 -translate-y-1/2 text-right hidden lg:block">
-                <div className="text-5xl font-mono font-black text-white leading-none tracking-wider tabular-nums">
+            {/* GRUPO DIREITA (Relógio + Botão Tela Cheia TV) */}
+            <div className="flex items-center gap-3 sm:gap-5 flex-shrink-0">
+                <div className="text-[clamp(1.4rem,3.5vh,2.75rem)] font-mono font-black text-white leading-none tracking-wider tabular-nums drop-shadow">
                     {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                 </div>
+
+                <button
+                    onClick={toggleFullscreen}
+                    className="p-1.5 sm:p-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/15 text-white/80 hover:text-white transition-all shadow active:scale-95 flex items-center gap-1.5 text-xs font-bold"
+                    title={isFullscreen ? 'Sair da Tela Cheia (F)' : 'Tela Cheia TV (F)'}
+                >
+                    {isFullscreen ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                    <span className="hidden sm:inline text-[11px] uppercase tracking-wider">{isFullscreen ? 'Janela' : 'Tela Cheia'}</span>
+                </button>
             </div>
         </header>
 
-        {/* MAIN CONTENT - SPLIT 50/50 */}
+        {/* MAIN CONTENT - SPLIT 50/50 COM DISTRIBUIÇÃO VERTICAL INTELIGENTE */}
         <div className="flex-1 flex w-full relative min-h-0">
             
-            {/* ESQUERDA: PREPARANDO (GRID) */}
+            {/* ESQUERDA: PREPARANDO (GRID FLUIDO) */}
             <div className="w-1/2 bg-[#1a1a1a] border-r border-gray-800 flex flex-col relative overflow-hidden">
-                <div className="p-5 bg-gradient-to-r from-yellow-900/40 to-transparent border-b border-yellow-600/30 flex items-center gap-4">
-                    <ChefHat size={40} className="text-yellow-500" />
-                    <h2 className="text-3xl font-black text-yellow-500 tracking-wider uppercase">PREPARANDO</h2>
+                <div className="p-[clamp(0.4rem,1.4vh,0.9rem)] px-[clamp(0.75rem,2vw,1.5rem)] bg-gradient-to-r from-yellow-900/40 to-transparent border-b border-yellow-600/30 flex items-center gap-3 flex-shrink-0">
+                    <ChefHat className="w-[clamp(1.25rem,3vh,2rem)] h-[clamp(1.25rem,3vh,2rem)] text-yellow-500 flex-shrink-0" />
+                    <h2 className="text-[clamp(1rem,2.4vh,1.6rem)] font-black text-yellow-500 tracking-wider uppercase">PREPARANDO</h2>
                 </div>
             
-                <div className="flex-1 p-6 overflow-hidden">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 content-start">
+                <div className="flex-1 p-[clamp(0.5rem,1.5vmin,1.25rem)] overflow-y-auto no-scrollbar">
+                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-[clamp(0.4rem,1.2vmin,0.9rem)] content-start">
                         {preparingOrders.map(order => (
-                        <div key={order.id} className="bg-white/5 border border-white/10 rounded-xl aspect-[16/9] flex items-center justify-center animate-in fade-in duration-500">
-                            <span className="text-5xl xl:text-7xl font-black text-yellow-400/90 tracking-tighter">
+                        <div key={order.id} className="bg-white/5 border border-white/10 rounded-xl aspect-[16/10] flex items-center justify-center shadow-inner animate-in fade-in duration-500">
+                            <span className="text-[clamp(1.8rem,5.5vh,4rem)] font-black text-yellow-400/90 tracking-tighter">
                             #{order.orderNumber}
                             </span>
                         </div>
                         ))}
                         
                         {preparingOrders.length === 0 && (
-                        <div className="col-span-2 lg:col-span-3 flex flex-col items-center justify-center py-20 opacity-20">
-                            <ChefHat size={80} className="text-white mb-4" />
-                            <p className="text-2xl font-bold uppercase">Cozinha Livre</p>
+                        <div className="col-span-2 lg:col-span-3 flex flex-col items-center justify-center py-12 md:py-20 opacity-20">
+                            <ChefHat className="w-12 h-12 md:w-16 md:h-16 text-white mb-3" />
+                            <p className="text-base md:text-xl font-bold uppercase tracking-wider">Cozinha Livre</p>
                         </div>
                         )}
                     </div>
                 </div>
             </div>
 
-            {/* DIREITA: PRONTO (LISTA) */}
+            {/* DIREITA: PRONTO (LISTA INTELIGENTE QUE SE AJUSTA À ALTURA) */}
             <div className="w-1/2 bg-black flex flex-col relative overflow-hidden">
                 {/* Gradient Background */}
                 <div className="absolute inset-0 bg-gradient-to-b from-green-900/20 via-transparent to-transparent pointer-events-none"></div>
                 
-                <div className="p-5 bg-gradient-to-r from-green-900/60 to-transparent border-b border-green-600/30 flex items-center gap-4 relative z-10">
-                    <CheckCircle2 size={40} className="text-green-400" />
-                    <h2 className="text-3xl font-black text-green-400 tracking-wider uppercase">PRONTO</h2>
+                <div className="p-[clamp(0.4rem,1.4vh,0.9rem)] px-[clamp(0.75rem,2vw,1.5rem)] bg-gradient-to-r from-green-900/60 to-transparent border-b border-green-600/30 flex items-center gap-3 relative z-10 flex-shrink-0">
+                    <CheckCircle2 className="w-[clamp(1.25rem,3vh,2rem)] h-[clamp(1.25rem,3vh,2rem)] text-green-400 flex-shrink-0" />
+                    <h2 className="text-[clamp(1rem,2.4vh,1.6rem)] font-black text-green-400 tracking-wider uppercase">PRONTO</h2>
                 </div>
 
-                <div className="flex-1 p-6 overflow-hidden relative z-10 flex flex-col gap-3">
+                <div className="flex-1 p-[clamp(0.5rem,1.5vmin,1.25rem)] overflow-hidden relative z-10 flex flex-col gap-[clamp(0.3rem,0.9vh,0.75rem)]">
                     {readyOrders.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full opacity-30">
-                            <CheckCircle2 size={100} className="text-white mb-6" />
-                            <p className="text-3xl font-bold uppercase">Aguardando...</p>
+                            <CheckCircle2 className="w-16 h-16 md:w-20 md:h-20 text-white mb-4" />
+                            <p className="text-lg md:text-2xl font-bold uppercase tracking-wider">Aguardando...</p>
                         </div>
                     ) : (
                         readyOrders.map((order, index) => {
@@ -643,19 +685,23 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
                             return (
                                 <div 
                                     key={order.id}
-                                    className={`flex items-center justify-between rounded-xl shadow-lg transition-all duration-500 px-6
+                                    className={`flex-1 min-h-0 flex items-center justify-between rounded-xl shadow-lg transition-all duration-500 px-[clamp(0.75rem,2vw,1.5rem)]
                                     ${isFirst 
-                                        ? 'bg-gradient-to-r from-green-700 to-green-600 border-2 border-white py-4 transform scale-[1.02] shadow-[0_0_30px_rgba(34,197,94,0.4)] z-10' 
-                                        : 'bg-gray-800 border border-gray-700 py-3 opacity-70'
+                                        ? 'bg-gradient-to-r from-green-700 to-green-600 border-2 border-white transform scale-[1.01] shadow-[0_0_30px_rgba(34,197,94,0.4)] z-10 flex-[1.25]' 
+                                        : 'bg-gray-800/90 border border-gray-700 opacity-80'
                                     }`}
                                 >
-                                    <div className="flex items-baseline gap-4 w-full justify-between">
-                                        <span className={`font-bold uppercase tracking-widest ${isFirst ? 'text-green-100 text-xl' : 'text-gray-500 text-lg'}`}>
+                                    <div className="flex items-center gap-3 w-full justify-between">
+                                        <span className={`font-bold uppercase tracking-widest ${isFirst ? 'text-green-100 text-[clamp(0.85rem,1.8vh,1.25rem)]' : 'text-gray-400 text-[clamp(0.7rem,1.5vh,1rem)]'}`}>
                                             SENHA
                                         </span>
-                                        <div className="flex items-center gap-4">
-                                            {isFirst && <div className="animate-pulse bg-white text-green-700 text-xs font-black px-2 py-1 rounded uppercase">Saiu Agora</div>}
-                                            <span className={`font-black leading-none tracking-tighter ${isFirst ? 'text-7xl text-white' : 'text-5xl text-green-500'}`}>
+                                        <div className="flex items-center gap-3">
+                                            {isFirst && (
+                                                <div className="animate-pulse bg-white text-green-700 text-[clamp(0.6rem,1.2vh,0.8rem)] font-black px-2 py-0.5 rounded uppercase tracking-wider shadow">
+                                                    Saiu Agora
+                                                </div>
+                                            )}
+                                            <span className={`font-black leading-none tracking-tighter ${isFirst ? 'text-[clamp(2.2rem,7vh,4.75rem)] text-white drop-shadow' : 'text-[clamp(1.6rem,4.8vh,3.25rem)] text-green-400'}`}>
                                                 #{order.orderNumber}
                                             </span>
                                         </div>
@@ -669,10 +715,10 @@ const PublicDisplay: React.FC<PublicDisplayProps> = ({ transactions, settings })
 
         </div>
         
-        {/* MARQUEE FOOTER (Dinâmico) */}
-        <div className="bg-orange-600 h-12 flex items-center overflow-hidden relative border-t-4 border-orange-400 z-20 flex-shrink-0">
-            <div className="whitespace-nowrap animate-[marquee_30s_linear_infinite] text-white font-black text-lg uppercase tracking-widest drop-shadow-md flex items-center gap-8">
-               <span className="flex items-center gap-2"><AlertTriangle size={20}/> {marqueeContent}</span>
+        {/* MARQUEE FOOTER (Dinâmico e Proporcional) */}
+        <div className="bg-orange-600 h-[clamp(2.1rem,4.5vh,2.75rem)] flex items-center overflow-hidden relative border-t-2 md:border-t-4 border-orange-400 z-20 flex-shrink-0">
+            <div className="whitespace-nowrap animate-[marquee_30s_linear_infinite] text-white font-black text-[clamp(0.75rem,1.8vh,1.1rem)] uppercase tracking-widest drop-shadow-md flex items-center gap-8">
+               <span className="flex items-center gap-2"><AlertTriangle className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" /> {marqueeContent}</span>
             </div>
         </div>
 
